@@ -1,0 +1,191 @@
+import { defineConfig } from "vite-plus";
+import type { OxlintOverride } from "vite-plus/lint";
+
+import { baseRestrictions, lint } from "./apps/testbed/vendor/devkit/core/lint/rules.ts";
+
+/**
+ * Keeps `files` from importing the `forbidden` runtime directories under the testbed's `src/`,
+ * which would put one Worker's code in another's bundle. An override replaces the base
+ * `no-restricted-imports` options, so it carries {@link baseRestrictions} again.
+ */
+const runtimeBoundary = (
+  files: string,
+  forbidden: readonly string[],
+  message: string,
+  options: { allowTypeImports?: boolean } = {},
+): OxlintOverride => ({
+  files: [files],
+  rules: {
+    "no-restricted-imports": [
+      "error",
+      {
+        ...baseRestrictions,
+        patterns: [
+          ...baseRestrictions.patterns,
+          { group: forbidden.map((dir) => `#${dir}/**`), message, ...options },
+        ],
+      },
+    ],
+  },
+});
+
+/** The files that hold a component or a hook. */
+const WEB_FILES = ["apps/testbed/src/web/**", "apps/testbed/test/browser/**"];
+
+/**
+ * The rules that read components and hooks: those the categories turn on under the `react` and
+ * `jsx-a11y` plugins (`vp lint --print-config`), and the TanStack Router rules opted in by name.
+ * Only {@link WEB_FILES} hold a component or a hook, and elsewhere the hooks rules read every
+ * `use…` call as one (Playwright's fixture `use`). Oxlint applies categories only to the base
+ * plugins, so the override that turns these off elsewhere names each rule.
+ */
+const webOnlyRules = [
+  ...[
+    "capitalized-calls",
+    "checked-requires-onchange-or-readonly",
+    "display-name",
+    "error-boundaries",
+    "exhaustive-deps",
+    "exhaustive-effect-dependencies",
+    "forward-ref-uses-ref",
+    "function-component-definition",
+    "globals",
+    "hook-use-state",
+    "hooks",
+    "iframe-missing-sandbox",
+    "immutability",
+    "incompatible-library",
+    "jsx-boolean-value",
+    "jsx-curly-brace-presence",
+    "jsx-fragments",
+    "jsx-key",
+    "jsx-no-comment-textnodes",
+    "jsx-no-constructed-context-values",
+    "jsx-no-duplicate-props",
+    "jsx-no-script-url",
+    "jsx-no-target-blank",
+    "jsx-no-undef",
+    "jsx-no-useless-fragment",
+    "jsx-pascal-case",
+    "jsx-props-no-spread-multi",
+    "memo-dependencies",
+    "no-array-index-key",
+    "no-children-prop",
+    "no-danger-with-children",
+    "no-deriving-state-in-effects",
+    "no-did-mount-set-state",
+    "no-did-update-set-state",
+    "no-direct-mutation-state",
+    "no-find-dom-node",
+    "no-is-mounted",
+    "no-namespace",
+    "no-object-type-as-default-prop",
+    "no-redundant-should-component-update",
+    "no-render-return-value",
+    "no-set-state",
+    "no-string-refs",
+    "no-this-in-sfc",
+    "no-unsafe",
+    "no-unstable-nested-components",
+    "no-will-update-set-state",
+    "prefer-es6-class",
+    "preserve-manual-memoization",
+    "purity",
+    "refs",
+    "rules-of-hooks",
+    "self-closing-comp",
+    "set-state-in-effect",
+    "set-state-in-render",
+    "state-in-constructor",
+    "static-components",
+    "style-prop-object",
+    "use-memo",
+    "void-dom-elements-no-children",
+    "void-use-memo",
+  ].map((rule) => `react/${rule}`),
+  ...[
+    "alt-text",
+    "anchor-has-content",
+    "anchor-is-valid",
+    "aria-activedescendant-has-tabindex",
+    "aria-props",
+    "aria-proptypes",
+    "aria-role",
+    "aria-unsupported-elements",
+    "autocomplete-valid",
+    "click-events-have-key-events",
+    "control-has-associated-label",
+    "heading-has-content",
+    "html-has-lang",
+    "iframe-has-title",
+    "img-redundant-alt",
+    "interactive-supports-focus",
+    "label-has-associated-control",
+    "lang",
+    "media-has-caption",
+    "mouse-events-have-key-events",
+    "no-access-key",
+    "no-aria-hidden-on-focusable",
+    "no-autofocus",
+    "no-distracting-elements",
+    "no-interactive-element-to-noninteractive-role",
+    "no-noninteractive-element-interactions",
+    "no-noninteractive-element-to-interactive-role",
+    "no-noninteractive-tabindex",
+    "no-redundant-roles",
+    "no-static-element-interactions",
+    "prefer-tag-over-role",
+    "role-has-required-aria-props",
+    "role-supports-aria-props",
+    "scope",
+    "tabindex-no-positive",
+  ].map((rule) => `jsx-a11y/${rule}`),
+  "@tanstack/router/create-route-property-order",
+  "@tanstack/router/route-param-names",
+];
+
+export default defineConfig({
+  fmt: {
+    sortImports: true,
+    ignorePatterns: [
+      "**/routeTree.gen.ts",
+      "AGENTS.md",
+      "refs/**",
+      "docs/**",
+      "**/vendor/**",
+      "pnpm-lock.yaml",
+    ],
+  },
+  lint: {
+    ...lint,
+    plugins: [...lint.plugins, "react", "jsx-a11y"],
+    settings: { react: { linkComponents: [{ name: "Link", attribute: "to" }] } },
+    ignorePatterns: ["**/dist/", "docs/", "refs/", "tmp/", "**/routeTree.gen.ts"],
+    rules: {
+      ...lint.rules,
+      "react/no-unstable-nested-components": ["error", { allowAsProps: true }],
+      "@tanstack/router/create-route-property-order": "error",
+      "@tanstack/router/route-param-names": "error",
+    },
+    jsPlugins: ["@tanstack/eslint-plugin-router", ...lint.jsPlugins],
+    overrides: [
+      {
+        files: ["**"],
+        excludeFiles: WEB_FILES,
+        rules: Object.fromEntries(webOnlyRules.map((rule) => [rule, "off" as const])),
+      },
+      runtimeBoundary(
+        "apps/testbed/src/web/**",
+        ["backend"],
+        "The Website bundle never carries Backend code; use `import type`.",
+        { allowTypeImports: true },
+      ),
+      runtimeBoundary(
+        "apps/testbed/src/backend/**",
+        ["web"],
+        "The Backend never imports the Website.",
+      ),
+      ...lint.overrides,
+    ],
+  },
+});

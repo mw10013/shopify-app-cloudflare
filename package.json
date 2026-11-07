@@ -1,0 +1,32 @@
+{
+  "name": "shopify-app-workers-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp -C apps/testbed run dev",
+    "worktree:init": "vp -C apps/testbed run worktree:init",
+    "worktree:teardown": "vp -C apps/testbed run worktree:teardown"
+  },
+  "devDependencies": {
+    "@tanstack/eslint-plugin-router": "1.162.0",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.9.1",
+      "onFail": "download"
+    },
+    "runtime": {
+      "name": "node",
+      "version": "24.21.0",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.9.1"
+}
