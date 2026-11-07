@@ -1,0 +1,29 @@
+# client_id is written by `shopify app config link`. Commit this file as soon as it is.
+application_url = "https://example.com"
+embedded = true
+name = "Workers Testbed Dev"
+handle = "workers-testbed-dev"
+
+[access_scopes]
+scopes = ""
+
+[auth]
+redirect_urls = ["https://example.com/api/auth"]
+
+[webhooks]
+api_version = "2026-10"
+
+[[webhooks.subscriptions]]
+uri = "/webhooks/compliance"
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+
+[[webhooks.subscriptions]]
+uri = "/webhooks/app/scopes_update"
+topics = ["app/scopes_update"]
+
+[[webhooks.subscriptions]]
+uri = "/webhooks/app/uninstalled"
+topics = ["app/uninstalled"]
+
+[build]
+automatically_update_urls_on_dev = true
