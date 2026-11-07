@@ -4,9 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vp -C apps/testbed run dev",
-    "worktree:init": "vp -C apps/testbed run worktree:init",
-    "worktree:teardown": "vp -C apps/testbed run worktree:teardown"
+    "dev": "vp -C apps/testbed run dev"
   },
   "devDependencies": {
     "@tanstack/eslint-plugin-router": "1.162.0",
