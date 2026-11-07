@@ -1,7 +1,6 @@
+import { baseRestrictions, lint } from "@mw10013/devkit/core/lint/rules";
 import { defineConfig } from "vite-plus";
 import type { OxlintOverride } from "vite-plus/lint";
-
-import { baseRestrictions, lint } from "./apps/testbed/vendor/devkit/core/lint/rules.ts";
 
 /**
  * Keeps `files` from importing the `forbidden` runtime directories under the testbed's `src/`,
@@ -147,14 +146,7 @@ const webOnlyRules = [
 export default defineConfig({
   fmt: {
     sortImports: true,
-    ignorePatterns: [
-      "**/routeTree.gen.ts",
-      "AGENTS.md",
-      "refs/**",
-      "docs/**",
-      "**/vendor/**",
-      "pnpm-lock.yaml",
-    ],
+    ignorePatterns: ["**/routeTree.gen.ts", "AGENTS.md", "refs/**", "docs/**", "pnpm-lock.yaml"],
   },
   lint: {
     ...lint,
