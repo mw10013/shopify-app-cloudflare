@@ -3,5 +3,5 @@
   "compilerOptions": {
     "types": ["vite/client", "node", "@cloudflare/workers-types", "@shopify/polaris-types"]
   },
-  "include": ["src", "test", "scripts", "vendor", "alchemy.run.ts", "vite.config.ts"]
+  "include": ["src", "test", "scripts", "alchemy.run.ts", "vite.config.ts"]
 }

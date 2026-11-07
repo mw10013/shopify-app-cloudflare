@@ -1,12 +1,11 @@
 #!/usr/bin/env vpx
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import { webEnvironment } from "@mw10013/devkit/shopify/web";
 import * as CliError from "effect/cli/CliError";
 import * as Command from "effect/cli/Command";
 import * as Console from "effect/Console";
 import * as Effect from "effect/Effect";
-
-import { webEnvironment } from "#devkit/shopify/web.ts";
 
 Command.make("web", {}, () =>
   webEnvironment.pipe(

@@ -1,4 +1,7 @@
 import cloudflare from "@alchemy.run/cloudflare-runtime/vite";
+import { app } from "@mw10013/devkit/core/app";
+import { testRunDirectory } from "@mw10013/devkit/core/test-runs";
+import { webEnvironmentSync } from "@mw10013/devkit/shopify/web";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
 import * as Option from "effect/Option";
@@ -6,8 +9,8 @@ import * as Schema from "effect/Schema";
 import * as SchemaTransformation from "effect/SchemaTransformation";
 import { defineConfig } from "vite-plus";
 
-import { testRunDirectory } from "#devkit/core/test-runs.ts";
-import { webEnvironmentSync } from "#devkit/shopify/web.ts";
+const { root } = app(import.meta.dirname);
+
 /**
  * Vite's dependency cache, one per server: the dev and e2e servers run in one checkout at once,
  * and a re-optimization by one deletes files the other has loaded (every SSR request then 500s).
@@ -84,12 +87,12 @@ export default defineConfig(({ command, mode, isPreview }) => {
         : undefined,
     test: {
       passWithNoTests: true,
-      // Every run's results stay in its own directory (`#devkit/core/test-runs.ts`), failures included.
+      // Every run's results stay in its own directory (`@mw10013/devkit/core/test-runs`), failures included.
       ...(mode === "test"
         ? {
             reporters: [
               "default",
-              ["json", { outputFile: `${testRunDirectory("test")}/results.json` }],
+              ["json", { outputFile: `${testRunDirectory("test", [], root)}/results.json` }],
             ],
           }
         : {}),

@@ -8,7 +8,6 @@
     "#web/*": "./src/web/*",
     "#test/*": "./test/*",
     "#scripts/*": "./scripts/*",
-    "#devkit/*": "./vendor/devkit/*",
     "#root/*": "./*"
   },
   "scripts": {
