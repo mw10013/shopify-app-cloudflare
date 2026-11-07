@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vp -C apps/testbed run dev"
+    "dev": "vp -C apps/testbed run dev",
+    "check:pin": "devkit check-pin"
   },
   "devDependencies": {
     "@mw10013/devkit": "catalog:",
