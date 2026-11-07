@@ -1,29 +1,33 @@
-# client_id is written by `shopify app config link`. Commit this file as soon as it is.
-application_url = "https://example.com"
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+application_url = "https://shopify.dev/apps/default-app-home"
 embedded = true
 name = "Workers Testbed Dev"
 handle = "workers-testbed-dev"
+client_id = "145364007aa2fa71bb14f6e4aad2bfd5"
 
 [access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = ""
 
 [auth]
-redirect_urls = ["https://example.com/api/auth"]
+redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
 
 [webhooks]
-api_version = "2026-10"
+api_version = "2027-01"
 
-[[webhooks.subscriptions]]
-uri = "/webhooks/compliance"
-compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/compliance"
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
 
-[[webhooks.subscriptions]]
-uri = "/webhooks/app/scopes_update"
-topics = ["app/scopes_update"]
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/scopes_update"
+  topics = [ "app/scopes_update" ]
 
-[[webhooks.subscriptions]]
-uri = "/webhooks/app/uninstalled"
-topics = ["app/uninstalled"]
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = [ "app/uninstalled" ]
 
 [build]
+include_config_on_deploy = true
 automatically_update_urls_on_dev = true
