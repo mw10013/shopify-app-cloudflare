@@ -17,9 +17,7 @@
     "dev:stop": "bosun stop dev",
     "dev:status": "vpx scripts/dev.ts status",
     "dev:logs": "bosun logs dev",
-    "e2e:stop": "bosun stop e2e",
-    "worktree:init": "vpx scripts/worktree.ts init",
-    "worktree:teardown": "vp run dev:stop && vp run e2e:stop && berth release"
+    "e2e:stop": "bosun stop e2e"
   },
   "dependencies": {
     "@alchemy.run/cloudflare": "catalog:",
