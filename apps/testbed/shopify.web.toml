@@ -1,0 +1,14 @@
+name = "testbed"
+roles = ["frontend", "backend"]
+webhooks_path = "/webhooks/app/uninstalled"
+# No `port`: the CLI picks a free one per run and passes it to the web command as BACKEND_PORT, so
+# each checkout and environment runs on its own port.
+
+[commands]
+# The CLI's web command must be the long-lived foreground process that receives the variables it
+# injects (APP_URL, SHOPIFY_API_KEY, SHOPIFY_API_SECRET, BACKEND_PORT). `dev:alchemy` publishes the
+# port and tunnel to bosun, then runs `alchemy dev`, which passes its environment through to the
+# stack and the Vite child. When `alchemy dev` exits, `kill -TERM 0` ends the server's process
+# group, CLI included, so bosun sees the exit instead of a CLI that serves nothing. The dev and e2e
+# servers both run this command, told apart by the SANDBOX_ENVIRONMENT their bosun command sets.
+dev = "vp run dev:alchemy"

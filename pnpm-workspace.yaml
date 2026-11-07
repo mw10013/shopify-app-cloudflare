@@ -1,0 +1,28 @@
+packages:
+  - apps/*
+  - packages/*
+saveExact: true
+catalog:
+  "@alchemy.run/cloudflare": 2.0.0-beta.85
+  "@types/node": 26.6.4
+  alchemy: 2.0.0-beta.85
+  effect: 4.1.2
+  typescript: 7.0.2
+  vite: npm:@voidzero-dev/vite-plus-core@1.4.0
+  vite-plus: 1.4.0
+  vitest: 5.0.5
+allowBuilds:
+  esbuild: true
+  workerd: true
+  "@parcel/watcher": false
+  msw: false
+overrides:
+  vite@*: "catalog:"
+  vitest@*: "catalog:"
+peerDependencyRules:
+  allowAny:
+    - vite
+  allowedVersions:
+    vite: "*"
+patchedDependencies:
+  "@alchemy.run/cloudflare@2.0.0-beta.85": patches/@alchemy.run__cloudflare@2.0.0-beta.85.patch

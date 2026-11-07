@@ -1,0 +1,7 @@
+{
+  "project": "testbed",
+  "envs": {
+    "dev": { "store": { "config": "shopify.app.toml" } },
+    "e2e": { "store": { "config": "shopify.app.e2e.toml" } }
+  }
+}

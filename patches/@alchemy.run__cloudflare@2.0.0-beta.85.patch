@@ -1,0 +1,62 @@
+diff --git a/lib/Workers/WorkerBridge.js b/lib/Workers/WorkerBridge.js
+index faf18eaf77c8b2f7b1a30199612e24244fd862fc..b46daae5284ce38965ab570c12eaf42590c2e3ea 100644
+--- a/lib/Workers/WorkerBridge.js
++++ b/lib/Workers/WorkerBridge.js
+@@ -151,9 +151,7 @@ const getSharedBuild = (entrypoint, stack) => {
+     // Node.js process v2.
+     const terminal = Layer.unwrap(Effect.sync(() => typeof globalThis.process?.stdin?.once === "function" ? NodeTerminal.layer : Layer.empty));
+     const platformServices = Layer.provideMerge(NodeChildProcessSpawner.layer, Layer.mergeAll(NodeFileSystem.layer, NodeCrypto.layer, NodePath.layer, NodeStdio.layer, terminal));
+-    const platform = Layer.mergeAll(platformServices, FetchHttpClient.layer, 
+-    // TODO(sam): wire this up to telemetry more directly
+-    Logger.layer([Logger.consolePretty()]));
++    const platform = Layer.mergeAll(platformServices, FetchHttpClient.layer);
+     // Private scope for the isolate-lifetime layer build. Never closed —
+     // workerd has no isolate-teardown hook, so finalizers attached here can
+     // never run. It exists only because `Layer.buildWithMemoMap` requires a
+@@ -177,7 +175,10 @@ const getSharedBuild = (entrypoint, stack) => {
+     reifyBoundConfigProvider(ConfigProvider.fromUnknown(env), env)))), Layer.provideMerge(Layer.succeed(WorkerEnvironment, env)), Layer.provideMerge(Layer.succeed(CloudflareEnvironment, 
+     // TODO(sam): fix this with maybe a CloudflareAccountId Effect service
+     // @ts-expect-error - this is hacky, but we only need and have this property
+-    Effect.succeed({ account: env.ALCHEMY_CLOUDFLARE_ACCOUNT_ID }))), Layer.provideMerge(Layer.succeed(MinimumLogLevel, env.DEBUG ? "Debug" : "Info"))))));
++    Effect.succeed({ account: env.ALCHEMY_CLOUDFLARE_ACCOUNT_ID }))), Layer.provideMerge(Layer.succeed(MinimumLogLevel, env.DEBUG ? "Debug" : "Info")), 
++    // `LOG_FORMAT=structured` logs one object per line, which Workers Logs records as one
++    // event with the annotations as queryable fields.
++    Layer.provideMerge(Logger.layer([env.LOG_FORMAT === "structured" ? Logger.consoleStructured : Logger.consolePretty()]))))));
+     let built;
+     /**
+      * Build the isolate-lifetime layer stack exactly once; every subsequent
+diff --git a/src/Workers/WorkerBridge.ts b/src/Workers/WorkerBridge.ts
+index 5bff26b7615b0fcb404397b0964313135b7e5770..a9491de2db72055954d032a2332847240f3e926f 100644
+--- a/src/Workers/WorkerBridge.ts
++++ b/src/Workers/WorkerBridge.ts
+@@ -258,12 +258,7 @@ const getSharedBuild = (entrypoint: any, stack: { name: string; stage: string })
+     ),
+   );
+ 
+-  const platform = Layer.mergeAll(
+-    platformServices,
+-    FetchHttpClient.layer,
+-    // TODO(sam): wire this up to telemetry more directly
+-    Logger.layer([Logger.consolePretty()]),
+-  );
++  const platform = Layer.mergeAll(platformServices, FetchHttpClient.layer);
+ 
+   // Private scope for the isolate-lifetime layer build. Never closed —
+   // workerd has no isolate-teardown hook, so finalizers attached here can
+@@ -316,6 +311,16 @@ const getSharedBuild = (entrypoint: any, stack: { name: string; stage: string })
+             ),
+           ),
+           Layer.provideMerge(Layer.succeed(MinimumLogLevel, (env as any).DEBUG ? "Debug" : "Info")),
++          // `LOG_FORMAT=structured` logs one object per line, which Workers Logs records as one
++          // event with the annotations as queryable fields. The pretty logger writes each
++          // annotation as its own console line, so its own event.
++          Layer.provideMerge(
++            Logger.layer([
++              (env as any).LOG_FORMAT === "structured"
++                ? Logger.consoleStructured
++                : Logger.consolePretty(),
++            ]),
++          ),
+         ),
+       ),
+     ),

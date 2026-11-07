@@ -1,0 +1,16 @@
+{
+  "name": "@mw10013/shopify-app-workers",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./backend": "./src/backend.ts",
+    "./website": "./src/website.ts",
+    "./client": "./src/client.ts",
+    "./test": "./src/test.ts"
+  },
+  "peerDependencies": {
+    "@alchemy.run/cloudflare": "catalog:",
+    "alchemy": "catalog:",
+    "effect": "catalog:"
+  }
+}

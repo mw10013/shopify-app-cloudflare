@@ -2,5 +2,48 @@
   "name": "testbed",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "imports": {
+    "#backend/*": "./src/backend/*",
+    "#web/*": "./src/web/*",
+    "#test/*": "./test/*",
+    "#scripts/*": "./scripts/*",
+    "#devkit/*": "./vendor/devkit/*",
+    "#root/*": "./*"
+  },
+  "scripts": {
+    "dev:alchemy": "bash -c 'environment=$(vpx scripts/web.ts) && stage=$(vpx scripts/stage.ts \"$environment\") && printf \"{\\\"port\\\":%s,\\\"url\\\":\\\"%s\\\"}\" \"$BACKEND_PORT\" \"$APP_URL\" > \"${BOSUN_ENDPOINT:?start the server with vp run dev or vp run e2e:start}\" && env -u FORCE_COLOR NO_COLOR=1 WEBSITE_PORT=$BACKEND_PORT alchemy dev --stage \"$stage\"; kill -TERM 0'",
+    "dev": "vpx scripts/dev.ts start",
+    "dev:stop": "bosun stop dev",
+    "dev:status": "vpx scripts/dev.ts status",
+    "dev:logs": "bosun logs dev",
+    "e2e:stop": "bosun stop e2e",
+    "worktree:init": "vpx scripts/worktree.ts init",
+    "worktree:teardown": "vp run dev:stop && vp run e2e:stop && berth release"
+  },
+  "dependencies": {
+    "@alchemy.run/cloudflare": "catalog:",
+    "@effect/platform-node": "4.1.2",
+    "@mw10013/shopify-app-workers": "workspace:*",
+    "@tanstack/react-router": "1.170.41",
+    "@tanstack/react-start": "1.168.60",
+    "alchemy": "catalog:",
+    "effect": "catalog:",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@alchemy.run/cloudflare-runtime": "2.0.0-beta.85",
+    "@cloudflare/workers-types": "5.20261026.1",
+    "@shopify/polaris-types": "2.0.0",
+    "@types/node": "catalog:",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "playwright": "1.64.1",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
+  }
 }
