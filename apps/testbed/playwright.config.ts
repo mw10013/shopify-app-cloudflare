@@ -20,6 +20,7 @@ import { defineConfig } from "playwright/test";
 import { catalog } from "#backend/app.ts";
 import { E2E_SESSION_FILE, E2E_TOKEN_HEADER, E2eSessionJson } from "#e2e/session.ts";
 import { E2E_STATUS_PATH } from "#e2e/status.ts";
+import { E2E_WEBHOOKS_PATH } from "#e2e/webhooks.ts";
 import { STORE_SCOPES } from "#scripts/lib/store-auth.ts";
 
 const devkitApp = app(import.meta.dirname);
@@ -41,13 +42,24 @@ const session = Schema.decodeUnknownSync(E2eSessionJson)(
 if (session.shop !== `${store}.myshopify.com`)
   throw new Error(`${E2E_SESSION_FILE} is for ${session.shop}, not ${store}: ${RESTART}`);
 
+const clientIdOf = (toml: string) =>
+  Option.getOrThrowWith(
+    Option.fromNullishOr(
+      /^client_id = "(?<id>[0-9a-f]{32})"$/mu.exec(readFileSync(toml, "utf8"))?.groups?.id,
+    ),
+    () => new Error(`${toml} has no client_id = "<32 hex>" line`),
+  );
 const appToml = path.join(root, "shopify.app.toml");
-const clientId = Option.getOrThrowWith(
-  Option.fromNullishOr(
-    /^client_id = "(?<id>[0-9a-f]{32})"$/mu.exec(readFileSync(appToml, "utf8"))?.groups?.id,
-  ),
-  () => new Error(`${appToml} has no client_id = "<32 hex>" line`),
-);
+const clientId = clientIdOf(appToml);
+/**
+ * The toml the e2e server serves (`berth.json`), whose app's secret the Backend checks the HMAC
+ * with: the webhook trigger signs for it. `e2e:start` writes it as a copy of `shopify.app.toml`.
+ */
+const e2eToml = path.join(root, "shopify.app.e2e.toml");
+if (clientIdOf(e2eToml) !== clientId)
+  throw new Error(
+    `${e2eToml} names another app than ${appToml}, so Shopify would sign the e2e webhooks with another secret than the server checks: ${RESTART}`,
+  );
 
 /**
  * The catalog's plans, cheapest first, with their names on the Partner Dashboard, which head their
@@ -69,6 +81,8 @@ const testbed: E2eApp = {
   plans: PLANS,
   server: { port: server.port, tunnel },
   status: { path: E2E_STATUS_PATH, headers: { [E2E_TOKEN_HEADER]: session.token } },
+  // shop/update only logs, so Shopify's sample of it is safe to deliver.
+  webhooks: { config: e2eToml, topics: ["shop/update"], record: E2E_WEBHOOKS_PATH },
   restart: { command: ["vpx", "scripts/e2e.ts", "reinstall"], cwd: root },
   storeScopes: STORE_SCOPES,
 };

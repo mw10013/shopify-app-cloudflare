@@ -26,27 +26,42 @@ import {
   type TestInfo,
 } from "playwright/test";
 
-import { E2eShopStatus } from "#internal/e2e-status.ts";
+import { E2eShopStatus, E2eWebhookDeliveries } from "#internal/e2e-status.ts";
 
 import { onLeasedStore, planSelectionUrl, requireLeasedStore, screenError } from "./admin.ts";
-import { appBaseUrl, E2eApp, type E2eOptions, statusUrl } from "./app.ts";
+import { appBaseUrl, E2eApp, type E2eOptions, statusUrl, webhookRecordUrl } from "./app.ts";
 
 /** Reads the app's e2e status route for one shop. */
 export type ShopStatusRead = (shop: string) => Promise<E2eShopStatus>;
 
 const decodeApp = Schema.decodeUnknownSync(E2eApp);
 const decodeStatus = Schema.decodeUnknownPromise(E2eShopStatus);
+const decodeDeliveries = Schema.decodeUnknownPromise(E2eWebhookDeliveries);
+
+/**
+ * GETs `url`, on the e2e server's local port (`localServerUrl`), with the status route's headers, and
+ * answers its JSON body. A redirect fails the read, since it would carry the token elsewhere.
+ */
+const getLocalJson = async (app: E2eApp, url: URL, name: string): Promise<unknown> => {
+  const response = await fetch(url, {
+    headers: app.status.headers,
+    redirect: "error",
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error(`GET ${name}: HTTP ${String(response.status)}`);
+  return response.json();
+};
 
 /** Reads `app`'s e2e status route for `shop`. */
 export const readShopStatus = async (app: E2eApp, shop: string): Promise<E2eShopStatus> => {
   const url = statusUrl(app, shop);
-  const response = await fetch(url, {
-    headers: app.status.headers,
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!response.ok)
-    throw new Error(`GET ${url.pathname}?shop=${shop}: HTTP ${String(response.status)}`);
-  return decodeStatus(await response.json());
+  return decodeStatus(await getLocalJson(app, url, `${url.pathname}?shop=${shop}`));
+};
+
+/** Reads `app`'s e2e webhook record: the requests its Backend answered under `/webhooks/`. */
+export const readWebhookDeliveries = async (app: E2eApp): Promise<E2eWebhookDeliveries> => {
+  const url = webhookRecordUrl(app);
+  return decodeDeliveries(await getLocalJson(app, url, url.pathname));
 };
 
 /** The browser runs on this machine, so the app's tunnel is answered from its local port. */

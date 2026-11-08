@@ -21,19 +21,7 @@ import type { ShopDomain } from "./domain.ts";
 import { bestEffort, ShopifyHooks } from "./hooks.ts";
 import { ShopGrantors } from "./shop-grantor.ts";
 import { ShopifyClient } from "./shopify-client.ts";
-
-/**
- * The topics the package answers itself, in the header's form. An app's definition may not
- * name one.
- */
-export const BUILT_IN_TOPICS = [
-  "customers/data_request",
-  "customers/redact",
-  "shop/redact",
-  "app/scopes_update",
-  "app/uninstalled",
-] as const;
-export type BuiltInTopic = (typeof BUILT_IN_TOPICS)[number];
+import type { BuiltInTopic } from "./webhook-topics.ts";
 
 /** A delivery that passed its HMAC check, its body parsed as JSON. */
 export interface WebhookDelivery {

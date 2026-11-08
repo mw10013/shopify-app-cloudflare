@@ -35,7 +35,12 @@ const fail = (message: string) => new PreflightError({ message });
 const get = (url: string, headers: Readonly<Record<string, string>> = {}) =>
   Effect.tryPromise({
     try: async () => {
-      const response = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) });
+      // A redirect would carry the status route's token elsewhere.
+      const response = await fetch(url, {
+        headers,
+        redirect: "error",
+        signal: AbortSignal.timeout(10_000),
+      });
       return { status: response.status, body: await response.text() };
     },
     catch: (cause) => (cause instanceof Error ? cause.message : String(cause)),

@@ -10,9 +10,5 @@ export { D1Test, type D1TestOptions, type D1TestShape } from "./test/node/d1-tes
 export { expectMigrationsSynced, PACKAGE_MIGRATIONS_DIR } from "./test/node/migrations.ts";
 export { ShopifyAppTest } from "./test/node/shopify-app-test.ts";
 export { inProcessHarness } from "./test/node/shopify-harness.ts";
-export {
-  expectTomlMatches,
-  readWebhooks,
-  type TomlSubscription,
-  type TomlWebhooks,
-} from "./test/node/toml.ts";
+export { expectTomlMatches } from "./test/node/toml.ts";
+export { readWebhooks, type TomlSubscription, type TomlWebhooks } from "./test/toml-webhooks.ts";

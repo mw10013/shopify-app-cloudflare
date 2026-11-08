@@ -48,9 +48,8 @@ export {
 export { type Failures, type Served, serve, serveAll } from "#internal/serve.ts";
 export { scheduledJob } from "#internal/scheduled.ts";
 export { ADMIN_API_VERSION, PARTNER_API_VERSION } from "#internal/versions.ts";
+export { BUILT_IN_TOPICS, type BuiltInTopic } from "#internal/webhook-topics.ts";
 export {
-  BUILT_IN_TOPICS,
-  type BuiltInTopic,
   decodePayload,
   type ExtraTopics,
   MalformedWebhookError,

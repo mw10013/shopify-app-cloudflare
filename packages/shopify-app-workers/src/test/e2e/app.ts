@@ -52,6 +52,21 @@ export const E2eApp = Schema.Struct({
     headers: Schema.Record(Schema.String, Schema.String),
   }),
   /**
+   * The webhooks the webhook spec has Shopify deliver to the server's tunnel with `shopify app
+   * webhook trigger`: the compliance topics, and `topics`, the app's own topics that are safe to
+   * deliver for Shopify's sample shop, `shop.myshopify.com`. `config` is the absolute path of the
+   * toml the e2e server serves, the app the Backend checks the HMAC for, whose subscriptions give
+   * each topic's path and whose `[webhooks] api_version` the version; the CLI runs in its
+   * directory. `record` is the e2e
+   * webhook record on the server's local port, answering `GET <record>` with an
+   * `E2eWebhookDeliveries` when sent the status route's `headers`.
+   */
+  webhooks: Schema.Struct({
+    config: Schema.NonEmptyString,
+    topics: Schema.Array(Schema.NonEmptyString),
+    record: Schema.String.check(Schema.isStartingWith("/")),
+  }),
+  /**
    * Restarts the e2e server on the same store, keeping its data and its status route's headers:
    * `command` run in `cwd`, printing the new {@link E2eServer} as JSON on its last line of stdout.
    * An uninstall ends the Shopify CLI's dev preview on the store (the CLI logs "The dev preview has
@@ -83,12 +98,27 @@ export const shopOf = (app: E2eApp) => `${app.store}.myshopify.com`;
 export const appBaseUrl = (app: E2eApp) =>
   `https://admin.shopify.com/store/${app.store}/apps/${app.appHandle}`;
 
+/**
+ * `path` on the server's local port. The status route's headers carry the session's token, so a
+ * path that resolves to another origin (`//other.example/x`) is refused rather than sent there.
+ */
+export const localServerUrl = (app: E2eApp, path: string) => {
+  const origin = `http://localhost:${String(app.server.port)}`;
+  const url = new URL(path, origin);
+  if (url.origin !== origin)
+    throw new Error(`${path} resolves to ${url.origin}, not the e2e server's ${origin}`);
+  return url;
+};
+
 /** The e2e status route's URL for `shop`, on the server's local port. */
 export const statusUrl = (app: E2eApp, shop: string) => {
-  const url = new URL(app.status.path, `http://localhost:${String(app.server.port)}`);
+  const url = localServerUrl(app, app.status.path);
   url.searchParams.set("shop", shop);
   return url;
 };
+
+/** The e2e webhook record's URL, on the server's local port. */
+export const webhookRecordUrl = (app: E2eApp) => localServerUrl(app, app.webhooks.record);
 
 /** The pack's spec and setup files. */
 export const E2E_SPECS_DIR = import.meta.dirname;
