@@ -180,7 +180,10 @@ export default defineConfig({
       {
         // Only `/test/node` runs under Node alone; every other entry can reach a workerd bundle.
         files: ["packages/shopify-app-workers/src/**"],
-        excludeFiles: ["packages/shopify-app-workers/src/test-node.ts"],
+        excludeFiles: [
+          "packages/shopify-app-workers/src/test-node.ts",
+          "packages/shopify-app-workers/src/test/node/**",
+        ],
         rules: {
           "no-restricted-imports": [
             "error",
@@ -191,6 +194,13 @@ export default defineConfig({
                 {
                   name: "node:sqlite",
                   message: "node:sqlite is Node-only; it belongs behind /test/node.",
+                },
+              ],
+              patterns: [
+                ...baseRestrictions.patterns,
+                {
+                  group: ["#test/node/**", "./test/node/**"],
+                  message: "src/test/node/ is Node-only; only /test/node imports it.",
                 },
               ],
             },

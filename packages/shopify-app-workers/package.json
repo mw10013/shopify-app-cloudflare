@@ -1,12 +1,19 @@
 {
   "name": "@mw10013/shopify-app-workers",
   "version": "0.0.0",
+  "files": [
+    "src",
+    "migrations"
+  ],
   "type": "module",
   "imports": {
-    "#internal/*": "./src/internal/*"
+    "#internal/*": "./src/internal/*",
+    "#test/*": "./src/test/*"
   },
   "exports": {
     "./backend": "./src/backend.ts",
+    "./contract": "./src/contract.ts",
+    "./stack": "./src/stack.ts",
     "./website": "./src/website.ts",
     "./client": "./src/client.ts",
     "./test": "./src/test.ts",
@@ -14,6 +21,16 @@
   },
   "dependencies": {
     "@shopify/shopify-api": "15.0.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261026.1",
+    "@effect/vitest": "4.1.2",
+    "@mw10013/devkit": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "@alchemy.run/cloudflare": "catalog:",
