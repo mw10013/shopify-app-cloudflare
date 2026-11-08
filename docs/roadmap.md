@@ -38,6 +38,8 @@ A production stage, to rehearse production deploys and migrations without custom
 3. Run the end-to-end suite in the testbed against real Shopify, including uninstall and reinstall. Check: the suite passes.
 4. Cut `v0.1.0` as a tag on a commit that holds only the built package. Check: a throwaway project installs it with `--frozen-lockfile` and no token.
 5. Deploy the testbed's staging through Workers Builds. Check: the build installs and deploys, and the staging app works in a pool store.
+
+   The staging deploy reads the app's handle and client ID from `shopify.app.staging.toml`, so the deploy environment carries only secrets: `SHOPIFY_API_SECRET` and the Partner values. Until that file exists, a staging deploy fails on the missing toml. The pipeline should run `shopify app deploy` from the same checkout, so the toml and Shopify stay in step.
 6. Rehearse a migration: add a column, deploy, roll back. Check: the previous version still works against the new schema.
 7. Move motio onto the package as its first real consumer. Check: motio's suites and the shared e2e spec pack pass.
 8. Extract the shop actor machinery and client, then the Website side, each through the same steps.

@@ -10,7 +10,6 @@ import {
   deployedShopifyApp,
   fakeShopifyApp,
   partnerBindingFromConfig,
-  readAppHandle,
   type ShopifyAppBinding,
   shopifyCliApp,
 } from "@mw10013/shopify-app-workers/stack";
@@ -27,8 +26,8 @@ import Backend from "#backend/worker.ts";
  * the port Shopify CLI picked for its web command; deploys never read it. `strictPort` makes a
  * collision fail instead of silently moving ports.
  *
- * `SHOPIFY_API_KEY` goes into the App Home's page, so it is public. Shopify CLI injects it under
- * `shopify app dev`; a bare `alchemy destroy` of the stage runs without it and binds it empty.
+ * `SHOPIFY_API_KEY` goes into the App Home's page, so it is public: the stage's app's, the same key
+ * the Backend binds ({@link shopifyAppFor}).
  */
 export class Website extends Cloudflare.Website.Vite<Website>()(
   "Website",
@@ -42,7 +41,7 @@ export class Website extends Cloudflare.Website.Vite<Website>()(
       dev,
       env: {
         BACKEND: Backend,
-        SHOPIFY_API_KEY: yield* Config.String("SHOPIFY_API_KEY").pipe(Config.withDefault("")),
+        SHOPIFY_API_KEY: yield* shopifyApiKey,
       },
     };
   }).pipe(Effect.orDie),
@@ -50,30 +49,39 @@ export class Website extends Cloudflare.Website.Vite<Website>()(
 
 export type WebsiteEnv = Cloudflare.InferEnv<typeof Website>;
 
-/** The handle of the app Shopify CLI serves from `shopify.app.toml`, read from the toml itself. */
-const CLI_APP_HANDLE = readAppHandle(new URL("shopify.app.toml", import.meta.url));
+/** A stage's `shopify.app*.toml`, the one place its app's public identity is written. */
+const toml = (file: string) => new URL(file, import.meta.url);
 
 /**
  * The Shopify app this stage's Backend serves, served at `appUrl` unless the CLI's tunnel is.
- * `dev` and `e2e` serve Shopify CLI's app under `shopify app dev` and the fake app otherwise (a
- * bare `alchemy destroy`); a deployed stage reads its app from the deploy's environment, so a
- * missing value fails the plan; `test` always serves the fake app.
+ * Each environment's toml holds its app's handle and client ID; only the secret comes from the
+ * environment. `dev` and `e2e` serve Shopify CLI's app under `shopify app dev`, from the toml
+ * `berth.json` gives it, and the fake app otherwise (a bare `alchemy destroy`); a deployed stage
+ * reads its toml and its deploy's `SHOPIFY_API_SECRET`, so a missing one fails the plan; `test`
+ * always serves the fake app.
  */
 const shopifyAppFor = (appUrl: ShopifyAppBinding["appUrl"]) =>
   Effect.gen(function* () {
     const environment = yield* environmentOf(yield* Alchemy.Stage);
+    const cliApp = (file: string) =>
+      Effect.map(
+        shopifyCliApp(toml(file)),
+        Option.getOrElse(() => fakeShopifyApp(appUrl)),
+      );
     return yield* Match.value(environment).pipe(
-      Match.whenOr("dev", "e2e", () =>
-        Effect.map(
-          shopifyCliApp(CLI_APP_HANDLE),
-          Option.getOrElse(() => fakeShopifyApp(appUrl)),
-        ),
+      Match.when("dev", () => cliApp("shopify.app.toml")),
+      Match.when("e2e", () => cliApp("shopify.app.e2e.toml")),
+      Match.when("staging", () => deployedShopifyApp(toml("shopify.app.staging.toml"), appUrl)),
+      Match.when("production", () =>
+        deployedShopifyApp(toml("shopify.app.production.toml"), appUrl),
       ),
-      Match.whenOr("staging", "production", () => deployedShopifyApp(appUrl)),
       Match.when("test", () => Effect.succeed(fakeShopifyApp(appUrl))),
       Match.exhaustive,
     );
   });
+
+/** The stage's app's API key, which does not depend on where the app is served. */
+const shopifyApiKey = Effect.map(shopifyAppFor(""), (app) => app.apiKey);
 
 /**
  * The Partner credentials this stage binds: from `.env` on `dev` and `e2e`, and none while the

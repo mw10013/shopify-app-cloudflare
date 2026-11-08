@@ -8,12 +8,13 @@
 
 export { PartnerConfig } from "#internal/bindings.ts";
 export {
+  type AppIdentity,
   type BindableWorker,
   bindShopifyApp,
   deployedShopifyApp,
   fakeShopifyApp,
   partnerBindingFromConfig,
-  readAppHandle,
+  readAppIdentity,
   type ShopifyAppBinding,
   shopifyCliApp,
 } from "#internal/stack.ts";
