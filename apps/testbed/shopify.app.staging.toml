@@ -1,20 +1,36 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "2ff26a6bbebd01510b646e756fa841bf"
-name = "Workers Testbed Staging"
-application_url = "https://shopify.dev/apps/default-app-home"
+application_url = "https://testbed-website-staging.mw10013.workers.dev"
 embedded = true
-
-[webhooks]
-api_version = "2027-01"
+name = "Workers Testbed Staging"
+handle = "workers-testbed-staging"
+client_id = "2ff26a6bbebd01510b646e756fa841bf"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = ""
 
 [auth]
-redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
+redirect_urls = ["https://testbed-website-staging.mw10013.workers.dev/api/auth"]
+
+[webhooks]
+api_version = "2026-10"
+
+[[webhooks.subscriptions]]
+uri = "/webhooks/compliance"
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+
+[[webhooks.subscriptions]]
+uri = "/webhooks/app/scopes_update"
+topics = ["app/scopes_update"]
+
+[[webhooks.subscriptions]]
+uri = "/webhooks/app/uninstalled"
+topics = ["app/uninstalled"]
+
+[[webhooks.subscriptions]]
+uri = "/webhooks/shop/update"
+topics = ["shop/update"]
 
 [build]
-include_config_on_deploy = true
-automatically_update_urls_on_dev = true
+automatically_update_urls_on_dev = false
