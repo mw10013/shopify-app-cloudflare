@@ -19,4 +19,5 @@ export {
   ShopifyUnavailableError,
   ShopInaccessibleError,
 } from "#internal/contract.ts";
+export { E2eShopStatus } from "#internal/e2e-status.ts";
 export { ID_MAX_LENGTH, PlanHandle, ShopDomain, ShopGid } from "#internal/domain.ts";

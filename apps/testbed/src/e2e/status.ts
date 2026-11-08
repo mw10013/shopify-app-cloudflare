@@ -10,6 +10,7 @@
 import { timingSafeEqual } from "node:crypto";
 
 import { AppInstallations, ShopDomain } from "@mw10013/shopify-app-workers/backend";
+import { E2eShopStatus } from "@mw10013/shopify-app-workers/contract";
 import * as Effect from "effect/Effect";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
@@ -21,18 +22,6 @@ import { E2E_TOKEN_HEADER, type E2eAccess } from "./session.ts";
 
 /** `GET /api/e2e/status?shop=<shop>.myshopify.com`, which the Website forwards to the Backend. */
 export const E2E_STATUS_PATH = "/api/e2e/status";
-
-/**
- * A shop's `AppInstallation` row as the suite sees it: whether it exists, the cached plan handle
- * as stored (null when never fetched or verified absent) and when the row was inserted.
- */
-export const E2eShopStatus = Schema.Struct({
-  shop: ShopDomain,
-  installed: Schema.Boolean,
-  planHandle: Schema.NullOr(Schema.String),
-  installedAt: Schema.NullOr(Schema.DateTimeUtcFromString),
-});
-export type E2eShopStatus = typeof E2eShopStatus.Type;
 
 const decodeShop = Schema.decodeUnknownOption(ShopDomain);
 const encodeStatus = Schema.encodeEffect(E2eShopStatus);
