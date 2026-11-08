@@ -1,14 +1,19 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import { workerNameOf } from "@mw10013/devkit/cloudflare/stage";
+import { GrantorProbe } from "@mw10013/shopify-app-workers/backend";
 import * as Alchemy from "alchemy";
 import * as Output from "alchemy/Output";
 import * as Effect from "effect/Effect";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
+
+/** The spike's probe path: a call through the package's `ShopGrantor` binding. */
+const GRANTOR_PROBE_PATH = "/api/spike/grantor";
 
 /**
  * The private Effect Worker. It has no public URL: the browser reaches it only through the
- * Website, which calls it over the `BACKEND` service binding. It serves nothing yet, so every
- * request is 404.
+ * Website, which calls it over the `BACKEND` service binding. It serves the step 2 spike's
+ * grantor probe on {@link GRANTOR_PROBE_PATH}; every other request is 404.
  */
 export default class Backend extends Cloudflare.Worker<Backend>()(
   "Backend",
@@ -22,5 +27,15 @@ export default class Backend extends Cloudflare.Worker<Backend>()(
     dev: { port: 0 },
     compatibility: { date: "2026-07-01", flags: ["nodejs_compat"] },
   },
-  Effect.succeed({ fetch: Effect.succeed(HttpServerResponse.empty({ status: 404 })) }),
+  Effect.gen(function* () {
+    const probe = yield* GrantorProbe;
+    return {
+      fetch: Effect.gen(function* () {
+        const request = yield* HttpServerRequest.HttpServerRequest;
+        if (new URL(request.url, "http://backend").pathname !== GRANTOR_PROBE_PATH)
+          return HttpServerResponse.empty({ status: 404 });
+        return HttpServerResponse.text(yield* probe.ping("spike.myshopify.com"));
+      }),
+    };
+  }).pipe(Effect.provide(GrantorProbe.layer)),
 ) {}
