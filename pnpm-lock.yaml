@@ -310,16 +310,16 @@ importers:
   packages/shopify-app-workers:
     dependencies:
       '@alchemy.run/cloudflare':
-        specifier: 'catalog:'
+        specifier: 2.0.0-beta.85
         version: 2.0.0-beta.85(patch_hash=a6b705172c5db3b42c11875799094f8b0689a40260790fc9c257a008ff373dcc)(@effect/platform-bun@4.1.2(effect@4.1.2))(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.1))(@types/node@26.6.4)(@voidzero-dev/vite-plus-core@1.4.0(@types/node@26.6.4)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(alchemy@2.0.0-beta.85(@effect/platform-bun@4.1.2(effect@4.1.2))(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.1))(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.4.0(@types/node@26.6.4)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(effect@4.1.2)(ws@8.22.1))(effect@4.1.2)(typescript@7.0.2)
       '@shopify/shopify-api':
         specifier: 15.0.1
         version: 15.0.1
       alchemy:
-        specifier: 'catalog:'
+        specifier: 2.0.0-beta.85
         version: 2.0.0-beta.85(@effect/platform-bun@4.1.2(effect@4.1.2))(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.1))(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.4.0(@types/node@26.6.4)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(effect@4.1.2)(ws@8.22.1)
       effect:
-        specifier: 'catalog:'
+        specifier: ^4.1.2
         version: 4.1.2
     devDependencies:
       '@cloudflare/workers-types':
