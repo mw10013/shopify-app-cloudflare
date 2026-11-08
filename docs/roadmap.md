@@ -130,5 +130,7 @@ A production stage, to rehearse production deploys and migrations without custom
 
    The e2e pack does not run against staging: it needs the dev tunnel and the e2e-only status route, which the production Backend does not serve.
 6. Rehearse a migration: add a column, deploy, roll back. Check: the previous version still works against the new schema.
+
+   Skipped on 2026-11-08 by the owner's decision. Migrations stay additive, as coder's `references/deployed-stages.md` requires, so a Worker rolled back over one still runs. The first migration a Workers Build applies, and the first rollback, will be real ones.
 7. Move motio onto the package as its first real consumer. Check: motio's suites and the shared e2e spec pack pass.
 8. Extract the shop actor machinery and client, then the Website side, each through the same steps.
