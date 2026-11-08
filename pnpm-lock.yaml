@@ -168,8 +168,8 @@ catalogs:
       specifier: 2.0.0-beta.85
       version: 2.0.0-beta.85
     '@mw10013/devkit':
-      specifier: github:mw10013/tools#devkit-v0.1.1
-      version: https://codeload.github.com/mw10013/tools/tar.gz/4339195253fdc54624d0ef32c92d31bc6ac5858b
+      specifier: github:mw10013/tools#devkit-v0.1.2
+      version: https://codeload.github.com/mw10013/tools/tar.gz/5e3230e7deb490ab88fcb0c7561042e617c0f22b
     '@types/node':
       specifier: 26.6.4
       version: 26.6.4
@@ -205,7 +205,7 @@ importers:
     devDependencies:
       '@mw10013/devkit':
         specifier: 'catalog:'
-        version: https://codeload.github.com/mw10013/tools/tar.gz/4339195253fdc54624d0ef32c92d31bc6ac5858b(866a05535beb34b0b2ddaf7a21e4bc69)
+        version: https://codeload.github.com/mw10013/tools/tar.gz/5e3230e7deb490ab88fcb0c7561042e617c0f22b(866a05535beb34b0b2ddaf7a21e4bc69)
       '@tanstack/eslint-plugin-router':
         specifier: 1.162.0
         version: 1.162.0(eslint@10.14.0(jiti@2.7.0))(typescript@7.0.2)
@@ -238,7 +238,7 @@ importers:
         version: 4.1.2(effect@4.1.2)(redis@6.3.1)
       '@mw10013/devkit':
         specifier: 'catalog:'
-        version: https://codeload.github.com/mw10013/tools/tar.gz/4339195253fdc54624d0ef32c92d31bc6ac5858b(866a05535beb34b0b2ddaf7a21e4bc69)
+        version: https://codeload.github.com/mw10013/tools/tar.gz/5e3230e7deb490ab88fcb0c7561042e617c0f22b(866a05535beb34b0b2ddaf7a21e4bc69)
       '@mw10013/shopify-app-workers':
         specifier: workspace:*
         version: link:../../packages/shopify-app-workers
@@ -333,7 +333,7 @@ importers:
         version: 4.1.2(effect@4.1.2)(vitest@5.0.5)
       '@mw10013/devkit':
         specifier: 'catalog:'
-        version: https://codeload.github.com/mw10013/tools/tar.gz/4339195253fdc54624d0ef32c92d31bc6ac5858b(866a05535beb34b0b2ddaf7a21e4bc69)
+        version: https://codeload.github.com/mw10013/tools/tar.gz/5e3230e7deb490ab88fcb0c7561042e617c0f22b(866a05535beb34b0b2ddaf7a21e4bc69)
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.4
@@ -893,9 +893,9 @@ packages:
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
 
-  '@mw10013/devkit@https://codeload.github.com/mw10013/tools/tar.gz/4339195253fdc54624d0ef32c92d31bc6ac5858b':
-    resolution: {gitHosted: true, integrity: sha512-lXv8drrUo1N8QW465uH+lQcvTQEorC7vkfTSt1JdI9KKqqOTncjevENCueEb36CPqsOOeA2d/ixIWXyQtfzHPw==, tarball: https://codeload.github.com/mw10013/tools/tar.gz/4339195253fdc54624d0ef32c92d31bc6ac5858b}
-    version: 0.1.1
+  '@mw10013/devkit@https://codeload.github.com/mw10013/tools/tar.gz/5e3230e7deb490ab88fcb0c7561042e617c0f22b':
+    resolution: {gitHosted: true, integrity: sha512-gRDl6ZYKkpN8INLFBQpGhKH/E5ivqfysP0M9ni7AxNSP+6xMPxv+sN6htkaUWsiPtg01O6I8u+210iOjGYihiQ==, tarball: https://codeload.github.com/mw10013/tools/tar.gz/5e3230e7deb490ab88fcb0c7561042e617c0f22b}
+    version: 0.1.2
     hasBin: true
     peerDependencies:
       '@alchemy.run/cloudflare': 2.0.0-beta.85
@@ -3548,7 +3548,7 @@ snapshots:
 
   '@keyv/serialize@1.1.1': {}
 
-  '@mw10013/devkit@https://codeload.github.com/mw10013/tools/tar.gz/4339195253fdc54624d0ef32c92d31bc6ac5858b(866a05535beb34b0b2ddaf7a21e4bc69)':
+  '@mw10013/devkit@https://codeload.github.com/mw10013/tools/tar.gz/5e3230e7deb490ab88fcb0c7561042e617c0f22b(866a05535beb34b0b2ddaf7a21e4bc69)':
     dependencies:
       effect: 4.1.2
       vite-plus: 1.4.0(@types/node@26.6.4)(@vitest/ui@5.0.5)(jiti@2.7.0)(playwright@1.64.1)(typescript@7.0.2)(yaml@2.9.1)
