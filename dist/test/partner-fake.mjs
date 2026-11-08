@@ -1,0 +1,91 @@
+import { unavailable } from "../internal/shopify-client.mjs";
+import { PartnerApi } from "../internal/partner-api.mjs";
+import { FAKE_APP_HANDLE } from "./fake-app.mjs";
+import * as Schema from "effect/Schema";
+import * as DateTime from "effect/DateTime";
+import * as Option from "effect/Option";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Match from "effect/Match";
+// src/test/partner-fake.ts
+/**
+* `PartnerFake`: the Partner API, scripted by shop GID.
+*
+* @module
+*/
+/** The plan selection page under the fake, for a case to compare a refusal's `href` against. */
+const fakePlanSelectionUrl = (shop) => `https://admin.shopify.com/store/${shop.replace(/\.myshopify\.com$/u, "")}/charges/${FAKE_APP_HANDLE}/pricing_plans`;
+/**
+* One scripted Partner answer for a shop: an app subscription whose items carry `handle` and
+* `otherHandles` (a usage meter's, say), in a billing cycle or, with a null `cycleStartAt`, a
+* trial; none; or a failure to answer, which is `ShopifyUnavailableError`. Data, so a test
+* process can send it to a test Backend in workerd.
+*/
+const PartnerAnswer = Schema.Union([
+	Schema.TaggedStruct("Subscribed", {
+		handle: Schema.String,
+		otherHandles: Schema.optional(Schema.Array(Schema.String)),
+		cycleStartAt: Schema.NullOr(Schema.DateTimeUtcFromMillis),
+		boundaryAt: Schema.NullOr(Schema.DateTimeUtcFromMillis)
+	}),
+	Schema.TaggedStruct("None", {}),
+	Schema.TaggedStruct("Failure", { reason: Schema.String })
+]);
+/** The UTC month around `now`: the fake's default billing cycle. */
+const currentMonth = (now) => {
+	const start = DateTime.startOf(now, "month");
+	return {
+		start,
+		end: DateTime.add(start, { months: 1 })
+	};
+};
+const make = (defaultHandle) => Effect.sync(() => {
+	const answers = /* @__PURE__ */ new Map();
+	const asked = [];
+	const activeSubscription = (shop, shopGid) => Effect.gen(function* () {
+		asked.push(shopGid);
+		const { start, end } = currentMonth(yield* DateTime.now);
+		const scripted = answers.get(shopGid) ?? {
+			_tag: "Subscribed",
+			handle: defaultHandle,
+			cycleStartAt: start,
+			boundaryAt: end
+		};
+		return yield* Match.value(scripted).pipe(Match.tagsExhaustive({
+			Subscribed: ({ handle, otherHandles, cycleStartAt, boundaryAt }) => Effect.succeed(Option.some({
+				handles: [handle, ...otherHandles ?? []],
+				cycleStartAt,
+				boundaryAt
+			})),
+			None: () => Effect.succeed(Option.none()),
+			Failure: ({ reason }) => unavailable("PartnerApi.activeSubscription", shop, reason)
+		}));
+	});
+	return {
+		/** Sets `shopGid`'s answer until the next script for it. */
+		script: (shopGid, answer) => Effect.sync(() => {
+			answers.set(shopGid, answer);
+		}),
+		/** Every shop GID asked about since the layer was built, oldest first. */
+		asked: Effect.sync(() => [...asked]),
+		/** Forgets every script and question, as a fresh fake would. */
+		reset: Effect.sync(() => {
+			answers.clear();
+			asked.length = 0;
+		}),
+		service: PartnerApi.of({
+			activeSubscription,
+			planSelectionUrl: fakePlanSelectionUrl
+		})
+	};
+});
+/**
+* The Partner API under test. Unscripted, every shop holds `defaultHandle` in the current UTC
+* month's billing cycle, so a test that is not about the plan passes every gate.
+*/
+var PartnerFake = class PartnerFake extends Context.Service()("app/PartnerFake") {
+	/** The fake, and `PartnerApi` over it. */
+	static layer = (options) => Layer.effectContext(Effect.map(make(options.defaultHandle), (fake) => Context.make(PartnerFake, fake).pipe(Context.add(PartnerApi, fake.service))));
+};
+export { PartnerAnswer, PartnerFake, currentMonth, fakePlanSelectionUrl };

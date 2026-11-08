@@ -1,0 +1,70 @@
+{
+  "name": "@mw10013/shopify-app-workers",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "migrations"
+  ],
+  "type": "module",
+  "exports": {
+    "./backend": {
+      "types": "./dist/backend.d.mts",
+      "default": "./dist/backend.mjs"
+    },
+    "./contract": {
+      "types": "./dist/contract.d.mts",
+      "default": "./dist/contract.mjs"
+    },
+    "./stack": {
+      "types": "./dist/stack.d.mts",
+      "default": "./dist/stack.mjs"
+    },
+    "./website": {
+      "types": "./dist/website.d.mts",
+      "default": "./dist/website.mjs"
+    },
+    "./client": {
+      "types": "./dist/client.d.mts",
+      "default": "./dist/client.mjs"
+    },
+    "./test": {
+      "types": "./dist/test.d.mts",
+      "default": "./dist/test.mjs"
+    },
+    "./test/node": {
+      "types": "./dist/test-node.d.mts",
+      "default": "./dist/test-node.mjs"
+    },
+    "./test/e2e": {
+      "types": "./dist/test-e2e.d.mts",
+      "default": "./dist/test-e2e.mjs"
+    }
+  },
+  "dependencies": {
+    "@shopify/shopify-api": "15.0.1"
+  },
+  "peerDependencies": {
+    "@alchemy.run/cloudflare": "2.0.0-beta.85",
+    "@cloudflare/workers-types": "^5.20261026.1",
+    "@effect/platform-node": "^4.1.2",
+    "@mw10013/devkit": "*",
+    "alchemy": "2.0.0-beta.85",
+    "effect": "^4.1.2",
+    "playwright": "^1.64.1"
+  },
+  "peerDependenciesMeta": {
+    "@cloudflare/workers-types": {
+      "optional": true
+    },
+    "@effect/platform-node": {
+      "optional": true
+    },
+    "@mw10013/devkit": {
+      "optional": true
+    },
+    "playwright": {
+      "optional": true
+    }
+  }
+}
