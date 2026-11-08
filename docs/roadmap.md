@@ -76,6 +76,33 @@ A production stage, to rehearse production deploys and migrations without custom
 
    Every click, wait and failure snapshot checks first that the page is on the checkout's leased store, because the agent Chrome holds other agents' tabs. Traces are off; `E2E_TRACE=1` turns them on with a warning, since each holds a live admin login.
 4. Cut `v0.1.0` as a tag on a commit that holds only the built package. Check: a throwaway project installs it with `--frozen-lockfile` and no token.
+
+   Cut on 2026-11-08 from `main` at `a80fc9e`; the check has passed:
+
+   ```sh
+   vp run release 0.1.0 --dry-run    # at the root: verify, build, the release commit; no tag
+   vp run release 0.1.0              # the same, then tags v0.1.0 and pushes the tag
+   vp -C packages/shopify-app-workers run consumer-check github:mw10013/shopify-app-workers#v0.1.0
+   ```
+
+   An app pins `"@mw10013/shopify-app-workers": "github:mw10013/shopify-app-workers#v0.1.0"`. The tag is commit `be5b72a`, tree `a8f271e`, with no parent: 120 files, `package.json`, `LICENSE`, `README.md`, 115 under `dist/` and the 2 migrations. The release runs on devkit's `core/release` (devkit 0.1.3), which refuses a dirty checkout or one off `origin/main`, before and after verify and build, and never moves a tag. Verify is `vp check`, the package suite and the testbed's unit and integ suites; e2e is not in it, because it needs a leased store and a login.
+
+   The built manifest maps each export to `dist/<entry>.mjs` and `.d.mts`, ships `files: ["dist", "migrations"]`, and drops `private`, `imports`, `scripts` and `devDependencies`. The source manifest is `0.0.0-source` and `private`, so only a release can publish it. There are no source maps, because they would point at `src/`, which the tag does not hold.
+
+   `consumer-check` builds a project in a temp directory with an empty `HOME`, `GIT_CONFIG_GLOBAL=/dev/null` and no tokens, and all 8 steps passed against the tag:
+
+   1. the spec;
+   2. the project's `package.json`;
+   3. `pnpm install` pins the codeload tarball in the lockfile;
+   4. `pnpm install --frozen-lockfile` into a cold store;
+   5. strict `tsc --noEmit` over all 8 entries, with `skipLibCheck` off. It ignores the 351 errors located in other packages' declarations, mostly `@cloudflare/workers-types` against the DOM lib, and fails on any in the package's own;
+   6. all 8 entries import in Node;
+   7. a Worker importing `./backend` and `./website`, bundled with Alchemy's rolldown plugin, answers 200 in Miniflare;
+   8. `playwright test --list` collects the pack's 4 specs from `node_modules`.
+
+   With no spec, `consumer-check` packs this checkout's release tree and checks that instead.
+
+   The testbed stays on `workspace:*`, so an edit to the package still shows up in the running testbed; motio, in step 7, is the first app on the tag.
 5. Deploy the testbed's staging through Workers Builds. Check: the build installs and deploys, and the staging app works in a pool store.
 
    The staging deploy reads the app's handle and client ID from `shopify.app.staging.toml`, so the deploy environment carries only secrets: `SHOPIFY_API_SECRET` and the Partner values. Until that file exists, a staging deploy fails on the missing toml. The pipeline should run `shopify app deploy` from the same checkout, so the toml and Shopify stay in step.
