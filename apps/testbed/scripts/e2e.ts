@@ -4,6 +4,7 @@
  * e2e run reuses. A schema change needs `restart`, which deletes the stage's local data.
  */
 
+import { randomBytes } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 
@@ -13,6 +14,7 @@ import { app } from "@mw10013/devkit/core/app";
 import {
   describeRunning,
   loadServer,
+  runningServer,
   type Server,
   ServerError,
   startServer,
@@ -20,12 +22,8 @@ import {
   step,
   stopServer,
 } from "@mw10013/devkit/shopify/server";
-import {
-  destroyStage,
-  recordedStore,
-  recordStore,
-  resetStaleStage,
-} from "@mw10013/devkit/shopify/stage-store";
+import { destroyStage, recordStore, resetStaleStage } from "@mw10013/devkit/shopify/stage-store";
+import { StoreFor } from "@mw10013/devkit/shopify/worktree";
 import * as CliError from "effect/cli/CliError";
 import * as Command from "effect/cli/Command";
 import * as Flag from "effect/cli/Flag";
@@ -33,6 +31,9 @@ import * as Console from "effect/Console";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+
+import { E2E_SESSION_FILE, E2eSession, E2eSessionJson } from "#e2e/session.ts";
 
 import { authorizeStore } from "./lib/store-auth.ts";
 
@@ -54,30 +55,78 @@ const toUserError = (error: { readonly message: string }) =>
   new CliError.UserError({ cause: error, userMessage: error.message });
 
 /**
- * Store auth only: the e2e suite selects the plan itself, so a store new to the stage gets no
- * plan here.
+ * The e2e server installs the dev app on its store, so the lease must be a pool store, checked
+ * before anything touches the stage or the store.
+ */
+const requirePoolStore = (server: Server) =>
+  Schema.decodeUnknownEffect(StoreFor(["pool"], "a pool store"))(server.store).pipe(
+    Effect.mapError(
+      () =>
+        new ServerError({
+          message: `the e2e lease is ${server.store}, not a pool store (mw10013-pool-NN)`,
+        }),
+    ),
+  );
+
+const sessionPath = () => path.join(app().root, E2E_SESSION_FILE);
+
+/**
+ * A fresh session for a server this invocation starts, which its stack binds as it comes up. An
+ * adopted server keeps the session it was started with, so the file must be there, for its shop.
+ */
+const prepareSession = (server: Server, adopted: boolean) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const shop = `${server.store}.myshopify.com`;
+    if (adopted) {
+      const session = yield* fs
+        .readFileString(sessionPath())
+        .pipe(Effect.flatMap(Schema.decodeEffect(E2eSessionJson)), Effect.option);
+      if (Option.exists(session, (value) => value.shop === shop)) return;
+      return yield* new ServerError({
+        message: `the running e2e server has no session for ${shop} in ${E2E_SESSION_FILE}; vp run e2e:stop then vp run e2e:start`,
+      });
+    }
+    const session = yield* Schema.decodeUnknownEffect(E2eSession)({
+      token: randomBytes(32).toString("hex"),
+      shop,
+    });
+    const text = yield* Schema.encodeEffect(E2eSessionJson)(session);
+    yield* fs.makeDirectory(path.dirname(sessionPath()), { recursive: true });
+    yield* fs.writeFileString(sessionPath(), text, { mode: 0o600 });
+  }).pipe(Effect.mapError((error) => new ServerError({ message: error.message })));
+
+/**
+ * Store auth only: the e2e suite selects the plan itself, so the store gets no plan here. It runs
+ * on every start; {@link authorizeStore} does nothing when the store already has every scope.
  */
 const prepareStore = (server: Server) =>
-  Effect.gen(function* () {
-    if (Option.contains(yield* recordedStore(server), server.store)) return;
-    yield* Console.log(`prepare ${server.store}: set up the store`);
-    yield* authorizeStore(server.store).pipe(
-      Effect.mapError((error) => new ServerError({ message: error.message })),
-    );
-    yield* recordStore(server);
-  });
+  authorizeStore(server.store).pipe(
+    Effect.mapError((error) => new ServerError({ message: error.message })),
+  );
 
+/**
+ * The store is recorded as soon as the server runs on it, so a later start knows which store the
+ * stage holds even when store auth fails. A server this invocation started is stopped when store
+ * auth fails; an adopted one keeps running.
+ */
 const start = Effect.gen(function* () {
   const server = yield* loadE2e;
+  yield* requirePoolStore(server);
   yield* resetStaleStage(server);
+  const adopted = Option.isSome(yield* Effect.option(runningServer("e2e")));
+  yield* prepareSession(server, adopted);
   const running = yield* startServer(server);
+  yield* recordStore(server);
   yield* Console.log(`\n${yield* describeRunning(server, running)}`);
-  yield* prepareStore(server);
+  yield* prepareStore(server).pipe(
+    Effect.tapError(() => (adopted ? Effect.void : step("stop", stopServer("e2e")))),
+  );
 });
 
 const startCommand = Command.make("start", {}, () => start.pipe(Effect.mapError(toUserError))).pipe(
   Command.withDescription(
-    "Start the e2e server, or adopt the one already running. It keeps its data unless its stage was set up for another store than the e2e lease's: that stage is destroyed first. On a store new to the stage, it then sets up the store's store auth.",
+    "Start the e2e server, or adopt the one already running, on the e2e lease's pool store. It keeps its data unless its stage was set up for another store: that stage is destroyed first. A started server gets a fresh status route token in .state/e2e.session.json. It then checks the store's store auth, and stops a server it started when that fails.",
   ),
 );
 

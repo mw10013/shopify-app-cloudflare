@@ -12,11 +12,13 @@ import {
   provideBackend,
 } from "#backend/backend.ts";
 
+import { e2eAccessConfig } from "./session.ts";
 import { E2E_STATUS_PATH, e2eStatus } from "./status.ts";
 
 /**
  * The Backend as the `e2e` stage deploys it in place of `Backend`: the production body and
- * services, with the e2e status route ({@link E2E_STATUS_PATH}) in front of its `fetch`. Only
+ * services, with the e2e status route ({@link E2E_STATUS_PATH}) in front of its `fetch`, gated by
+ * the session the stack binds ({@link e2eAccessConfig}). Only
  * `alchemy.run.ts` imports it, and only for `e2e`, so the Backend every other stage deploys never
  * carries the route; lint keeps `src/backend` and `src/web` from importing `src/e2e`.
  */
@@ -32,7 +34,7 @@ export default class E2eBackend extends Cloudflare.Worker<E2eBackend>()(
   },
   provideBackend(
     Effect.gen(function* () {
-      const status = yield* e2eStatus;
+      const status = yield* e2eStatus(yield* e2eAccessConfig);
       const base = yield* backendBody;
       const fetch = Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;

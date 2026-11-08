@@ -239,7 +239,7 @@ test(
 );
 
 test(
-  "the e2e status route is absent outside e2e: the production Backend answers 404, an installed shop included",
+  "the Website forwards /api/e2e/status, and the production Backend's 404 comes back, an installed shop included",
   Effect.gen(function* () {
     const { backendUrl, websiteUrl } = yield* fresh;
     yield* seedWithPartner(backendUrl, { _tag: "None" });
