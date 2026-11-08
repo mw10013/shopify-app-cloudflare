@@ -211,7 +211,6 @@ const ensureWithoutGrant: readonly RequiredBehavior[] = [
       assert.equal((yield* ensure).accessToken, "shpat_old");
       assert.equal((yield* calls).length, 0);
     }),
-    { needs: clock },
   ),
   behavior(
     "10",
@@ -219,7 +218,6 @@ const ensureWithoutGrant: readonly RequiredBehavior[] = [
     Effect.gen(function* () {
       assert.equal(yield* failureOf(ensure), "AppNotInstalledError");
     }),
-    { needs: clock },
   ),
   ...(
     [
@@ -235,7 +233,6 @@ const ensureWithoutGrant: readonly RequiredBehavior[] = [
         assert.equal(yield* failureOf(ensure), "missing");
         assert.equal((yield* calls).length, 0);
       }),
-      { needs: clock },
     ),
   ),
   behavior(

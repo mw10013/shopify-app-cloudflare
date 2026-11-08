@@ -45,7 +45,7 @@ A production stage, to rehearse production deploys and migrations without custom
    vp -C apps/testbed run test:integ               # the testbed's integ suite, in workerd
    ```
 
-   Results: the package's unit suite 219 passed; the testbed's unit suite 95 passed; the integ suite 84 passed and 9 skipped, the cases that need `clock` (8) or `holdWrite` (1).
+   Results: the package's unit suite 219 passed; the testbed's unit suite 95 passed; the integ suite 88 passed and 5 skipped, the cases that need `clock` (4: 12×2, N15, N18) or `holdWrite` (1).
 
    The integ suite deploys `test/integ/stack.ts` locally: a test Backend that is the production body and tier 1 with `ShopifyTestDoor` in front, and a test Website bound to it. Every required behavior runs inside the test Backend against the real `ShopGrantor` Durable Object and the real D1; the cases that need the test clock or a held store write run only in process. Binding-level cases call `authenticateMerchant` over `BACKEND`, deliver signed webhooks through the Website's `/webhooks/*` forward, and trigger the daily cron through workerd's `/cdn-cgi/handler/scheduled`.
 3. Run the end-to-end suite in the testbed against real Shopify, including uninstall and reinstall. Check: the suite passes.
