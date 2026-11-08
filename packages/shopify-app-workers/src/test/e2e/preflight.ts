@@ -111,9 +111,7 @@ const checkAgentChrome = get(`${AGENT_CDP}/json/version`).pipe(
   ),
   Effect.as(`the agent Chrome answers on ${AGENT_CDP}`),
   Effect.mapError((cause) =>
-    fail(
-      `the agent Chrome does not answer on ${AGENT_CDP} (${cause}): start it headless on port 9333`,
-    ),
+    fail(`the agent Chrome does not answer on ${AGENT_CDP} (${cause}): vp run browser agent`),
   ),
 );
 

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { chmodSync, readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
@@ -58,6 +58,9 @@ const testbed: E2eApp = {
  * (`vp exec playwright show-report <dir>/report`) and `results/` (each failed test's trace).
  */
 const run = testRunDirectory("e2e", ["results/.last-run.json"], root);
+// Only this user reads a run's results and report: a failure's error context can name the store's
+// data, and an opted-in trace (`E2E_TRACE=1`) holds the Shopify admin login.
+chmodSync(run, 0o700);
 if (process.env.TEST_WORKER_INDEX === undefined) console.log(`e2e results: ${run}`);
 
 /**
@@ -71,6 +74,8 @@ export default defineConfig<object, E2eOptions>({
   globalSetup: E2E_PREFLIGHT,
   outputDir: `${run}/results`,
   fullyParallel: false,
+  // Every spec drives the one leased store.
+  workers: 1,
   forbidOnly: !!process.env.CI,
   reporter: [
     ["list"],

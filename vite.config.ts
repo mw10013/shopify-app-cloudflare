@@ -148,6 +148,61 @@ const webOnlyRules = [
   "@tanstack/router/route-param-names",
 ];
 
+const PACKAGE_NODE_ONLY = [
+  "packages/shopify-app-workers/src/test-node.ts",
+  "packages/shopify-app-workers/src/test/node/**",
+];
+const PACKAGE_E2E = [
+  "packages/shopify-app-workers/src/test-e2e.ts",
+  "packages/shopify-app-workers/src/test/e2e/**",
+];
+const NODE_SQLITE = {
+  name: "node:sqlite",
+  message: "node:sqlite is Node-only; it belongs behind /test/node.",
+};
+const TEST_NODE_IMPORTS = {
+  group: ["#test/node/**", "./test/node/**"],
+  message: "src/test/node/ is Node-only; only /test/node imports it.",
+};
+const E2E_IMPORTS = {
+  group: [
+    "playwright",
+    "playwright/**",
+    "@mw10013/devkit",
+    "@mw10013/devkit/**",
+    "@effect/platform-node",
+    "@effect/platform-node/**",
+    "#test/e2e/**",
+    "./test/e2e/**",
+  ],
+  message:
+    "Playwright, devkit and Node platform code are the e2e pack's optional peers; only /test/e2e imports them.",
+};
+
+/**
+ * The package's entries keep apart what each may load: `files` (less `excludeFiles`) may not
+ * import `paths` or `patterns`, on top of {@link baseRestrictions}.
+ */
+const packageBoundary = (
+  files: readonly string[],
+  excludeFiles: readonly string[],
+  paths: readonly { name: string; message: string }[],
+  patterns: readonly { group: string[]; message: string }[],
+): OxlintOverride => ({
+  files: [...files],
+  excludeFiles: [...excludeFiles],
+  rules: {
+    "no-restricted-imports": [
+      "error",
+      {
+        ...baseRestrictions,
+        paths: [...baseRestrictions.paths, ...paths],
+        patterns: [...baseRestrictions.patterns, ...patterns],
+      },
+    ],
+  },
+});
+
 export default defineConfig({
   fmt: {
     sortImports: true,
@@ -187,36 +242,15 @@ export default defineConfig({
         ["web"],
         "The e2e stage's Backend never imports the Website.",
       ),
-      {
+      packageBoundary(
         // Only `/test/node` runs under Node alone; every other entry can reach a workerd bundle.
-        files: ["packages/shopify-app-workers/src/**"],
-        excludeFiles: [
-          "packages/shopify-app-workers/src/test-node.ts",
-          "packages/shopify-app-workers/src/test/node/**",
-        ],
-        rules: {
-          "no-restricted-imports": [
-            "error",
-            {
-              ...baseRestrictions,
-              paths: [
-                ...baseRestrictions.paths,
-                {
-                  name: "node:sqlite",
-                  message: "node:sqlite is Node-only; it belongs behind /test/node.",
-                },
-              ],
-              patterns: [
-                ...baseRestrictions.patterns,
-                {
-                  group: ["#test/node/**", "./test/node/**"],
-                  message: "src/test/node/ is Node-only; only /test/node imports it.",
-                },
-              ],
-            },
-          ],
-        },
-      },
+        ["packages/shopify-app-workers/src/**"],
+        [...PACKAGE_NODE_ONLY, ...PACKAGE_E2E],
+        [NODE_SQLITE],
+        [TEST_NODE_IMPORTS, E2E_IMPORTS],
+      ),
+      packageBoundary(PACKAGE_NODE_ONLY, [], [], [E2E_IMPORTS]),
+      packageBoundary(PACKAGE_E2E, [], [NODE_SQLITE], [TEST_NODE_IMPORTS]),
       ...lint.overrides,
     ],
   },

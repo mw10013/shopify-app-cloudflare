@@ -7,6 +7,7 @@
  */
 
 import path from "node:path";
+import process from "node:process";
 
 import { storageStatePath } from "@mw10013/devkit/shopify/agent-chrome";
 import * as Schema from "effect/Schema";
@@ -54,44 +55,97 @@ export const shopOf = (app: E2eApp) => `${app.store}.myshopify.com`;
 /** The pack's spec and setup files. */
 export const E2E_SPECS_DIR = import.meta.dirname;
 
-/** The run's preflight, for the app's `globalSetup`. */
-export const E2E_PREFLIGHT = path.join(import.meta.dirname, "preflight.ts");
+/**
+ * The run's preflight, for the app's `globalSetup`. Its extension is this module's, so the path
+ * holds both in the source (`.ts`) and in the built package, whose JavaScript Playwright loads
+ * as is: it does not transpile TypeScript under `node_modules`.
+ */
+export const E2E_PREFLIGHT = path.join(
+  import.meta.dirname,
+  `preflight${path.extname(import.meta.filename)}`,
+);
+
+/** A spec file, as source or built: `.spec.ts`, `.spec.js`, `.spec.mjs` and the like. */
+export const SPEC_MATCH = /\.spec\.[cm]?[jt]s$/u;
 
 /** The project that exports the agent Chrome's Shopify login; the pack's specs depend on it. */
 export const SHOPIFY_ADMIN_PROJECT = "shopify-admin";
 
+/** Set to `1` to keep a trace of each failed test. */
+export const E2E_TRACE = "E2E_TRACE";
+
 /**
- * The pack's projects: {@link SHOPIFY_ADMIN_PROJECT}, then its specs inside the store's admin.
- * `root` is the app's directory, which holds the exported login under `playwright/.auth/`.
+ * Whether this run keeps traces. Off by default: a trace holds the context's storage state (the
+ * live Shopify admin login) in its context options and the login's cookies in its network log,
+ * and the HTML report copies traces. `E2E_TRACE=1` opts in, with a warning from the main process.
+ */
+const traced = () => {
+  if (process.env[E2E_TRACE] !== "1") return false;
+  if (process.env.TEST_WORKER_INDEX === undefined)
+    console.warn(
+      `${E2E_TRACE}=1: each failed test's trace and the HTML report hold a live Shopify admin login; do not share them, and delete the run's directory when done`,
+    );
+  return true;
+};
+
+/** Where in the app the project's specs drive the store's admin. */
+export interface E2eProjectSpecs {
+  readonly name: string;
+  readonly testDir: string;
+  readonly testMatch: NonNullable<PlaywrightTestProject["testMatch"]>;
+}
+
+/**
+ * A project of specs on the pack's fixtures, inside the store's admin under the exported login,
+ * after {@link SHOPIFY_ADMIN_PROJECT}. The pack registers its own specs with it; an app adds its
+ * own the same way, next to {@link e2eProjects}. `root` is the app's directory, which holds the
+ * exported login under `playwright/.auth/`. Screenshots and videos are off, and traces unless
+ * {@link E2E_TRACE} opts in, because each can carry the login.
+ */
+export const e2eProject = (
+  app: E2eApp,
+  root: string,
+  { name, testDir, testMatch }: E2eProjectSpecs,
+): PlaywrightTestProject<object, E2eOptions> => {
+  const adminAuthFile = path.join(root, storageStatePath);
+  return {
+    name,
+    testDir,
+    testMatch,
+    dependencies: [SHOPIFY_ADMIN_PROJECT],
+    timeout: 60_000,
+    expect: { timeout: 10_000 },
+    use: {
+      e2eApp: app,
+      adminAuthFile,
+      baseURL: `https://admin.shopify.com/store/${app.store}/apps/${app.appHandle}`,
+      storageState: adminAuthFile,
+      actionTimeout: 10_000,
+      navigationTimeout: 30_000,
+      trace: traced() ? "retain-on-failure" : "off",
+      screenshot: "off",
+      video: "off",
+    },
+  };
+};
+
+/**
+ * The pack's projects: {@link SHOPIFY_ADMIN_PROJECT}, then its specs ({@link e2eProject}). Every
+ * spec drives the one leased store, so the app's config runs them with `workers: 1`.
  */
 export const e2eProjects = (
   app: E2eApp,
   root: string,
-): PlaywrightTestProject<object, E2eOptions>[] => {
-  const adminAuthFile = path.join(root, storageStatePath);
-  return [
-    {
-      name: SHOPIFY_ADMIN_PROJECT,
-      testDir: E2E_SPECS_DIR,
-      testMatch: /shopify-admin\.setup\.ts$/u,
-      use: { e2eApp: app, adminAuthFile },
-    },
-    {
-      name: "shopify-app-workers",
-      testDir: E2E_SPECS_DIR,
-      testMatch: /\.spec\.ts$/u,
-      dependencies: [SHOPIFY_ADMIN_PROJECT],
-      timeout: 60_000,
-      expect: { timeout: 10_000 },
-      use: {
-        e2eApp: app,
-        adminAuthFile,
-        baseURL: `https://admin.shopify.com/store/${app.store}/apps/${app.appHandle}`,
-        storageState: adminAuthFile,
-        actionTimeout: 10_000,
-        navigationTimeout: 30_000,
-        trace: "retain-on-failure",
-      },
-    },
-  ];
-};
+): PlaywrightTestProject<object, E2eOptions>[] => [
+  {
+    name: SHOPIFY_ADMIN_PROJECT,
+    testDir: E2E_SPECS_DIR,
+    testMatch: /shopify-admin\.setup\.[cm]?[jt]s$/u,
+    use: { e2eApp: app, adminAuthFile: path.join(root, storageStatePath) },
+  },
+  e2eProject(app, root, {
+    name: "shopify-app-workers",
+    testDir: E2E_SPECS_DIR,
+    testMatch: SPEC_MATCH,
+  }),
+];

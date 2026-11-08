@@ -45,7 +45,9 @@ export const test = base.extend<{ shopStatus: ShopStatusRead }, E2eOptions & { a
     // Playwright reads a fixture's dependencies from this pattern, so it must be `{}`, not `_`.
     // oxlint-disable-next-line no-empty-pattern
     async ({}, use) => {
-      const browser = await chromium.connectOverCDP(AGENT_CDP);
+      // `noDefaults` leaves the browser's download behavior and other agents' tabs alone: no
+      // focus or media emulation is applied to the tabs already open.
+      const browser = await chromium.connectOverCDP(AGENT_CDP, { noDefaults: true });
       await use(browser);
       // Closing a browser connected over CDP closes the contexts it made and disconnects; the
       // agent Chrome keeps running.
