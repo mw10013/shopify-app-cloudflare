@@ -8,6 +8,6 @@ Install a release by its tag, which needs no registry and no token:
 "@mw10013/shopify-app-workers": "github:mw10013/shopify-app-workers#v<x.y.z>"
 ```
 
-The subpath exports are `/backend`, `/contract`, `/stack`, `/website`, `/client`, `/test`, `/test/node` and `/test/e2e`. An app copies `migrations/` into its own D1 migrations.
+The subpath exports are `/backend`, `/contract`, `/stack`, `/website`, `/client`, `/test`, `/test/node` and `/test/e2e`. An app copies `migrations/` into its own D1 migrations and starts from a fresh database: the migrations create the `AppInstallation` table but do not reconcile one an app already has.
 
 A release commit holds build output only. The source and its design live in https://github.com/mw10013/shopify-app-workers, under `packages/shopify-app-workers`, at the commit the release commit's `Source:` line names.

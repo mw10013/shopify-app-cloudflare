@@ -12,8 +12,12 @@
 --
 -- Forward only, expand before contract. A later package migration only adds a nullable or
 -- defaulted column or an index, so the previous app version still works against the new schema
--- (a Workers rollback does not revert D1). `if not exists` makes adoption by an app whose own
--- migration already created the table a no-op.
+-- (a Workers rollback does not revert D1).
+--
+-- An app adopting the package starts from a fresh database, or first brings its own
+-- AppInstallation table to exactly the columns below, so the later package migrations apply.
+-- `if not exists` does not reconcile an existing table: over an older one missing a column it
+-- creates nothing and adds nothing, and the package then fails on the first query of that column.
 --
 -- Instants are integers of epoch milliseconds. Apps never add columns here: their per-shop data
 -- lives in their own tables.
