@@ -21,7 +21,7 @@ import type { FullConfig } from "playwright/test";
 
 import { E2eShopStatus } from "#internal/e2e-status.ts";
 
-import { E2eApp, shopOf } from "./app.ts";
+import { E2eApp, shopOf, statusUrl } from "./app.ts";
 import { storeAuthMissing } from "./store-auth.ts";
 
 class PreflightError extends Schema.TaggedError<PreflightError>()("PreflightError", {
@@ -83,8 +83,7 @@ const checkStoreAuth = (app: E2eApp, shop: string) =>
 
 const checkServer = (app: E2eApp, shop: string) =>
   Effect.gen(function* () {
-    const url = new URL(app.status.url);
-    url.searchParams.set("shop", shop);
+    const url = statusUrl(app, shop);
     const { status, body } = yield* get(url.href, app.status.headers).pipe(
       Effect.mapError((cause) =>
         fail(

@@ -25,3 +25,4 @@ shopify.app.e2e.toml
 /tmp/
 
 **/playwright/.auth/
+.playwright-cli/

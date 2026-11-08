@@ -14,6 +14,8 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import {
   test as base,
+  type Browser,
+  type BrowserContext,
   chromium,
   type FrameLocator,
   type Locator,
@@ -22,13 +24,49 @@ import {
 
 import { E2eShopStatus } from "#internal/e2e-status.ts";
 
-import { E2eApp, type E2eOptions } from "./app.ts";
+import { planSelectionUrl, screenError } from "./admin.ts";
+import { appBaseUrl, E2eApp, type E2eOptions, statusUrl } from "./app.ts";
 
 /** Reads the app's e2e status route for one shop. */
 export type ShopStatusRead = (shop: string) => Promise<E2eShopStatus>;
 
 const decodeApp = Schema.decodeUnknownSync(E2eApp);
 const decodeStatus = Schema.decodeUnknownPromise(E2eShopStatus);
+
+/** Reads `app`'s e2e status route for `shop`. */
+export const readShopStatus = async (app: E2eApp, shop: string): Promise<E2eShopStatus> => {
+  const url = statusUrl(app, shop);
+  const response = await fetch(url, {
+    headers: app.status.headers,
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok)
+    throw new Error(`GET ${url.pathname}?shop=${shop}: HTTP ${String(response.status)}`);
+  return decodeStatus(await response.json());
+};
+
+/** The browser runs on this machine, so the app's tunnel is answered from its local port. */
+const routeToServer = (context: BrowserContext, app: E2eApp) =>
+  routeAppToLocal(context, {
+    port: app.server.port,
+    url: Option.some(app.server.tunnel),
+    startedAt: Option.none(),
+    log: "",
+  });
+
+/**
+ * A context of its own in `browser` under the exported login, at the app's `baseURL` and routed to
+ * `app`'s server, as the `context` fixture is: for a spec that outlives its server, since a context
+ * is routed to one.
+ */
+export const adminContext = async (browser: Browser, app: E2eApp, adminAuthFile: string) => {
+  const context = await browser.newContext({
+    storageState: adminAuthFile,
+    baseURL: appBaseUrl(app),
+  });
+  await routeToServer(context, app);
+  return context;
+};
 
 export const test = base.extend<{ shopStatus: ShopStatusRead }, E2eOptions & { app: E2eApp }>({
   e2eApp: [undefined, { option: true, scope: "worker" }],
@@ -55,35 +93,16 @@ export const test = base.extend<{ shopStatus: ShopStatusRead }, E2eOptions & { a
     },
     { scope: "worker" },
   ],
-  /** The browser runs on this machine, so the app's tunnel is answered from its local port. */
   context: async ({ context, app }, use) => {
-    await routeAppToLocal(context, {
-      port: app.server.port,
-      url: Option.some(app.server.tunnel),
-      startedAt: Option.none(),
-      log: "",
-    });
+    await routeToServer(context, app);
     await use(context);
   },
   shopStatus: async ({ app }, use) => {
-    await use(async (shop) => {
-      const url = new URL(app.status.url);
-      url.searchParams.set("shop", shop);
-      const response = await fetch(url, {
-        headers: app.status.headers,
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!response.ok)
-        throw new Error(`GET ${url.pathname}?shop=${shop}: HTTP ${String(response.status)}`);
-      return decodeStatus(await response.json());
-    });
+    await use((shop) => readShopStatus(app, shop));
   },
 });
 export { expect } from "playwright/test";
-
-/** Where the admin sends a store with no plan: Shopify's plan selection page for the app. */
-export const planSelectionUrl = (app: E2eApp) =>
-  `https://admin.shopify.com/store/${app.store}/charges/${app.appHandle}/pricing_plans`;
+export { planSelectionUrl } from "./admin.ts";
 
 /** Where opening the app lands: the app itself, or plan selection for a store with no plan. */
 export type AppLanding =
@@ -116,7 +135,9 @@ export const openApp = async (
         waitUntil: "commit",
       })
       .then(() => "PlanSelection" as const),
-  ]);
+  ]).catch(async (cause: unknown) => {
+    throw await screenError(page, "the app or its plan selection", cause);
+  });
   if (landing === "PlanSelection") return { _tag: "PlanSelection" };
   await awaitHydration(frame, 15_000);
   await closeDevConsole(page);

@@ -13,27 +13,54 @@ import { storageStatePath } from "@mw10013/devkit/shopify/agent-chrome";
 import * as Schema from "effect/Schema";
 import type { PlaywrightTestProject } from "playwright/test";
 
+/** A plan as the app's `PlanCatalog` sells it and as Shopify's plan selection page names its card. */
+export const E2ePlan = Schema.Struct({
+  handle: Schema.NonEmptyString,
+  /** The plan's name in the Partner Dashboard, the heading of its card on the plan selection page. */
+  name: Schema.NonEmptyString,
+});
+export type E2ePlan = typeof E2ePlan.Type;
+
+/** The running e2e server: its local port, which the browser and the status reads use, and its tunnel. */
+export const E2eServer = Schema.Struct({ port: Schema.Int, tunnel: Schema.NonEmptyString });
+export type E2eServer = typeof E2eServer.Type;
+
 /**
- * What the pack needs of an app: its leased store, its handle and plans, its running e2e server
- * and how to read the server's e2e status route. Plain data, because Playwright hands project
- * options to the preflight and to every worker.
+ * What the pack needs of an app: its leased store, its identity and plans, its running e2e server,
+ * how to read the server's e2e status route and how to restart the server. Plain data, because
+ * Playwright hands project options to the preflight and to every worker.
  */
 export const E2eApp = Schema.Struct({
   /** The leased store's handle: `<store>` in `<store>.myshopify.com` and in admin URLs. */
   store: Schema.NonEmptyString,
   /** The app's handle, which names it in admin URLs: `/apps/<handle>`, `/charges/<handle>`. */
   appHandle: Schema.NonEmptyString,
-  /** The app's plan handles, as its `PlanCatalog` sells them. */
-  plans: Schema.NonEmptyArray(Schema.NonEmptyString),
-  /** The e2e server: its local port, which the browser and the status reads use, and its tunnel. */
-  server: Schema.Struct({ port: Schema.Int, tunnel: Schema.NonEmptyString }),
+  /** The app's client ID, which its admin install URL names. */
+  clientId: Schema.NonEmptyString,
   /**
-   * The e2e status route on the local port, answering `GET <url>?shop=<shop>` with an
+   * The plans the app sells, cheapest first. The lifecycle spec subscribes to the first and
+   * changes to the second when there is one.
+   */
+  plans: Schema.NonEmptyArray(E2ePlan),
+  server: E2eServer,
+  /**
+   * The e2e status route on the server's local port, answering `GET <path>?shop=<shop>` with an
    * `E2eShopStatus` when sent `headers`.
    */
   status: Schema.Struct({
-    url: Schema.NonEmptyString,
+    path: Schema.String.check(Schema.isStartingWith("/")),
     headers: Schema.Record(Schema.String, Schema.String),
+  }),
+  /**
+   * Restarts the e2e server on the same store, keeping its data and its status route's headers:
+   * `command` run in `cwd`, printing the new {@link E2eServer} as JSON on its last line of stdout.
+   * An uninstall ends the Shopify CLI's dev preview on the store (the CLI logs "The dev preview has
+   * ended"), and only a new `shopify app dev` installs one again, so the lifecycle spec restarts
+   * the server before it reinstalls.
+   */
+  restart: Schema.Struct({
+    command: Schema.NonEmptyArray(Schema.NonEmptyString),
+    cwd: Schema.NonEmptyString,
   }),
   /** The store auth scopes the app's suite needs; the preflight checks them when any are given. */
   storeScopes: Schema.Array(Schema.NonEmptyString),
@@ -51,6 +78,17 @@ export interface E2eOptions {
 
 /** The store's myshopify domain, the `shop` every Shopify surface names it by. */
 export const shopOf = (app: E2eApp) => `${app.store}.myshopify.com`;
+
+/** The app in the store's admin: every pack spec's `baseURL`. */
+export const appBaseUrl = (app: E2eApp) =>
+  `https://admin.shopify.com/store/${app.store}/apps/${app.appHandle}`;
+
+/** The e2e status route's URL for `shop`, on the server's local port. */
+export const statusUrl = (app: E2eApp, shop: string) => {
+  const url = new URL(app.status.path, `http://localhost:${String(app.server.port)}`);
+  url.searchParams.set("shop", shop);
+  return url;
+};
 
 /** The pack's spec and setup files. */
 export const E2E_SPECS_DIR = import.meta.dirname;
@@ -70,6 +108,19 @@ export const SPEC_MATCH = /\.spec\.[cm]?[jt]s$/u;
 
 /** The project that exports the agent Chrome's Shopify login; the pack's specs depend on it. */
 export const SHOPIFY_ADMIN_PROJECT = "shopify-admin";
+
+/**
+ * The project of the lifecycle spec, first after the login export: it recovers the store from any
+ * state and restarts the e2e server. Every later project runs in a worker of its own, which loads
+ * the app's config again and so reads the restarted server.
+ */
+export const LIFECYCLE_PROJECT = "shopify-app-workers-lifecycle";
+
+/** The project of the pack's specs but the lifecycle. */
+export const SPECS_PROJECT = "shopify-app-workers";
+
+/** The lifecycle spec, as source or built. */
+export const LIFECYCLE_SPEC_MATCH = /lifecycle\.spec\.[cm]?[jt]s$/u;
 
 /** Set to `1` to keep a trace of each failed test. */
 export const E2E_TRACE = "E2E_TRACE";
@@ -93,6 +144,12 @@ export interface E2eProjectSpecs {
   readonly name: string;
   readonly testDir: string;
   readonly testMatch: NonNullable<PlaywrightTestProject["testMatch"]>;
+  readonly testIgnore?: PlaywrightTestProject["testIgnore"];
+  /**
+   * Projects that run first, besides {@link SHOPIFY_ADMIN_PROJECT}: by default
+   * {@link LIFECYCLE_PROJECT}, which leaves the store installed on a plan.
+   */
+  readonly after?: readonly string[];
 }
 
 /**
@@ -105,20 +162,21 @@ export interface E2eProjectSpecs {
 export const e2eProject = (
   app: E2eApp,
   root: string,
-  { name, testDir, testMatch }: E2eProjectSpecs,
+  { name, testDir, testMatch, testIgnore = [], after = [LIFECYCLE_PROJECT] }: E2eProjectSpecs,
 ): PlaywrightTestProject<object, E2eOptions> => {
   const adminAuthFile = path.join(root, storageStatePath);
   return {
     name,
     testDir,
     testMatch,
-    dependencies: [SHOPIFY_ADMIN_PROJECT],
+    testIgnore,
+    dependencies: [SHOPIFY_ADMIN_PROJECT, ...after],
     timeout: 60_000,
     expect: { timeout: 10_000 },
     use: {
       e2eApp: app,
       adminAuthFile,
-      baseURL: `https://admin.shopify.com/store/${app.store}/apps/${app.appHandle}`,
+      baseURL: appBaseUrl(app),
       storageState: adminAuthFile,
       actionTimeout: 10_000,
       navigationTimeout: 30_000,
@@ -130,8 +188,9 @@ export const e2eProject = (
 };
 
 /**
- * The pack's projects: {@link SHOPIFY_ADMIN_PROJECT}, then its specs ({@link e2eProject}). Every
- * spec drives the one leased store, so the app's config runs them with `workers: 1`.
+ * The pack's projects: {@link SHOPIFY_ADMIN_PROJECT}, the lifecycle ({@link LIFECYCLE_PROJECT}),
+ * then its other specs ({@link e2eProject}). Every spec drives the one leased store, so the app's
+ * config runs them with `workers: 1`.
  */
 export const e2eProjects = (
   app: E2eApp,
@@ -144,8 +203,15 @@ export const e2eProjects = (
     use: { e2eApp: app, adminAuthFile: path.join(root, storageStatePath) },
   },
   e2eProject(app, root, {
-    name: "shopify-app-workers",
+    name: LIFECYCLE_PROJECT,
+    testDir: E2E_SPECS_DIR,
+    testMatch: LIFECYCLE_SPEC_MATCH,
+    after: [],
+  }),
+  e2eProject(app, root, {
+    name: SPECS_PROJECT,
     testDir: E2E_SPECS_DIR,
     testMatch: SPEC_MATCH,
+    testIgnore: LIFECYCLE_SPEC_MATCH,
   }),
 ];

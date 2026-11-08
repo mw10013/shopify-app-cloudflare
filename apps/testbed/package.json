@@ -22,6 +22,7 @@
     "e2e:status": "vpx scripts/e2e.ts status",
     "e2e:restart": "vpx scripts/e2e.ts restart",
     "e2e:logs": "bosun logs e2e",
+    "browser": "vpx --env-file=.env scripts/browser.ts",
     "test:unit": "vp test run --project unit",
     "test:integ": "vp test run --project integ",
     "test:e2e": "vp exec playwright test"

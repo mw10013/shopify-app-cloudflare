@@ -7,15 +7,21 @@ import {
   type E2eApp,
   e2eProject,
   e2eProjects,
+  LIFECYCLE_PROJECT,
+  LIFECYCLE_SPEC_MATCH,
+  SHOPIFY_ADMIN_PROJECT,
   SPEC_MATCH,
+  statusUrl,
 } from "#test/e2e/app.ts";
 
 const app: E2eApp = {
   store: "pool-01",
   appHandle: "testbed",
-  plans: ["basic"],
+  clientId: "0123456789abcdef0123456789abcdef",
+  plans: [{ handle: "basic", name: "Basic" }],
   server: { port: 8787, tunnel: "https://e2e.example.com" },
-  status: { url: "http://localhost:8787/status", headers: {} },
+  status: { path: "/status", headers: {} },
+  restart: { command: ["true"], cwd: "/app" },
   storeScopes: [],
 };
 
@@ -50,10 +56,38 @@ describe("e2eProject", () => {
     assert.match(String(warn.mock.calls[0]?.[0]), /live Shopify admin login/u);
   });
 
-  it("runs after the admin login export, on the pack's shared options", () => {
-    const [admin, specs] = e2eProjects(app, "/app");
-    assert.deepStrictEqual(specs?.dependencies, [admin?.name]);
+  it("runs after the admin login export and the lifecycle, on the pack's shared options", () => {
+    const [admin, lifecycle, specs] = e2eProjects(app, "/app");
+    assert.deepStrictEqual(lifecycle?.dependencies, [admin?.name]);
+    assert.deepStrictEqual(specs?.dependencies, [admin?.name, lifecycle?.name]);
     assert.deepStrictEqual(specs?.use?.storageState, admin?.use?.adminAuthFile);
+  });
+
+  it("runs the lifecycle alone in its project, and an app's own specs after it", () => {
+    const [, lifecycle, specs] = e2eProjects(app, "/app");
+    assert.deepStrictEqual(lifecycle?.testMatch, LIFECYCLE_SPEC_MATCH);
+    assert.deepStrictEqual(specs?.testIgnore, LIFECYCLE_SPEC_MATCH);
+    const own = e2eProject(app, "/app", {
+      name: "own",
+      testDir: "/app/e2e",
+      testMatch: SPEC_MATCH,
+    });
+    assert.deepStrictEqual(own.dependencies, [SHOPIFY_ADMIN_PROJECT, LIFECYCLE_PROJECT]);
+    for (const file of ["lifecycle.spec.ts", "lifecycle.spec.js"])
+      assert.isTrue(LIFECYCLE_SPEC_MATCH.test(file) && SPEC_MATCH.test(file), file);
+    assert.isFalse(LIFECYCLE_SPEC_MATCH.test("smoke.spec.ts"));
+  });
+});
+
+describe("statusUrl", () => {
+  it("reads the status route on the server's local port, for the shop", () => {
+    assert.strictEqual(
+      statusUrl(
+        { ...app, server: { port: 9001, tunnel: "https://t.example.com" } },
+        "pool-01.myshopify.com",
+      ).href,
+      "http://localhost:9001/status?shop=pool-01.myshopify.com",
+    );
   });
 });
 
