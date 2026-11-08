@@ -35,6 +35,21 @@ describe("N8. the package's migrations only expand", () => {
     assert.deepStrictEqual(rules("alter table AppInstallation add column x integer not null"), [
       "not null without a default",
     ]);
+    assert.deepStrictEqual(
+      rules("alter table AppInstallation add column x text not null default null"),
+      ["not null without a default"],
+    );
+  });
+
+  it("the check refuses any statement that is not an expansion form", () => {
+    const rules = (sql: string) => contractions(sql).map(({ name }) => name);
+    assert.deepStrictEqual(rules("delete from AppInstallation"), ["not an expansion"]);
+    assert.deepStrictEqual(rules("update AppInstallation set scope = null"), ["not an expansion"]);
+    assert.deepStrictEqual(
+      rules("create unique index if not exists U on AppInstallation (shopGid)"),
+      ["not an expansion"],
+    );
+    assert.deepStrictEqual(rules("create table AppInstallation (shop text)"), ["not an expansion"]);
   });
 
   it("the check admits a new table, an index, and a nullable or defaulted column, and reads no comment", () => {
