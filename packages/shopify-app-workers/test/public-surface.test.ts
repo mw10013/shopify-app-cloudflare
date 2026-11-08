@@ -51,6 +51,7 @@ describe("/backend", () => {
       "AuthenticateMerchantInput",
       "serve",
       "serveAll",
+      "scheduledJob",
     ])
       assert.include(exported, name);
     assert.deepStrictEqual(

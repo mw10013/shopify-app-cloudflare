@@ -20,6 +20,7 @@ export {
 } from "#internal/merchant-gate.ts";
 export {
   PartnerApi,
+  type PartnerApiOptions,
   type PartnerApiShape,
   type PartnerSubscription,
 } from "#internal/partner-api.ts";
@@ -45,6 +46,7 @@ export {
   type SubscriptionPlanShape,
 } from "#internal/subscription-plan.ts";
 export { type Failures, type Served, serve, serveAll } from "#internal/serve.ts";
+export { scheduledJob } from "#internal/scheduled.ts";
 export { ADMIN_API_VERSION, PARTNER_API_VERSION } from "#internal/versions.ts";
 export {
   BUILT_IN_TOPICS,

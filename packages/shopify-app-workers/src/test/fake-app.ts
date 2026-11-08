@@ -18,6 +18,9 @@ export const FAKE_SHOPIFY_API_KEY = "fake-api-key";
  */
 export const FAKE_SHOPIFY_API_SECRET = "fake-api-secret";
 
+/** The fake app's handle, which its plan selection URL names. */
+export const FAKE_APP_HANDLE = "fake-app";
+
 /** The fake app's URL. Only its host and scheme reach the library. */
 export const FAKE_SHOPIFY_APP_URL = "http://localhost";
 

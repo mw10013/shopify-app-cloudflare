@@ -8,10 +8,9 @@
 
 import * as Layer from "effect/Layer";
 
-import type { PartnerConfig } from "./bindings.ts";
 import type { PlanCatalog } from "./catalog.ts";
 import { MerchantGate } from "./merchant-gate.ts";
-import { PartnerApi } from "./partner-api.ts";
+import { PartnerApi, type PartnerApiOptions } from "./partner-api.ts";
 import { SubscriptionPlan } from "./subscription-plan.ts";
 import { BUILT_IN_TOPICS, type ExtraTopics, Webhooks } from "./webhooks.ts";
 
@@ -60,11 +59,9 @@ const layerNoDeps = <Entry, R>(app: ShopifyAppDefinition<Entry, R>) =>
     Layer.provideMerge(SubscriptionPlan.layer(app.catalog)),
   );
 
-/** {@link layerNoDeps} over the Partner API with the given `partner` credentials, over `fetch`. */
-const layer = <Entry, R>(
-  app: ShopifyAppDefinition<Entry, R>,
-  options: { readonly partner: PartnerConfig },
-) => layerNoDeps(app).pipe(Layer.provide(PartnerApi.layer(options.partner)));
+/** {@link layerNoDeps} over the Partner API with the app's `handle` and `partner` credentials, over `fetch`. */
+const layer = <Entry, R>(app: ShopifyAppDefinition<Entry, R>, options: PartnerApiOptions) =>
+  layerNoDeps(app).pipe(Layer.provide(PartnerApi.layer(options)));
 
 /** {@link layerNoDeps} over the Partner API, its credentials read from the Backend's bindings. */
 const layerConfig = <Entry, R>(app: ShopifyAppDefinition<Entry, R>) =>

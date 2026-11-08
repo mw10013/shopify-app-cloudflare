@@ -16,8 +16,7 @@ import type { PlanHandle, ShopDomain, ShopGid } from "#internal/domain.ts";
 import { PartnerApi, type PartnerSubscription } from "#internal/partner-api.ts";
 import { unavailable } from "#internal/shopify-client.ts";
 
-/** The fake app's handle, which its plan selection URL names. */
-export const FAKE_APP_HANDLE = "fake-app";
+import { FAKE_APP_HANDLE } from "./fake-app.ts";
 
 /** The plan selection page under the fake, for a case to compare a refusal's `href` against. */
 export const fakePlanSelectionUrl = (shop: ShopDomain) =>

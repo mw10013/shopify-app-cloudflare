@@ -10,6 +10,7 @@ import {
   deployedShopifyApp,
   fakeShopifyApp,
   partnerBindingFromConfig,
+  readAppHandle,
   type ShopifyAppBinding,
   shopifyCliApp,
 } from "@mw10013/shopify-app-workers/stack";
@@ -49,6 +50,9 @@ export class Website extends Cloudflare.Website.Vite<Website>()(
 
 export type WebsiteEnv = Cloudflare.InferEnv<typeof Website>;
 
+/** The handle of the app Shopify CLI serves from `shopify.app.toml`, read from the toml itself. */
+const CLI_APP_HANDLE = readAppHandle(new URL("shopify.app.toml", import.meta.url));
+
 /**
  * The Shopify app this stage's Backend serves, served at `appUrl` unless the CLI's tunnel is.
  * `dev` and `e2e` serve Shopify CLI's app under `shopify app dev` and the fake app otherwise (a
@@ -61,7 +65,7 @@ const shopifyAppFor = (appUrl: ShopifyAppBinding["appUrl"]) =>
     return yield* Match.value(environment).pipe(
       Match.whenOr("dev", "e2e", () =>
         Effect.map(
-          shopifyCliApp,
+          shopifyCliApp(CLI_APP_HANDLE),
           Option.getOrElse(() => fakeShopifyApp(appUrl)),
         ),
       ),
@@ -72,9 +76,10 @@ const shopifyAppFor = (appUrl: ShopifyAppBinding["appUrl"]) =>
   });
 
 /**
- * The Partner values this stage binds: from `.env` on `dev` and `e2e`, and none while the owner
- * has not added them, when the Backend's billing dies on its first call and webhooks and the
- * grantor still work; required on a deployed stage; none on `test`, whose Backend uses the fake.
+ * The Partner credentials this stage binds: from `.env` on `dev` and `e2e`, and none while the
+ * owner has not added them, when the Backend's billing dies on its first Partner call and
+ * webhooks, the grantor and a shop with a cached plan still work; required on a deployed stage;
+ * none on `test`, whose Backend uses the fake.
  */
 const partnerFor = Effect.gen(function* () {
   const environment = yield* environmentOf(yield* Alchemy.Stage);

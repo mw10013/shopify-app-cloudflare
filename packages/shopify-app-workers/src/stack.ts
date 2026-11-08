@@ -13,6 +13,7 @@ export {
   deployedShopifyApp,
   fakeShopifyApp,
   partnerBindingFromConfig,
+  readAppHandle,
   type ShopifyAppBinding,
   shopifyCliApp,
 } from "#internal/stack.ts";

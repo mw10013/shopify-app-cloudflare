@@ -11,22 +11,24 @@ import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 import * as TestClock from "effect/testing/TestClock";
 
-import type { PartnerConfig } from "#internal/bindings.ts";
 import {
   layerHttpClient,
   PARTNER_ATTEMPT_DEADLINE,
   PARTNER_RETRIES,
   PartnerApi,
+  type PartnerApiOptions,
 } from "#internal/partner-api.ts";
 import { PARTNER_API_VERSION } from "#internal/versions.ts";
 
 import { millisOf, SHOP, SHOP_GID } from "./fixtures.ts";
 
-const CONFIG: PartnerConfig = {
-  SHOPIFY_APP_HANDLE: "test-app",
-  SHOPIFY_PARTNER_ORG_ID: "123",
-  SHOPIFY_PARTNER_APP_ID: "456",
-  SHOPIFY_PARTNER_API_TOKEN: Redacted.make("prtapi_test"),
+const OPTIONS: PartnerApiOptions = {
+  handle: "test-app",
+  partner: {
+    SHOPIFY_PARTNER_ORG_ID: "123",
+    SHOPIFY_PARTNER_APP_ID: "456",
+    SHOPIFY_PARTNER_API_TOKEN: Redacted.make("prtapi_test"),
+  },
 };
 
 interface Seen {
@@ -62,7 +64,7 @@ const partnerOver = (replies: readonly ((() => Response) | typeof HANG)[]) => {
   );
   return {
     seen,
-    layer: layerHttpClient(CONFIG).pipe(
+    layer: layerHttpClient(OPTIONS).pipe(
       Layer.provide(Layer.succeed(HttpClient.HttpClient, client)),
     ),
   };
@@ -70,6 +72,13 @@ const partnerOver = (replies: readonly ((() => Response) | typeof HANG)[]) => {
 
 const subscription = (activeSubscription: unknown) => () =>
   Response.json({ data: { activeSubscription } });
+
+/** A 200 whose headers arrive and whose body never finishes. */
+const hangingBody = () =>
+  new Response(new ReadableStream({ start: () => undefined }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
 
 const activeSubscription = Effect.flatMap(PartnerApi, (partner) =>
   partner.activeSubscription(SHOP, SHOP_GID),
@@ -178,6 +187,26 @@ describe("PartnerApi.activeSubscription", () => {
     },
   );
 
+  it.effect(
+    "a 200 whose body never finishes meets the deadline too: retried, then ShopifyUnavailableError",
+    () => {
+      const { seen, layer } = partnerOver([hangingBody]);
+      return Effect.gen(function* () {
+        const fiber = yield* Effect.forkChild(Effect.exit(activeSubscription));
+        yield* TestClock.adjust(Duration.subtract(PARTNER_ATTEMPT_DEADLINE, Duration.millis(1)));
+        assert.strictEqual(seen.length, 1, "the first attempt still reads inside its deadline");
+        yield* TestClock.adjust("30 seconds");
+        const exit = yield* Fiber.join(fiber);
+        assert.isTrue(Exit.isFailure(exit));
+        if (Exit.isFailure(exit)) {
+          const error = Cause.findErrorOption(exit.cause);
+          assert.strictEqual(Option.getOrThrow(error)._tag, "ShopifyUnavailableError");
+        }
+        assert.strictEqual(seen.length, 1 + PARTNER_RETRIES, "each attempt met its deadline");
+      }).pipe(Effect.provide(layer));
+    },
+  );
+
   it.effect("a 401, a misconfigured token, is a defect after one call", () => {
     const { seen, layer } = partnerOver([() => new Response("no", { status: 401 })]);
     return Effect.gen(function* () {
@@ -220,12 +249,26 @@ describe("PartnerApi.planSelectionUrl", () => {
 });
 
 describe("PartnerApi.layerUnbound", () => {
-  it.effect("dies on every call, naming the missing credentials, and never answers None", () =>
+  it.effect(
+    "activeSubscription dies, naming the missing credentials, while the handle still builds the plan page",
+    () =>
+      Effect.gen(function* () {
+        const partner = yield* PartnerApi;
+        const exit = yield* Effect.exit(partner.activeSubscription(SHOP, SHOP_GID));
+        assert.isTrue(Exit.isFailure(exit) && Cause.hasDies(exit.cause));
+        if (Exit.isFailure(exit))
+          assert.match(String(Cause.squash(exit.cause)), /Partner API credentials are not bound/u);
+        assert.strictEqual(
+          partner.planSelectionUrl(SHOP),
+          "https://admin.shopify.com/store/seed-shop/charges/test-app/pricing_plans",
+        );
+      }).pipe(Effect.provide(PartnerApi.layerUnbound(Option.some("test-app")))),
+  );
+
+  it.effect("without the handle either, the plan page throws, naming it", () =>
     Effect.gen(function* () {
       const partner = yield* PartnerApi;
-      const exit = yield* Effect.exit(partner.activeSubscription(SHOP, SHOP_GID));
-      assert.isTrue(Exit.isFailure(exit) && Cause.hasDies(exit.cause));
-      assert.throws(() => partner.planSelectionUrl(SHOP), /Partner API credentials are not bound/u);
-    }).pipe(Effect.provide(PartnerApi.layerUnbound)),
+      assert.throws(() => partner.planSelectionUrl(SHOP), /app handle is not bound/u);
+    }).pipe(Effect.provide(PartnerApi.layerUnbound(Option.none()))),
   );
 });

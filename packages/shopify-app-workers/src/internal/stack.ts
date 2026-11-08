@@ -7,15 +7,20 @@
  * @module
  */
 
+import { readFileSync } from "node:fs";
+
 import type * as Output from "alchemy/Output";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
+import * as Schema from "effect/Schema";
 
-import { FAKE_SHOPIFY_API_KEY, FAKE_SHOPIFY_API_SECRET } from "#test/fake-app.ts";
+import { FAKE_APP_HANDLE, FAKE_SHOPIFY_API_KEY, FAKE_SHOPIFY_API_SECRET } from "#test/fake-app.ts";
 
 import {
+  AppHandle,
+  appHandleConfig,
   type PartnerConfig,
   partnerConfig,
   SHOPIFY_BINDING,
@@ -24,32 +29,53 @@ import {
 
 /** The Shopify app a stage's Backend serves, as the stack binds it. */
 export interface ShopifyAppBinding {
+  /** The app's URL handle, which its plan selection page names. Public, not a credential. */
+  readonly handle: string;
   readonly apiKey: string;
   readonly apiSecret: Redacted.Redacted;
   /** The app's public URL: Shopify CLI's tunnel under `shopify app dev`, else the Website's own. */
   readonly appUrl: string | Output.Output<string | undefined>;
 }
 
-/**
- * Shopify CLI's app, `Some` only when `APP_URL`, `SHOPIFY_API_KEY` and `SHOPIFY_API_SECRET` are
- * all present. The CLI injects them into the web command it runs, so they exist only under
- * `shopify app dev`, which runs `alchemy dev` as that command; the process environment wins over
- * `.env`, so `.env` cannot shadow them.
- */
-export const shopifyCliApp: Config.Config<Option.Option<ShopifyAppBinding>> = Config.all({
-  appUrl: Config.option(Config.String("APP_URL")),
-  apiKey: Config.option(Config.String("SHOPIFY_API_KEY")),
-  apiSecret: Config.option(Config.Redacted("SHOPIFY_API_SECRET")),
-}).pipe(Config.map(Option.all));
+const decodeAppHandle = Schema.decodeUnknownSync(AppHandle);
 
 /**
- * A deployed stage's app, from its deploy's environment, served at `appUrl` (the Website's own
- * URL). A missing value fails the plan rather than falling back to the fake app.
+ * The top-level `handle` of the `shopify.app.toml` at `tomlPath`: the handle of the app Shopify
+ * CLI serves from it, so the toml stays its one source. Throws when it is absent or not a handle.
+ */
+export const readAppHandle = (tomlPath: string | URL): string => {
+  for (const raw of readFileSync(tomlPath, "utf8").split("\n")) {
+    const line = raw.replace(/#.*$/u, "").trim();
+    if (line.startsWith("[")) break;
+    const value = /^handle\s*=\s*"(?<handle>[^"]*)"$/u.exec(line)?.groups?.handle;
+    if (value !== undefined) return decodeAppHandle(value);
+  }
+  throw new Error(`readAppHandle: ${String(tomlPath)} has no top-level handle`);
+};
+
+/**
+ * Shopify CLI's app, its handle `handle` (the toml's, {@link readAppHandle}), `Some` only when
+ * `APP_URL`, `SHOPIFY_API_KEY` and `SHOPIFY_API_SECRET` are all present. The CLI injects them
+ * into the web command it runs, so they exist only under `shopify app dev`, which runs `alchemy
+ * dev` as that command; the process environment wins over `.env`, so `.env` cannot shadow them.
+ */
+export const shopifyCliApp = (handle: string): Config.Config<Option.Option<ShopifyAppBinding>> =>
+  Config.all({
+    appUrl: Config.option(Config.String("APP_URL")),
+    apiKey: Config.option(Config.String("SHOPIFY_API_KEY")),
+    apiSecret: Config.option(Config.Redacted("SHOPIFY_API_SECRET")),
+  }).pipe(Config.map(Option.all), Config.map(Option.map((app) => ({ ...app, handle }))));
+
+/**
+ * A deployed stage's app, from its deploy's environment (`SHOPIFY_APP_HANDLE`,
+ * `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`), served at `appUrl` (the Website's own URL). A missing
+ * value fails the plan rather than falling back to the fake app.
  */
 export const deployedShopifyApp = (
   appUrl: ShopifyAppBinding["appUrl"],
 ): Config.Config<ShopifyAppBinding> =>
   Config.all({
+    handle: appHandleConfig,
     apiKey: Config.String("SHOPIFY_API_KEY"),
     apiSecret: Config.Redacted("SHOPIFY_API_SECRET"),
   }).pipe(Config.map((app) => ({ ...app, appUrl })));
@@ -60,6 +86,7 @@ export const deployedShopifyApp = (
  * destroy` outside `shopify app dev`).
  */
 export const fakeShopifyApp = (appUrl: ShopifyAppBinding["appUrl"]): ShopifyAppBinding => ({
+  handle: FAKE_APP_HANDLE,
   apiKey: FAKE_SHOPIFY_API_KEY,
   apiSecret: Redacted.make(FAKE_SHOPIFY_API_SECRET),
   appUrl,
@@ -77,10 +104,10 @@ export interface BindableWorker {
 }
 
 /**
- * Binds the Backend's Shopify configuration: the app as `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`
- * and `SHOPIFY_APP_URL`, and, when `partner` is `Some`, the Partner values. With `None` nothing
- * is bound, and the Backend's billing dies on its first Partner call while webhooks and the
- * grantor work (`PartnerApi.layerUnbound`).
+ * Binds the Backend's Shopify configuration: the app as `SHOPIFY_APP_HANDLE`, `SHOPIFY_API_KEY`,
+ * `SHOPIFY_API_SECRET` and `SHOPIFY_APP_URL`, and, when `partner` is `Some`, the Partner
+ * credentials. With `None` none is bound, and the Backend's billing dies on its first Partner
+ * call while webhooks, the grantor and a shop with a cached plan work (`PartnerApi.layerUnbound`).
  */
 export const bindShopifyApp = Effect.fn("Stack.bindShopifyApp")(function* (
   backend: BindableWorker,
@@ -91,6 +118,7 @@ export const bindShopifyApp = Effect.fn("Stack.bindShopifyApp")(function* (
 ) {
   yield* backend.bind(SHOPIFY_BINDING, {
     env: {
+      SHOPIFY_APP_HANDLE: options.app.handle,
       SHOPIFY_API_KEY: options.app.apiKey,
       SHOPIFY_API_SECRET: options.app.apiSecret,
       SHOPIFY_APP_URL: options.app.appUrl,

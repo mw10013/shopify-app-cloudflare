@@ -38,18 +38,30 @@ export const shopifyCredentialsConfig = Config.all({
  * `admin.shopify.com/store/<store>/charges/<handle>/pricing_plans`. Lowercase letters, digits
  * and dashes.
  */
-const AppHandle = Schema.NonEmptyString.check(Schema.isPattern(/^[a-z0-9-]+$/u));
+export const AppHandle = Schema.NonEmptyString.check(Schema.isPattern(/^[a-z0-9-]+$/u));
 
 /** A Partner Dashboard id (an organization's or an app's): the digits in its URL. */
 const PartnerId = Schema.NonEmptyString.check(Schema.isPattern(/^[0-9]+$/u));
 
 /**
- * What the app's Partner organization issues for one stage, beyond the app's key and secret: its
- * handle, the organization and app ids, and a Partner API token with **Manage apps**. The stack
- * binds them to the Backend under these names.
+ * `SHOPIFY_APP_HANDLE`, the app's {@link AppHandle}, decoded. Public configuration, not a
+ * credential: the stack binds it with the app, so the plan selection page never waits on the
+ * Partner credentials.
+ */
+export const appHandleConfig: Config.Config<string> = Config.String("SHOPIFY_APP_HANDLE").pipe(
+  Config.mapEffect((value) =>
+    Schema.decodeUnknownEffect(AppHandle)(value).pipe(
+      Effect.mapError((issue) => new Config.ConfigError(issue)),
+    ),
+  ),
+);
+
+/**
+ * What the app's Partner organization issues for one stage, beyond the app's key and secret: the
+ * organization and app ids, and a Partner API token with **Manage apps**. The stack binds them to
+ * the Backend under these names.
  */
 export const PartnerConfig = Schema.Struct({
-  SHOPIFY_APP_HANDLE: AppHandle,
   SHOPIFY_PARTNER_ORG_ID: PartnerId,
   SHOPIFY_PARTNER_APP_ID: PartnerId,
   SHOPIFY_PARTNER_API_TOKEN: Schema.Redacted(Schema.NonEmptyString),
@@ -63,7 +75,6 @@ export type PartnerConfig = typeof PartnerConfig.Type;
  * Backend its bindings.
  */
 export const partnerConfig: Config.Config<PartnerConfig> = Config.all({
-  SHOPIFY_APP_HANDLE: Config.String("SHOPIFY_APP_HANDLE"),
   SHOPIFY_PARTNER_ORG_ID: Config.String("SHOPIFY_PARTNER_ORG_ID"),
   SHOPIFY_PARTNER_APP_ID: Config.String("SHOPIFY_PARTNER_APP_ID"),
   SHOPIFY_PARTNER_API_TOKEN: Config.Redacted("SHOPIFY_PARTNER_API_TOKEN"),

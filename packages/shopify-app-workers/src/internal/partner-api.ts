@@ -21,15 +21,15 @@ import * as Redacted from "effect/Redacted";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 
-import { type PartnerConfig, partnerConfig } from "./bindings.ts";
+import { appHandleConfig, type PartnerConfig, partnerConfig } from "./bindings.ts";
 import type { ShopifyUnavailableError } from "./contract.ts";
 import type { ShopDomain, ShopGid } from "./domain.ts";
 import { isAlchemyRuntime, unavailable } from "./shopify-client.ts";
 import { PARTNER_API_VERSION } from "./versions.ts";
 
 /** Stand-ins while the stack is planned, when nothing calls the Partner API; they only decode. */
+const PLANNING_HANDLE = "planning";
 const PLANNING_CONFIG: PartnerConfig = {
-  SHOPIFY_APP_HANDLE: "planning",
   SHOPIFY_PARTNER_ORG_ID: "0",
   SHOPIFY_PARTNER_APP_ID: "0",
   SHOPIFY_PARTNER_API_TOKEN: Redacted.make("planning"),
@@ -118,14 +118,26 @@ const instantOrNull = (value: string | null | undefined): DateTime.Utc | null =>
 export const PARTNER_RETRIES = 2;
 
 /**
- * How long one attempt waits for the Partner API's response, the same as a grant attempt's
- * deadline (`GRANT_ATTEMPT_DEADLINE`): the merchant gate waits on this call. An attempt past it is
- * abandoned and counts as transient, so it is retried, and once the retries are spent it is
- * `ShopifyUnavailableError`. With the retries, a hung Partner API holds a page about 16.5 s.
+ * How long one attempt waits for the Partner API's whole response, its headers and its body, the
+ * same as a grant attempt's deadline (`GRANT_ATTEMPT_DEADLINE`): the merchant gate waits on this
+ * call. An attempt past it is abandoned and counts as transient, so it is retried, and once the
+ * retries are spent it is `ShopifyUnavailableError`. With the retries, a hung Partner API holds a
+ * page about 16.5 s.
  */
 export const PARTNER_ATTEMPT_DEADLINE = Duration.seconds(5);
 
-const make = Effect.fnUntraced(function* (config: PartnerConfig) {
+/** What {@link PartnerApi.layer} takes: the app's handle and its Partner credentials. */
+export interface PartnerApiOptions {
+  /** The app's URL handle, which its plan selection page names. */
+  readonly handle: string;
+  readonly partner: PartnerConfig;
+}
+
+/** The shop's plan selection page for the app whose handle is `handle`. */
+const planSelectionUrlOf = (handle: string) => (shop: ShopDomain) =>
+  `https://admin.shopify.com/store/${shop.replace(/\.myshopify\.com$/u, "")}/charges/${handle}/pricing_plans`;
+
+const make = Effect.fnUntraced(function* ({ handle, partner: config }: PartnerApiOptions) {
   const endpoint = `https://partners.shopify.com/${config.SHOPIFY_PARTNER_ORG_ID}/api/${PARTNER_API_VERSION}/graphql.json`;
   // `activeSubscription` takes the Admin form; the Partner API's own `app(id:)` takes `gid://partners/App/…`.
   const appGid = `gid://shopify/App/${config.SHOPIFY_PARTNER_APP_ID}`;
@@ -140,8 +152,12 @@ const make = Effect.fnUntraced(function* (config: PartnerConfig) {
       ),
     ),
     HttpClient.filterStatusOk,
+    // Reads the body inside the attempt, so the deadline covers it too: a 200 whose body never
+    // finishes would otherwise hold the gate past every deadline. The response caches it, so the
+    // decode below reads it again for free.
+    HttpClient.tap((response) => response.text),
     // Before the retries, so each attempt has its own deadline; a timed out attempt is a
-    // transient `TransportError`.
+    // transient `TransportError`, and the retries still honor a `Retry-After`.
     HttpClient.timeout(PARTNER_ATTEMPT_DEADLINE),
     HttpClient.retryTransient({
       schedule: Schedule.exponential("500 millis").pipe(Schedule.jittered),
@@ -193,52 +209,62 @@ const make = Effect.fnUntraced(function* (config: PartnerConfig) {
     });
   });
 
-  const planSelectionUrl = (shop: ShopDomain) =>
-    `https://admin.shopify.com/store/${shop.replace(/\.myshopify\.com$/u, "")}/charges/${config.SHOPIFY_APP_HANDLE}/pricing_plans`;
-
-  return { activeSubscription, planSelectionUrl } satisfies PartnerApiShape;
+  return {
+    activeSubscription,
+    planSelectionUrl: planSelectionUrlOf(handle),
+  } satisfies PartnerApiShape;
 });
 
 /**
  * {@link PartnerApi} over `config` and the `HttpClient` in context, which a test scripts. Not
  * exported from the package, so no transport type reaches an app.
  */
-export const layerHttpClient = (config: PartnerConfig) => Layer.effect(PartnerApi, make(config));
+export const layerHttpClient = (options: PartnerApiOptions) =>
+  Layer.effect(PartnerApi, make(options));
 
 /** The Partner API. `/test`'s `PartnerFake` provides it in tests. */
 export class PartnerApi extends Context.Service<PartnerApi, PartnerApiShape>()("app/PartnerApi") {
-  /** Over `config`, with `fetch`. */
-  static readonly layer = (config: PartnerConfig) =>
-    layerHttpClient(config).pipe(Layer.provide(FetchHttpClient.layer));
+  /** Over `options`, with `fetch`. */
+  static readonly layer = (options: PartnerApiOptions) =>
+    layerHttpClient(options).pipe(Layer.provide(FetchHttpClient.layer));
 
   /**
-   * Over `SHOPIFY_APP_HANDLE`, `SHOPIFY_PARTNER_ORG_ID`, `SHOPIFY_PARTNER_APP_ID` and
-   * `SHOPIFY_PARTNER_API_TOKEN`, which the stack binds to the Backend, with `fetch`. They are
-   * absent while the stack is planned, when nothing calls the Partner API; a running Worker
-   * without them is broken.
+   * Over `SHOPIFY_APP_HANDLE`, which the stack binds with the app, and `SHOPIFY_PARTNER_ORG_ID`,
+   * `SHOPIFY_PARTNER_APP_ID` and `SHOPIFY_PARTNER_API_TOKEN`, which it binds when the stage has
+   * them, with `fetch`. All are absent while the stack is planned, when nothing calls the Partner
+   * API. A running Worker without the credentials gets {@link PartnerApi.layerUnbound}.
    */
   static readonly layerConfig = Layer.unwrap(
     Effect.gen(function* () {
-      const config = yield* Config.option(partnerConfig).pipe(Effect.orDie);
-      if (Option.isSome(config)) return PartnerApi.layer(config.value);
-      if (isAlchemyRuntime()) return PartnerApi.layerUnbound;
-      return PartnerApi.layer(PLANNING_CONFIG);
+      const handle = yield* Config.option(appHandleConfig).pipe(Effect.orDie);
+      const partner = yield* Config.option(partnerConfig).pipe(Effect.orDie);
+      if (Option.isSome(handle) && Option.isSome(partner))
+        return PartnerApi.layer({ handle: handle.value, partner: partner.value });
+      if (isAlchemyRuntime()) return PartnerApi.layerUnbound(handle);
+      return PartnerApi.layer({ handle: PLANNING_HANDLE, partner: PLANNING_CONFIG });
     }),
   );
 
   /**
-   * A Partner API whose every call is a defect: `layerConfig`'s answer in a running Worker the
-   * stack bound no Partner credentials to (a dev stage before the owner adds them to `.env`). The
-   * Backend still boots, so webhooks and the grantor work; only billing, and so the merchant
-   * gate, dies, and says why. A plan is never guessed from a missing credential.
+   * The Partner API of a running Worker the stack bound no Partner credentials to (a dev stage
+   * before the owner adds them to `.env`): `activeSubscription` is a defect that says why, so a
+   * plan is never guessed from a missing credential. The plan selection page needs only the
+   * app's `handle`, which is public, so a shop whose plan is cached still passes the gate; it too
+   * is a defect when the handle is unbound. The Backend still boots, so webhooks and the grantor
+   * work.
    */
-  static readonly layerUnbound = Layer.sync(PartnerApi, () => {
-    const unbound = () => new Error("the Partner API credentials are not bound");
-    return PartnerApi.of({
-      activeSubscription: () => Effect.die(unbound()),
-      planSelectionUrl: () => {
-        throw unbound();
-      },
-    });
-  });
+  static readonly layerUnbound = (handle: Option.Option<string>) =>
+    Layer.succeed(
+      PartnerApi,
+      PartnerApi.of({
+        activeSubscription: () =>
+          Effect.die(new Error("the Partner API credentials are not bound")),
+        planSelectionUrl: Option.match(handle, {
+          onNone: () => () => {
+            throw new Error("the Shopify app handle is not bound");
+          },
+          onSome: planSelectionUrlOf,
+        }),
+      }),
+    );
 }
