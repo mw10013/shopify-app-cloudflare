@@ -2,11 +2,18 @@
   "name": "@mw10013/shopify-app-workers",
   "version": "0.0.0",
   "type": "module",
+  "imports": {
+    "#internal/*": "./src/internal/*"
+  },
   "exports": {
     "./backend": "./src/backend.ts",
     "./website": "./src/website.ts",
     "./client": "./src/client.ts",
-    "./test": "./src/test.ts"
+    "./test": "./src/test.ts",
+    "./test/node": "./src/test-node.ts"
+  },
+  "dependencies": {
+    "@shopify/shopify-api": "15.0.1"
   },
   "peerDependencies": {
     "@alchemy.run/cloudflare": "catalog:",

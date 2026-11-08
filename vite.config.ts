@@ -177,6 +177,26 @@ export default defineConfig({
         ["web"],
         "The Backend never imports the Website.",
       ),
+      {
+        // Only `/test/node` runs under Node alone; every other entry can reach a workerd bundle.
+        files: ["packages/shopify-app-workers/src/**"],
+        excludeFiles: ["packages/shopify-app-workers/src/test-node.ts"],
+        rules: {
+          "no-restricted-imports": [
+            "error",
+            {
+              ...baseRestrictions,
+              paths: [
+                ...baseRestrictions.paths,
+                {
+                  name: "node:sqlite",
+                  message: "node:sqlite is Node-only; it belongs behind /test/node.",
+                },
+              ],
+            },
+          ],
+        },
+      },
       ...lint.overrides,
     ],
   },
