@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import { ShopDomain } from "@mw10013/shopify-app-workers/backend";
+import { E2E_WEBHOOK_MARKER_PARAM } from "@mw10013/shopify-app-workers/contract";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
@@ -17,10 +18,8 @@ const access: Option.Option<E2eAccess> = Option.some({
   shop: Schema.decodeUnknownSync(ShopDomain)("record-shop.myshopify.com"),
 });
 
-const webhook = (headers: Record<string, string>) =>
-  HttpServerRequest.fromWeb(
-    new Request("http://backend/webhooks/shop/update", { method: "POST", headers, body: "{}" }),
-  );
+const webhook = (headers: Record<string, string>, url = "http://backend/webhooks/shop/update") =>
+  HttpServerRequest.fromWeb(new Request(url, { method: "POST", headers, body: "{}" }));
 
 const read = (
   route: (
@@ -50,10 +49,37 @@ describe("the e2e webhook record", () => {
       const at = DateTime.formatIso(DateTime.makeUnsafe(0));
       assert.deepStrictEqual(JSON.parse(body), {
         deliveries: [
-          { topic: "shop/update", webhookId: "w-1", status: 200, receivedAt: at },
-          { topic: null, webhookId: null, status: 401, receivedAt: at },
+          {
+            topic: "shop/update",
+            webhookId: "w-1",
+            shop: null,
+            marker: null,
+            status: 200,
+            receivedAt: at,
+          },
+          { topic: null, webhookId: null, shop: null, marker: null, status: 401, receivedAt: at },
         ],
       });
+    }),
+  );
+
+  it.effect("keeps each request's shop header and its marker query parameter", () =>
+    Effect.gen(function* () {
+      const { record, route } = yield* e2eWebhooks(access);
+      yield* record(
+        webhook(
+          { "x-shopify-topic": "shop/redact", "x-shopify-shop-domain": "shop.myshopify.com" },
+          `http://backend/webhooks/compliance?${E2E_WEBHOOK_MARKER_PARAM}=m-1`,
+        ),
+        HttpServerResponse.empty({ status: 200 }),
+      );
+      const { deliveries } = JSON.parse((yield* read(route)).body) as {
+        deliveries: { shop: string | null; marker: string | null }[];
+      };
+      assert.deepStrictEqual(
+        deliveries.map(({ shop, marker }) => ({ shop, marker })),
+        [{ shop: "shop.myshopify.com", marker: "m-1" }],
+      );
     }),
   );
 

@@ -19,5 +19,10 @@ export {
   ShopifyUnavailableError,
   ShopInaccessibleError,
 } from "#internal/contract.ts";
-export { E2eShopStatus, E2eWebhookDeliveries, E2eWebhookDelivery } from "#internal/e2e-status.ts";
+export {
+  E2E_WEBHOOK_MARKER_PARAM,
+  E2eShopStatus,
+  E2eWebhookDeliveries,
+  E2eWebhookDelivery,
+} from "#internal/e2e-status.ts";
 export { ID_MAX_LENGTH, PlanHandle, ShopDomain, ShopGid } from "#internal/domain.ts";

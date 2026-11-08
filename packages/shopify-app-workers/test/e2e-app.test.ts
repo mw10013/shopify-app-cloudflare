@@ -12,6 +12,7 @@ import {
   SHOPIFY_ADMIN_PROJECT,
   SPEC_MATCH,
   statusUrl,
+  webhookRecordUrl,
 } from "#test/e2e/app.ts";
 
 const app: E2eApp = {
@@ -89,6 +90,19 @@ describe("statusUrl", () => {
       ).href,
       "http://localhost:9001/status?shop=pool-01.myshopify.com",
     );
+  });
+
+  it("refuses a route path that resolves to another origin, which would get the token", () => {
+    assert.throws(
+      () => statusUrl({ ...app, status: { path: "//other.example/status", headers: {} } }, "s"),
+      /resolves to http:\/\/other\.example, not the e2e server's http:\/\/localhost:8787/u,
+    );
+    assert.throws(
+      () =>
+        webhookRecordUrl({ ...app, webhooks: { ...app.webhooks, record: "//other.example/r" } }),
+      /resolves to http:\/\/other\.example/u,
+    );
+    assert.strictEqual(webhookRecordUrl(app).href, "http://localhost:8787/webhooks-record");
   });
 });
 

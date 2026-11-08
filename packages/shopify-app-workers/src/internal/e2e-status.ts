@@ -22,13 +22,24 @@ export const E2eShopStatus = Schema.Struct({
 export type E2eShopStatus = typeof E2eShopStatus.Type;
 
 /**
- * One request the Backend's `/webhooks/*` branch answered: its `X-Shopify-Topic` and
- * `X-Shopify-Webhook-Id` headers as sent (null when absent, unverified when the HMAC failed), the
- * HTTP status it was answered with and when.
+ * The query parameter the spec pack adds to each triggered delivery's address, a value unique to
+ * the trigger, so the spec tells its own delivery from any other: a real one Shopify sends, a late
+ * one from an earlier trigger, or a forged post. The Backend's webhook route dispatches by header
+ * and ignores the query; the e2e record keeps the value as `marker`.
+ */
+export const E2E_WEBHOOK_MARKER_PARAM = "e2e_marker";
+
+/**
+ * One request the Backend's `/webhooks/*` branch answered: its `X-Shopify-Topic`,
+ * `X-Shopify-Webhook-Id` and `X-Shopify-Shop-Domain` headers as sent (null when absent, unverified
+ * when the HMAC failed), its {@link E2E_WEBHOOK_MARKER_PARAM} (null when absent), the HTTP status it
+ * was answered with and when.
  */
 export const E2eWebhookDelivery = Schema.Struct({
   topic: Schema.NullOr(Schema.String),
   webhookId: Schema.NullOr(Schema.String),
+  shop: Schema.NullOr(Schema.String),
+  marker: Schema.NullOr(Schema.String),
   status: Schema.Int,
   receivedAt: Schema.DateTimeUtcFromString,
 });

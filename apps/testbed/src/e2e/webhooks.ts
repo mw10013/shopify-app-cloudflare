@@ -1,9 +1,10 @@
 /**
  * The e2e webhook record: each request the `e2e` stage's Backend answered under `/webhooks/`, so
  * the end-to-end suite can tell that a webhook Shopify delivered through the tunnel passed its HMAC
- * check and its handler, which `shopify app webhook trigger` reports only as enqueued. Gated like
- * the status route by the session's token, but for no shop: Shopify's sample deliveries name
- * `shop.myshopify.com`, not the leased store.
+ * check and was answered 200, which `shopify app webhook trigger` reports only as enqueued. Each
+ * entry keeps the request's shop header and its {@link E2E_WEBHOOK_MARKER_PARAM}, so the suite finds
+ * the delivery of its own trigger. Gated like the status route by the session's token, but for no
+ * shop: Shopify's sample deliveries name `shop.myshopify.com`, not the leased store.
  *
  * The record lives in the Backend's isolate, so it starts empty with each server, and keeps the
  * {@link RECORD_LIMIT} latest requests.
@@ -12,6 +13,7 @@
  */
 
 import {
+  E2E_WEBHOOK_MARKER_PARAM,
   E2eWebhookDeliveries,
   type E2eWebhookDelivery,
 } from "@mw10013/shopify-app-workers/contract";
@@ -51,6 +53,8 @@ export const e2eWebhooks = Effect.fn("E2eWebhooks.make")(function* (
       const delivery: E2eWebhookDelivery = {
         topic: request.headers["x-shopify-topic"] ?? null,
         webhookId: request.headers["x-shopify-webhook-id"] ?? null,
+        shop: request.headers["x-shopify-shop-domain"] ?? null,
+        marker: new URL(request.url, "http://backend").searchParams.get(E2E_WEBHOOK_MARKER_PARAM),
         status: response.status,
         receivedAt: yield* DateTime.now,
       };
