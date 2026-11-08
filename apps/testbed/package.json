@@ -27,7 +27,8 @@
     "test:integ": "vp test run --project integ",
     "test:e2e": "vp exec playwright test",
     "deploy:staging": "alchemy deploy --stage staging --yes",
-    "stage": "devkit-stage"
+    "stage": "devkit-stage",
+    "logs": "devkit-logs"
   },
   "dependencies": {
     "@alchemy.run/cloudflare": "catalog:",

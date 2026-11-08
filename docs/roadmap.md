@@ -105,7 +105,30 @@ A production stage, to rehearse production deploys and migrations without custom
    The testbed stays on `workspace:*`, so an edit to the package still shows up in the running testbed; motio, in step 7, is the first app on the tag.
 5. Deploy the testbed's staging through Workers Builds. Check: the build installs and deploys, and the staging app works in a pool store.
 
-   The staging deploy reads the app's handle and client ID from `shopify.app.staging.toml`, so the deploy environment carries only secrets: `SHOPIFY_API_SECRET` and the Partner values. Until that file exists, a staging deploy fails on the missing toml. The pipeline should run `shopify app deploy` from the same checkout, so the toml and Shopify stay in step.
+   The staging deploy reads the app's handle and client ID from `shopify.app.staging.toml`, so the deploy environment carries only secrets: `SHOPIFY_API_SECRET` and the Partner values.
+
+   Set up and checked on 2026-11-08; the check has passed. The stage follows coder's `references/deployed-stages.md`:
+
+   - The app is Workers Testbed Staging, handle `workers-testbed-staging`, client ID `2ff26a6bbebd01510b646e756fa841bf`, made by the owner with `shopify app config link -c staging`. Its toml copies the dev toml's scopes and webhooks, points at `https://testbed-website-staging.mw10013.workers.dev`, and `test/unit/app-tomls.test.ts` fails when the two drift. Its managed plans `testbed-basic` and `testbed-pro` were made by hand, as on the dev app.
+   - Workers Builds deploys on every push to `main`: `pnpm exec vp run deploy:staging` at the root, which is `alchemy deploy --stage staging --yes` in `apps/testbed`. Builds does not run `shopify app deploy`; the owner runs `shopify app deploy --config staging` in `apps/testbed` when the staging toml changes, as baton and motio do. Shopify had the toml's config before the first deploy.
+   - The trigger's variables are `apps/testbed/.env.staging`, declared in `stacks/stage-env.ts`: `SHOPIFY_API_SECRET` and the three Partner values. `vp run stage up staging` in `apps/testbed` made the trigger, set them and ran the first build; it is rerun whenever a value changes.
+   - The staging app is installed on `mw10013-pool-17`, leased with `berth acquire staging`, which keeps it out of dev and e2e rotation.
+
+   The check, in `apps/testbed`:
+
+   ```sh
+   vp run stage check staging     # plan succeeds; build 4d40cbf7, from the merge of #36, succeeded; the trigger holds every field
+   vp run logs show staging --since "10 minutes"
+   shopify app webhook trigger --no-input --config shopify.app.staging.toml --topic shop/update \
+     --api-version 2026-10 --delivery-method http \
+     --address https://testbed-website-staging.mw10013.workers.dev/webhooks/shop/update
+   ```
+
+   Results:
+   - The install on `mw10013-pool-17` exchanged the session token, sent the shop to plan selection, and after Testbed Basic, App Home loaded from the staging Worker showing the shop, `testbed-basic` and the install time.
+   - `shop/update` logged `Testbed.shopUpdate: shop=shop.myshopify.com status=received` and answered 200. `customers/data_request`, `customers/redact` and `shop/redact`, sent the same way to `/webhooks/compliance`, each answered 200 at the Backend and the Website. So Shopify's signatures validate against the staging secret.
+
+   The e2e pack does not run against staging: it needs the dev tunnel and the e2e-only status route, which the production Backend does not serve.
 6. Rehearse a migration: add a column, deploy, roll back. Check: the previous version still works against the new schema.
 7. Move motio onto the package as its first real consumer. Check: motio's suites and the shared e2e spec pack pass.
 8. Extract the shop actor machinery and client, then the Website side, each through the same steps.
