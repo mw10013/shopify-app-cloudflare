@@ -51,6 +51,7 @@
     "@vitejs/plugin-react": "6.1.2",
     "playwright": "1.64.1",
     "seroval": "1.7.9",
+    "smol-toml": "1.9.1",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:",
