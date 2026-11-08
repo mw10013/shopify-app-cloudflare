@@ -1,7 +1,3 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { assert, describe, it } from "@effect/vitest";
 import * as Schema from "effect/Schema";
 
@@ -19,34 +15,7 @@ import {
 } from "#internal/contract.ts";
 
 import { SHOP } from "./fixtures.ts";
-
-const SRC = fileURLToPath(new URL("../src", import.meta.url));
-
-/**
- * The bare specifiers `entry` reaches through its static imports and re-exports, following the
- * package's own `./` and `#internal/` modules.
- */
-const reachedPackages = (entry: string) => {
-  const seen = new Set<string>();
-  const packages = new Set<string>();
-  const visit = (file: string) => {
-    if (seen.has(file)) return;
-    seen.add(file);
-    const source = readFileSync(file, "utf8");
-    for (const match of source.matchAll(
-      /^\s*(?:import|export)\b[^;]*?["'](?<specifier>[^"']+)["']/gmu,
-    )) {
-      const specifier = match.groups?.specifier;
-      if (specifier === undefined) continue;
-      if (specifier.startsWith("#internal/"))
-        visit(path.join(SRC, "internal", specifier.slice("#internal/".length)));
-      else if (specifier.startsWith(".")) visit(path.resolve(path.dirname(file), specifier));
-      else packages.add(specifier);
-    }
-  };
-  visit(path.join(SRC, entry));
-  return [...packages];
-};
+import { reachedPackages } from "./reach.ts";
 
 describe("/contract", () => {
   it("never reaches @shopify/shopify-api, so the Website can import it", () => {

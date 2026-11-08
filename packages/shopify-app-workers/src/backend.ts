@@ -4,32 +4,25 @@
  * @module
  */
 
-import * as Context from "effect/Context";
-import * as Effect from "effect/Effect";
-import * as Layer from "effect/Layer";
-
-import { ShopGrantor, ShopGrantorLive } from "#internal/shop-grantor.ts";
-
 export * from "./contract.ts";
+export { AdminToken } from "#internal/admin-token.ts";
+export type {
+  AppInstallationRedacted,
+  AppInstallationRedactedPage,
+  RedactedPageInput,
+} from "#internal/app-installation-store.ts";
 export { AppSubscription, PlanCatalog, PlanStatus } from "#internal/catalog.ts";
 export { type PlanRevalidation, ShopifyHooks, type ShopifyHooksShape } from "#internal/hooks.ts";
-export { SHOP_GRANTOR_PING } from "#internal/shop-grantor.ts";
+export {
+  AppInstallations,
+  type AppInstallationsShape,
+  ShopifyAccess,
+} from "#internal/shopify-access.ts";
+export type { ShopifyCredentials } from "#internal/shopify-client.ts";
+export {
+  type AdminGraphqlFailure,
+  type EnsureSessionFailure,
+  Shopify,
+  type ShopifyShape,
+} from "#internal/shopify.ts";
 export { ADMIN_API_VERSION, PARTNER_API_VERSION } from "#internal/versions.ts";
-
-/**
- * Roadmap step 2, unit 0 spike: a shop's stub grantor, reached through the Durable Object
- * namespace. Building {@link GrantorProbe.layer} in the Backend's init binds the `ShopGrantor`
- * class to the Worker, so the app never names it. Unit 5 replaces this with `ShopifyAccess`.
- */
-export class GrantorProbe extends Context.Service<
-  GrantorProbe,
-  { readonly ping: (shop: string) => Effect.Effect<string> }
->()("@mw10013/shopify-app-workers/GrantorProbe") {
-  static readonly layer = Layer.effect(
-    GrantorProbe,
-    Effect.gen(function* () {
-      const grantors = yield* ShopGrantor;
-      return { ping: (shop) => grantors.getByName(shop).ping() };
-    }),
-  ).pipe(Layer.provide(ShopGrantorLive));
-}
