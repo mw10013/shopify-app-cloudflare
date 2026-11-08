@@ -17,6 +17,24 @@ A production stage, to rehearse production deploys and migrations without custom
 
 1. Scaffold the repository: the pnpm workspace, Vite+, `packages/shopify-app-workers` and `apps/testbed` with its `shopify.app.toml`. Check: `vp check` passes and the testbed opens in a pool store's admin.
 2. Move authentication, billing and webhooks into the package, starting from baton's code with the drift resolved. Check: the unit and integ suites pass against the Shopify fakes, and an edit to the package shows up in the running testbed.
+
+   The live-edit check, run on 2026-11-08 in `apps/testbed`:
+
+   1. `vp run dev`, then confirm in `vp run dev:logs` that Alchemy created `Database` and the Backend; both migrations are in the local D1's `__alchemy_migrations`.
+   2. Deliver a test webhook for a topic nobody handles, through the tunnel and so through the Website's `/webhooks/*` forward. It only sends a test delivery, signed with the app's secret:
+
+      ```sh
+      url=$(bosun status dev | python3 -c 'import json,sys; print(json.load(sys.stdin)["url"])')
+      shopify app webhook trigger --no-input --config shopify.app.toml --topic products/create \
+        --api-version 2026-10 --delivery-method http --address "$url/webhooks/products/create"
+      ```
+
+      `vp run dev:logs` shows `Webhooks.handle: shop=shop.myshopify.com topic=products/create: no handler`.
+   3. Edit that message in `packages/shopify-app-workers/src/internal/webhooks.ts`. The log shows `[Backend] Rebuilding`, then `[Backend] Updated`.
+   4. Deliver again; the log shows the edited message.
+   5. Revert the edit, then `vp run dev:stop`.
+
+   The receipt line (`Webhooks.handle: shop=… topic=…`) is Debug, which the dev stage does not print, so the check uses the unknown-topic line, an Error. A delivery of `shop/update` logs `Testbed.shopUpdate: shop=… status=received`.
 3. Run the end-to-end suite in the testbed against real Shopify, including uninstall and reinstall. Check: the suite passes.
 4. Cut `v0.1.0` as a tag on a commit that holds only the built package. Check: a throwaway project installs it with `--frozen-lockfile` and no token.
 5. Deploy the testbed's staging through Workers Builds. Check: the build installs and deploys, and the staging app works in a pool store.
