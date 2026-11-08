@@ -6,7 +6,13 @@
  */
 
 import * as Cloudflare from "@alchemy.run/cloudflare";
-import { HttpResponseError, InvalidJwtError, RequestedTokenType } from "@shopify/shopify-api";
+import {
+  HttpResponseError,
+  InvalidJwtError,
+  RequestedTokenType,
+  type Session,
+} from "@shopify/shopify-api";
+import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as DateTime from "effect/DateTime";
@@ -41,8 +47,24 @@ import { ShopifyClient, type ShopifySpan, unavailable } from "./shopify-client.t
 /** How near its expiry a refresh token counts as expired: clock skew and the grant's round trip. */
 const REFRESH_TOKEN_EXPIRY_BUFFER = Duration.seconds(60);
 
-/** One HTTP attempt of a grant; an attempt past it is abandoned as transient. */
+/**
+ * One HTTP attempt of a grant; an attempt past it is abandoned as transient. Abandoning stops the
+ * wait, not the request, which the library cannot cancel: see {@link GRANT_SETTLE_LIMIT}.
+ */
 export const GRANT_ATTEMPT_DEADLINE = Duration.seconds(5);
+
+/**
+ * How long the shop's next grant request waits for an abandoned attempt to settle, in the same
+ * grant or the next. An abandoned attempt may still complete at Shopify, and a request sent after
+ * it would then be retired by it (rules 2, 3) and overlap it (rule 4). Bounded so a grant stays
+ * within the 30 s Workers keeps `waitUntil` work alive: one wait at the start for an earlier
+ * grant's last attempt, then {@link GRANT_TRANSIENT_RETRIES} + 1 attempts at
+ * {@link GRANT_ATTEMPT_DEADLINE} with a wait and a backoff before each retry, is
+ * 3 + 3 × 5 + 2 × 3 + about 1.5, about 26 s.
+ *
+ * @see https://developers.cloudflare.com/workers/runtime-apis/context/#waituntil
+ */
+export const GRANT_SETTLE_LIMIT = Duration.seconds(3);
 
 /**
  * Retries of a grant that failed transiently, exponential from 500 ms and jittered, about 1.5 s
@@ -126,6 +148,17 @@ interface Granted {
   readonly token: AdminToken;
 }
 
+/**
+ * The shop's last grant request, abandoned at {@link GRANT_ATTEMPT_DEADLINE} and still running:
+ * the newest request the grantor sent, so a pair it answers is the shop's newest. Held with the
+ * kind and epoch of the grant that sent it.
+ */
+interface Abandoned {
+  readonly grant: GrantRequest["grant"];
+  readonly started: number;
+  readonly attempt: Fiber.Fiber<{ readonly session: Session }, unknown>;
+}
+
 /** The grant in flight: at most one per grantor, so at most one per shop. */
 interface Flight {
   readonly grant: GrantRequest["grant"];
@@ -137,7 +170,7 @@ const logStatus = (
   log: (message: string) => Effect.Effect<void>,
   span: ShopifySpan,
   shop: ShopDomain,
-  status: "exchanged" | "refreshed" | "expired" | "rejected",
+  status: "exchanged" | "refreshed" | "expired" | "rejected" | "adopted",
   detail: Record<string, string> = {},
 ) =>
   log(
@@ -159,6 +192,8 @@ const logStatus = (
  * - `writing`, the token write a grant has sent and not yet seen answered, which `uninstall`
  *   waits for, so its delete is ordered after it and a first install never outlives an
  *   uninstall.
+ * - `abandoned`, the last request sent, if its wait passed {@link GRANT_ATTEMPT_DEADLINE}: the
+ *   next request waits for it, so requests stay one at a time at Shopify too.
  *
  * Losing the state (a deploy, an eviction) loses at most a grant in flight: the spec's repair
  * state, where the next refresh is rejected and the next exchange repairs. `keepAlive` extends
@@ -178,6 +213,7 @@ export const makeGrantor = ({
   let flight: Flight | undefined;
   let epoch = 0;
   let writing: Deferred.Deferred<void> | undefined;
+  let abandoned: Abandoned | undefined;
 
   /**
    * Classifies a grant that failed for good, by status: the body only refines a 400 or names
@@ -228,25 +264,62 @@ export const makeGrantor = ({
     );
   };
 
-  /** One attempt of a grant through the library, abandoned at {@link GRANT_ATTEMPT_DEADLINE}. */
+  /**
+   * Waits up to {@link GRANT_SETTLE_LIMIT} for the abandoned attempt, if any, and forgets it:
+   * the attempt and its session when it succeeded. One that failed or did not settle is given
+   * up on, so the caller sends its own request.
+   */
+  const settleAbandoned = Effect.gen(function* () {
+    const prior = yield* Effect.sync(() => {
+      const held = abandoned;
+      abandoned = undefined;
+      return held;
+    });
+    if (prior === undefined) return Option.none();
+    const exit = yield* Fiber.await(prior.attempt).pipe(Effect.timeoutOption(GRANT_SETTLE_LIMIT));
+    return Option.isSome(exit) && Exit.isSuccess(exit.value)
+      ? Option.some({ prior, session: exit.value.value.session })
+      : Option.none();
+  });
+
+  /**
+   * One attempt of a grant through the library, abandoned at {@link GRANT_ATTEMPT_DEADLINE}. A
+   * retry first settles the attempt it abandoned, and adopts its pair when it succeeded: that
+   * pair is the newest, and a second request would retire it.
+   */
   const grantAttempt = Effect.fnUntraced(function* <S extends Schema.Top>(
     request: GrantRequest,
     success: S & { readonly DecodingServices: never },
+    started: number,
   ) {
+    const decode = Schema.decodeUnknownEffect(success);
+    const adopted = yield* settleAbandoned;
+    if (Option.isSome(adopted)) return yield* decode(adopted.value.session).pipe(Effect.orDie);
     const shopify = yield* client.library;
-    const { session } = yield* Effect.tryPromise({
-      try: () =>
-        request.grant === "exchange"
-          ? shopify.auth.tokenExchange({
-              shop,
-              sessionToken: request.idToken,
-              requestedTokenType: RequestedTokenType.OfflineAccessToken,
-              expiring: true,
-            })
-          : shopify.auth.refreshToken({ shop, refreshToken: request.refreshToken }),
-      catch: (cause) => cause,
-    }).pipe(Effect.timeout(GRANT_ATTEMPT_DEADLINE));
-    return yield* Schema.decodeUnknownEffect(success)(session).pipe(Effect.orDie);
+    // On a fiber of its own, so abandoning the wait leaves the request to settle.
+    const attempt = yield* Effect.forkDetach(
+      Effect.tryPromise({
+        try: () =>
+          request.grant === "exchange"
+            ? shopify.auth.tokenExchange({
+                shop,
+                sessionToken: request.idToken,
+                requestedTokenType: RequestedTokenType.OfflineAccessToken,
+                expiring: true,
+              })
+            : shopify.auth.refreshToken({ shop, refreshToken: request.refreshToken }),
+        catch: (cause) => cause,
+      }),
+    );
+    const settled = yield* Fiber.await(attempt).pipe(Effect.timeoutOption(GRANT_ATTEMPT_DEADLINE));
+    if (Option.isNone(settled)) {
+      yield* Effect.sync(() => {
+        abandoned = { grant: request.grant, started, attempt };
+      });
+      return yield* new Cause.TimeoutError();
+    }
+    const { session } = yield* settled.value;
+    return yield* decode(session).pipe(Effect.orDie);
   });
 
   /**
@@ -257,8 +330,9 @@ export const makeGrantor = ({
     span: ShopifySpan,
     request: GrantRequest,
     success: S & { readonly DecodingServices: never },
+    started: number,
   ) =>
-    grantAttempt(request, success).pipe(
+    grantAttempt(request, success, started).pipe(
       Effect.retry({
         schedule: Schedule.exponential("500 millis").pipe(Schedule.jittered),
         times: GRANT_TRANSIENT_RETRIES,
@@ -293,8 +367,8 @@ export const makeGrantor = ({
    * synchronous step as the check: `uninstall` either sees it registered and waits for it, or
    * the grant sees the moved epoch, writes nothing and fails with `fenced`.
    */
-  const fencedWrite = <A, E>(
-    fenced: Effect.Effect<never, E>,
+  const fencedWrite = <A, B, E>(
+    fenced: Effect.Effect<B, E>,
     started: number,
     write: Effect.Effect<A>,
   ) =>
@@ -317,6 +391,38 @@ export const makeGrantor = ({
     });
 
   /**
+   * Before a grant starts: settles an earlier grant's abandoned last attempt, and when it
+   * succeeded stores its pair, the shop's newest, under that grant's epoch, as a refresh writes
+   * (`updateTokens`, so a first install it never wrote stays unwritten). The new grant then reads
+   * the row it left.
+   */
+  const adoptAbandoned = Effect.gen(function* () {
+    const adopted = yield* settleAbandoned;
+    if (Option.isNone(adopted)) return;
+    const { prior, session } = adopted.value;
+    const granted = yield* Schema.decodeUnknownEffect(
+      prior.grant === "exchange" ? ExchangeGrant : RefreshGrant,
+    )(session).pipe(Effect.orDie);
+    const written = yield* fencedWrite(
+      Effect.succeed(false),
+      prior.started,
+      installations.updateTokens(shop, {
+        accessToken: granted.accessToken,
+        accessTokenExpiresAt: granted.expires,
+        refreshToken: granted.refreshToken,
+        refreshTokenExpiresAt: granted.refreshTokenExpires,
+      }),
+    );
+    if (written)
+      yield* logStatus(
+        Effect.logInfo,
+        prior.grant === "exchange" ? "ShopGrantor.exchange" : "ShopGrantor.ensure",
+        shop,
+        "adopted",
+      );
+  });
+
+  /**
    * Joins the grant in flight, or starts `start` as the new one, in one synchronous step, so two
    * callers never both start. The grant runs uninterruptibly on a fiber of its own, kept alive
    * past the request, and frees the slot before it settles, so a caller arriving after it sees
@@ -336,7 +442,8 @@ export const makeGrantor = ({
         return { flight, started: Option.some(epoch) };
       });
       if (Option.isSome(taken.started)) {
-        const run = start(taken.started.value).pipe(
+        const run = adoptAbandoned.pipe(
+          Effect.andThen(start(taken.started.value)),
           Effect.exit,
           Effect.tap(() =>
             Effect.sync(() => {
@@ -375,6 +482,7 @@ export const makeGrantor = ({
         "ShopGrantor.exchange",
         { grant: "exchange", idToken },
         ExchangeGrant,
+        started,
         // Only a refresh is answered 401 as a rejected token.
       ).pipe(Effect.catchTag("RefreshTokenRejectedError", Effect.die));
       const shopGid = Option.isSome(prior)
@@ -430,6 +538,7 @@ export const makeGrantor = ({
         "ShopGrantor.ensure",
         { grant: "refresh", refreshToken },
         RefreshGrant,
+        started,
       ).pipe(
         // Only an exchange is answered `invalid_subject_token`.
         Effect.catchTag("InvalidIdTokenError", Effect.die),
