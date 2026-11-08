@@ -9,23 +9,45 @@
 
 export { appFrame, awaitHydration, closeDevConsole } from "@mw10013/devkit/shopify/embedded-app";
 export {
+  type AdminLanding,
+  adminUrl,
+  approveInstall,
+  awaitLanding,
+  awaitScreen,
+  choosePlan,
+  installUrl,
+  planSelectionUrl,
+  restartServer,
+  screenError,
+  ShopifyScreenError,
+  uninstall,
+} from "./test/e2e/admin.ts";
+export {
+  appBaseUrl,
   E2E_PREFLIGHT,
   E2E_SPECS_DIR,
   E2E_TRACE,
   E2eApp,
   type E2eOptions,
+  E2ePlan,
   e2eProject,
   type E2eProjectSpecs,
   e2eProjects,
+  E2eServer,
+  LIFECYCLE_PROJECT,
+  LIFECYCLE_SPEC_MATCH,
   SHOPIFY_ADMIN_PROJECT,
   SPEC_MATCH,
+  SPECS_PROJECT,
   shopOf,
+  statusUrl,
 } from "./test/e2e/app.ts";
 export {
+  adminContext,
   type AppLanding,
   expect,
   openApp,
-  planSelectionUrl,
+  readShopStatus,
   type ShopStatusRead,
   test,
 } from "./test/e2e/fixtures.ts";

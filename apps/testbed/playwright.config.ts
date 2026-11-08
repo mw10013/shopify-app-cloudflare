@@ -41,15 +41,35 @@ const session = Schema.decodeUnknownSync(E2eSessionJson)(
 if (session.shop !== `${store}.myshopify.com`)
   throw new Error(`${E2E_SESSION_FILE} is for ${session.shop}, not ${store}: ${RESTART}`);
 
+const appToml = path.join(root, "shopify.app.toml");
+const clientId = Option.getOrThrowWith(
+  Option.fromNullishOr(
+    /^client_id = "(?<id>[0-9a-f]{32})"$/mu.exec(readFileSync(appToml, "utf8"))?.groups?.id,
+  ),
+  () => new Error(`${appToml} has no client_id = "<32 hex>" line`),
+);
+
+/**
+ * The catalog's plans, cheapest first, with their names on the Partner Dashboard, which head their
+ * cards on Shopify's plan selection page.
+ */
+const PLANS = [
+  { handle: "testbed-basic", name: "Testbed Basic" },
+  { handle: "testbed-pro", name: "Testbed Pro" },
+] as const;
+if (PLANS.map(({ handle }) => handle).join(",") !== catalog.handles.join(","))
+  throw new Error(
+    `playwright.config.ts names plans the catalog does not sell: ${catalog.handles.join(", ")}`,
+  );
+
 const testbed: E2eApp = {
   store,
-  appHandle: appHandle(path.join(root, "shopify.app.toml")),
-  plans: catalog.handles,
+  appHandle: appHandle(appToml),
+  clientId,
+  plans: PLANS,
   server: { port: server.port, tunnel },
-  status: {
-    url: `http://localhost:${String(server.port)}${E2E_STATUS_PATH}`,
-    headers: { [E2E_TOKEN_HEADER]: session.token },
-  },
+  status: { path: E2E_STATUS_PATH, headers: { [E2E_TOKEN_HEADER]: session.token } },
+  restart: { command: ["vpx", "scripts/e2e.ts", "reinstall"], cwd: root },
   storeScopes: STORE_SCOPES,
 };
 
