@@ -10,10 +10,11 @@ import * as Layer from "effect/Layer";
 
 import { ShopGrantor, ShopGrantorLive } from "#internal/shop-grantor.ts";
 
-/** The Admin API version the package pins. Each app's `[webhooks] api_version` equals it. */
-export const ADMIN_API_VERSION = "2026-10";
-
+export * from "./contract.ts";
+export { AppSubscription, PlanCatalog, PlanStatus } from "#internal/catalog.ts";
+export { type PlanRevalidation, ShopifyHooks, type ShopifyHooksShape } from "#internal/hooks.ts";
 export { SHOP_GRANTOR_PING } from "#internal/shop-grantor.ts";
+export { ADMIN_API_VERSION, PARTNER_API_VERSION } from "#internal/versions.ts";
 
 /**
  * Roadmap step 2, unit 0 spike: a shop's stub grantor, reached through the Durable Object
