@@ -49,8 +49,16 @@ export {
   type HarnessLogLine,
   type HeldWrite,
   type HookName,
-  type SeedInstallation,
+  SeedInstallation,
   ShopifyHarness,
   type ShopifyHarnessShape,
 } from "./test/shopify-harness.ts";
 export { deliverWebhook, signWebhook, type WebhookSigning } from "./test/webhook.ts";
+export {
+  BehaviorOutcome,
+  SHOPIFY_TEST_DOOR_CAN,
+  SHOPIFY_TEST_DOOR_PATH,
+  ShopifyTestDoor,
+  type ShopifyTestDoorShape,
+  ShopifyTestDoorRpcs,
+} from "./test/test-door.ts";

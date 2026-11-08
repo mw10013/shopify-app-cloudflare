@@ -808,6 +808,15 @@ interface ShopGrantorsShape {
 }
 
 /**
+ * A grantor stub call's rejection as the defect it is. The object answers every failure it
+ * declares as data, so a rejection is its defect (rebuilt by `crossDefects`) or a reset, which
+ * Alchemy's stub delivers as an `RpcCallError` in the failure channel while typing that channel
+ * `never`; unconverted, it would reach `Shopify`'s callers as a failure no type names. Measured
+ * in workerd 1.20261026.1 by the integ suite's cases 20, 24 and 38.
+ */
+const stubDefect = <A>(call: Effect.Effect<A>): Effect.Effect<A> => Effect.orDie(call);
+
+/**
  * Every shop's grantor, by shop: the only way to a grant. `Shopify` calls it only when the stored
  * token will not do, so a call that finds one fresh in D1 makes no hop.
  */
@@ -825,6 +834,7 @@ export class ShopGrantors extends Context.Service<ShopGrantors, ShopGrantorsShap
             .getByName(shop)
             .exchange({ idToken, sub })
             .pipe(
+              stubDefect,
               Effect.flatMap((answer) => Effect.orDie(decodeExchangeAnswer(answer))),
               Effect.flatMap((answer) =>
                 answer._tag === "Exchanged"
@@ -837,6 +847,7 @@ export class ShopGrantors extends Context.Service<ShopGrantors, ShopGrantorsShap
             .getByName(shop)
             .ensure({ rejected })
             .pipe(
+              stubDefect,
               Effect.flatMap((answer) => Effect.orDie(decodeEnsureAnswer(answer))),
               Effect.flatMap((answer) =>
                 answer._tag === "Ensured"
@@ -844,7 +855,7 @@ export class ShopGrantors extends Context.Service<ShopGrantors, ShopGrantorsShap
                   : Effect.fail(answer.error),
               ),
             ),
-        uninstall: (shop) => grantors.getByName(shop).uninstall(),
+        uninstall: (shop) => stubDefect(grantors.getByName(shop).uninstall()),
       } satisfies ShopGrantorsShape;
     }),
   );

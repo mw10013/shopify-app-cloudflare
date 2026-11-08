@@ -5,20 +5,12 @@
  * @module
  */
 
-import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
-import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as Layer from "effect/Layer";
-import * as Logger from "effect/Logger";
-import * as LogLevel from "effect/LogLevel";
-import * as Option from "effect/Option";
-import * as References from "effect/References";
 import * as Schema from "effect/Schema";
 
 import { AppInstallationStore } from "#internal/app-installation-store.ts";
-import type { ShopDomain } from "#internal/domain.ts";
-import { ShopifyHooks, type ShopifyHooksShape } from "#internal/hooks.ts";
 import { MerchantGate } from "#internal/merchant-gate.ts";
 import { ShopGrantors } from "#internal/shop-grantor.ts";
 import type { ShopifyAppDefinition } from "#internal/shopify-app.ts";
@@ -26,17 +18,18 @@ import { Shopify } from "#internal/shopify.ts";
 import { SubscriptionPlan } from "#internal/subscription-plan.ts";
 import { Webhooks } from "#internal/webhooks.ts";
 import { behaviorApp } from "#test/behavior-app.ts";
-import { ShopifyFake } from "#test/shopify-fake.ts";
 import {
-  type HarnessLogLine,
-  type HeldWrite,
-  type HookName,
-  ShopifyHarness,
-} from "#test/shopify-harness.ts";
-import { signWebhook } from "#test/webhook.ts";
+  capturedLogs,
+  deliverTo,
+  expireAccessToken,
+  recordingHooks,
+  seedInstallation,
+} from "#test/harness-support.ts";
+import { ShopifyFake } from "#test/shopify-fake.ts";
+import { type HeldWrite, ShopifyHarness } from "#test/shopify-harness.ts";
 
 import type { D1TestOptions } from "./d1-test.ts";
-import { d1Store, seedInstallation, testTiers } from "./shopify-app-test.ts";
+import { d1Store, testTiers } from "./shopify-app-test.ts";
 
 const ShopId = Schema.Struct({ shop: Schema.Struct({ id: Schema.String }) });
 
@@ -83,57 +76,6 @@ const holdableStore = (options: D1TestOptions) => {
   return { store, holdWrite };
 };
 
-/** Hooks that record each call, and die once on a hook a case broke. */
-const recordingHooks = () => {
-  const calls: string[] = [];
-  const broken = new Set<HookName>();
-  const run = (hook: HookName, call: string) =>
-    Effect.suspend(() => {
-      calls.push(call);
-      return broken.delete(hook)
-        ? Effect.die(new Error(`${hook}: broken by the case`))
-        : Effect.void;
-    });
-  const hooks: ShopifyHooksShape = {
-    beforeUninstall: (shop) => run("beforeUninstall", `beforeUninstall:${shop}`),
-    afterUninstall: (shop) => run("afterUninstall", `afterUninstall:${shop}`),
-    beforePlanChange: (shop) => run("beforePlanChange", `beforePlanChange:${shop}`),
-    afterPlanRevalidated: ({ shop, changed, next }) =>
-      run(
-        "afterPlanRevalidated",
-        `afterPlanRevalidated:${shop}:changed=${String(changed)}:next=${next?.handle ?? "none"}`,
-      ),
-  };
-  return {
-    layer: Layer.succeed(ShopifyHooks, hooks),
-    calls: Effect.sync((): readonly string[] => [...calls]),
-    breakHook: (hook: HookName) =>
-      Effect.sync(() => {
-        broken.add(hook);
-      }),
-  };
-};
-
-/**
- * Every line, Debug included, kept for the case; Warning and above also printed, so a failing
- * case still shows its errors.
- */
-const capturedLogs = () => {
-  const lines: HarnessLogLine[] = [];
-  const logger = Logger.make((options) => {
-    const { message, logLevel } = options;
-    lines.push({
-      level: logLevel,
-      message: String(Array.isArray(message) ? message[0] : message),
-    });
-    if (LogLevel.isGreaterThanOrEqualTo(logLevel, "Warn")) Logger.defaultLogger.log(options);
-  });
-  return {
-    layer: Layer.merge(Logger.layer([logger]), Layer.succeed(References.MinimumLogLevel, "All")),
-    lines: Effect.sync((): readonly HarnessLogLine[] => [...lines]),
-  };
-};
-
 /**
  * {@link ShopifyHarness} in this process, with every capability, over both tiers built as an
  * app's Backend builds them but for their backings: `D1Test` (migrated from `migrationsDir`, by
@@ -160,27 +102,10 @@ export const inProcessHarness = (
       const installations = yield* AppInstallationStore;
       const fake = yield* ShopifyFake;
       return {
-        can: new Set(["clock", "interleave"] as const),
+        can: new Set(["clock", "interleave", "holdWrite"] as const),
         seed: (row) => Effect.scoped(seedInstallation(installations, fake, row)),
         stored: installations.find,
-        expireAccessToken: (shop: ShopDomain) =>
-          Effect.gen(function* () {
-            const row = Option.getOrThrow(yield* installations.find(shop));
-            if (
-              row.accessToken === null ||
-              row.refreshToken === null ||
-              row.refreshTokenExpiresAt === null
-            )
-              return yield* Effect.die(
-                new Error(`expireAccessToken: shop=${shop}: no pair stored`),
-              );
-            yield* installations.updateTokens(shop, {
-              accessToken: row.accessToken,
-              accessTokenExpiresAt: yield* DateTime.now,
-              refreshToken: row.refreshToken,
-              refreshTokenExpiresAt: row.refreshTokenExpiresAt,
-            });
-          }),
+        expireAccessToken: (shop) => expireAccessToken(installations, shop),
         uninstall: (shop) => Effect.scoped(grantors.uninstall(shop)),
         authenticateMerchant: (idToken) =>
           Effect.map(gate.authenticateMerchant(idToken), ({ shop, shopGid }) => ({
@@ -189,21 +114,7 @@ export const inProcessHarness = (
           })),
         gate,
         plans,
-        deliver: ({ topic, shop, payload, signed }) =>
-          Effect.scoped(
-            Effect.gen(function* () {
-              const body = JSON.stringify(payload);
-              const headers = yield* signWebhook(topic, shop, body);
-              const request = new Request(`https://backend.test/webhooks/${topic}`, {
-                method: "POST",
-                headers:
-                  signed === false ? { ...headers, "x-shopify-hmac-sha256": "unsigned" } : headers,
-                body,
-              });
-              const response = yield* webhooks.serve(HttpServerRequest.fromWeb(request));
-              return response.status;
-            }),
-          ),
+        deliver: deliverTo(webhooks),
         hookCalls: hooks.calls,
         breakHook: hooks.breakHook,
         logs: logs.lines,

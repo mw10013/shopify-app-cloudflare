@@ -16,7 +16,9 @@
     "dev:stop": "bosun stop dev",
     "dev:status": "vpx scripts/dev.ts status",
     "dev:logs": "bosun logs dev",
-    "e2e:stop": "bosun stop e2e"
+    "e2e:stop": "bosun stop e2e",
+    "test:unit": "vp test run --project unit",
+    "test:integ": "vp test run --project integ"
   },
   "dependencies": {
     "@alchemy.run/cloudflare": "catalog:",
@@ -32,6 +34,7 @@
   },
   "devDependencies": {
     "@alchemy.run/cloudflare-runtime": "2.0.0-beta.85",
+    "@alchemy.run/test": "2.0.0-beta.85",
     "@cloudflare/workers-types": "5.20261026.1",
     "@effect/vitest": "4.1.2",
     "@shopify/polaris-types": "2.0.0",
