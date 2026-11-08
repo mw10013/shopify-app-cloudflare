@@ -10,7 +10,8 @@
   "type": "module",
   "imports": {
     "#internal/*": "./src/internal/*",
-    "#test/*": "./src/test/*"
+    "#test/*": "./src/test/*",
+    "#scripts/*": "./scripts/*"
   },
   "exports": {
     "./backend": "./src/backend.ts",
@@ -21,6 +22,9 @@
     "./test": "./src/test.ts",
     "./test/node": "./src/test-node.ts",
     "./test/e2e": "./src/test-e2e.ts"
+  },
+  "scripts": {
+    "build": "vpx scripts/build.ts"
   },
   "dependencies": {
     "@shopify/shopify-api": "15.0.1"
