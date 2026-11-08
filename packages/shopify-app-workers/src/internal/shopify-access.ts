@@ -12,12 +12,8 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import type * as Option from "effect/Option";
 
-import {
-  type AppInstallationRedacted,
-  type AppInstallationRedactedPage,
-  AppInstallationStore,
-  type RedactedPageInput,
-} from "./app-installation-store.ts";
+import { AppInstallationStore, type RedactedPageInput } from "./app-installation-store.ts";
+import type { AppInstallationRedacted, AppInstallationRedactedPage } from "./app-installation.ts";
 import type { ShopifyCredentials } from "./bindings.ts";
 import type { ShopDomain } from "./domain.ts";
 import { ShopGrantorLive, ShopGrantors } from "./shop-grantor.ts";

@@ -19,7 +19,8 @@ import {
   freshToken,
   MERCHANT_ACCESS_TOKEN_BUFFER,
 } from "./admin-token.ts";
-import { type AppInstallation, AppInstallationStore } from "./app-installation-store.ts";
+import { AppInstallationStore } from "./app-installation-store.ts";
+import type { AppInstallation } from "./app-installation.ts";
 import {
   type AccessDeniedError,
   AppNotInstalledError,

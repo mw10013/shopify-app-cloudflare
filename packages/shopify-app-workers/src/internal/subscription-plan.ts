@@ -12,7 +12,8 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 
-import { type AppInstallation, AppInstallationStore } from "./app-installation-store.ts";
+import { AppInstallationStore } from "./app-installation-store.ts";
+import type { AppInstallation } from "./app-installation.ts";
 import type { AppSubscription, PlanCatalog, PlanStatus } from "./catalog.ts";
 import type { ShopifyUnavailableError } from "./contract.ts";
 import type { PlanHandle, ShopDomain, ShopGid } from "./domain.ts";

@@ -22,7 +22,8 @@ import * as RpcServer from "effect/rpc/RpcServer";
 import * as Schema from "effect/Schema";
 import type * as Scope from "effect/Scope";
 
-import { AppInstallation, AppInstallationStore } from "#internal/app-installation-store.ts";
+import { AppInstallationStore } from "#internal/app-installation-store.ts";
+import { AppInstallation } from "#internal/app-installation.ts";
 import { ShopDomain, ShopGid } from "#internal/domain.ts";
 import { MerchantGate } from "#internal/merchant-gate.ts";
 import { ShopGrantors } from "#internal/shop-grantor.ts";

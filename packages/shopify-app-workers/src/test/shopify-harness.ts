@@ -12,7 +12,7 @@ import type * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import type { AdminToken } from "#internal/admin-token.ts";
-import type { AppInstallation } from "#internal/app-installation-store.ts";
+import type { AppInstallation } from "#internal/app-installation.ts";
 import type { AuthenticateMerchantFailure, ShopifyAccessFailure } from "#internal/contract.ts";
 import { ShopDomain, ShopGid } from "#internal/domain.ts";
 import type { ShopifyHooksShape } from "#internal/hooks.ts";
