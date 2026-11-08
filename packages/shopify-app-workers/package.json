@@ -1,6 +1,8 @@
 {
   "name": "@mw10013/shopify-app-workers",
-  "version": "0.0.0",
+  "version": "0.0.0-source",
+  "private": true,
+  "license": "MIT",
   "files": [
     "src",
     "migrations"
@@ -36,14 +38,18 @@
     "vitest": "catalog:"
   },
   "peerDependencies": {
-    "@alchemy.run/cloudflare": "catalog:",
-    "@effect/platform-node": "4.1.2",
-    "@mw10013/devkit": "catalog:",
-    "alchemy": "catalog:",
-    "effect": "catalog:",
-    "playwright": "1.64.1"
+    "@alchemy.run/cloudflare": "2.0.0-beta.85",
+    "@cloudflare/workers-types": "^5.20261026.1",
+    "@effect/platform-node": "^4.1.2",
+    "@mw10013/devkit": "*",
+    "alchemy": "2.0.0-beta.85",
+    "effect": "^4.1.2",
+    "playwright": "^1.64.1"
   },
   "peerDependenciesMeta": {
+    "@cloudflare/workers-types": {
+      "optional": true
+    },
     "@effect/platform-node": {
       "optional": true
     },
