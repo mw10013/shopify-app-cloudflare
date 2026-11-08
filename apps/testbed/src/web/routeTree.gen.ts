@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as AuthExitIframeRouteImport } from './routes/auth.exit-iframe'
+import { Route as AuthSessionTokenRouteImport } from './routes/auth.session-token'
 import { Route as WebhooksSplatRouteImport } from './routes/webhooks.$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +25,16 @@ const AppRoute = AppRouteImport.update({
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthExitIframeRoute = AuthExitIframeRouteImport.update({
+  id: '/auth/exit-iframe',
+  path: '/auth/exit-iframe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthSessionTokenRoute = AuthSessionTokenRouteImport.update({
+  id: '/auth/session-token',
+  path: '/auth/session-token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WebhooksSplatRoute = WebhooksSplatRouteImport.update({
   id: '/webhooks/$',
   path: '/webhooks/$',
@@ -32,30 +44,45 @@ const WebhooksSplatRoute = WebhooksSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/auth/exit-iframe': typeof AuthExitIframeRoute
+  '/auth/session-token': typeof AuthSessionTokenRoute
   '/webhooks/$': typeof WebhooksSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/auth/exit-iframe': typeof AuthExitIframeRoute
+  '/auth/session-token': typeof AuthSessionTokenRoute
   '/webhooks/$': typeof WebhooksSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/auth/exit-iframe': typeof AuthExitIframeRoute
+  '/auth/session-token': typeof AuthSessionTokenRoute
   '/webhooks/$': typeof WebhooksSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/app' | '/webhooks/$'
+  fullPaths:
+    '/' | '/app' | '/auth/exit-iframe' | '/auth/session-token' | '/webhooks/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app' | '/webhooks/$'
-  id: '__root__' | '/' | '/app' | '/webhooks/$'
+  to: '/' | '/app' | '/auth/exit-iframe' | '/auth/session-token' | '/webhooks/$'
+  id:
+    | '__root__'
+    | '/'
+    | '/app'
+    | '/auth/exit-iframe'
+    | '/auth/session-token'
+    | '/webhooks/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRoute
+  AuthExitIframeRoute: typeof AuthExitIframeRoute
+  AuthSessionTokenRoute: typeof AuthSessionTokenRoute
   WebhooksSplatRoute: typeof WebhooksSplatRoute
 }
 
@@ -75,6 +102,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/exit-iframe': {
+      id: '/auth/exit-iframe'
+      path: '/auth/exit-iframe'
+      fullPath: '/auth/exit-iframe'
+      preLoaderRoute: typeof AuthExitIframeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/session-token': {
+      id: '/auth/session-token'
+      path: '/auth/session-token'
+      fullPath: '/auth/session-token'
+      preLoaderRoute: typeof AuthSessionTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/webhooks/$': {
       id: '/webhooks/$'
       path: '/webhooks/$'
@@ -88,6 +129,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRoute,
+  AuthExitIframeRoute: AuthExitIframeRoute,
+  AuthSessionTokenRoute: AuthSessionTokenRoute,
   WebhooksSplatRoute: WebhooksSplatRoute,
 }
 export const routeTree = rootRouteImport
@@ -95,10 +138,11 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

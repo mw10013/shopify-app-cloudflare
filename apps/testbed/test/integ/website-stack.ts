@@ -1,0 +1,39 @@
+import * as Cloudflare from "@alchemy.run/cloudflare";
+import { stageProviders, stageState } from "@mw10013/devkit/cloudflare/deployed-stack";
+import { bindShopifyApp, fakeShopifyApp } from "@mw10013/shopify-app-workers/stack";
+import { FAKE_SHOPIFY_API_KEY } from "@mw10013/shopify-app-workers/test";
+import * as Alchemy from "alchemy";
+import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
+
+import { backendProps } from "#backend/backend.ts";
+
+import TestBackend from "./backend.ts";
+
+/**
+ * {@link TestBackend} and the real Website, as `vp build` emits it (`build-website.ts` runs the
+ * build before integ), bound as production binds it, with the fake app's key and its own URL as
+ * `SHOPIFY_APP_URL`. The built server bundle, not the TanStack Start dev server, so a test drives
+ * the Website's real HTTP answers in workerd.
+ */
+export default Alchemy.Stack(
+  "testbed-website-test",
+  { providers: stageProviders, state: stageState },
+  Effect.gen(function* () {
+    const backend = yield* TestBackend;
+    const website = yield* Cloudflare.Worker("BuiltWebsite", {
+      main: `${import.meta.dirname}/../../dist/server/server.js`,
+      compatibility: backendProps.compatibility,
+      env: {
+        BACKEND: backend,
+        SHOPIFY_API_KEY: FAKE_SHOPIFY_API_KEY,
+        SHOPIFY_APP_URL: Cloudflare.Worker.URL,
+      },
+    });
+    yield* bindShopifyApp(backend, { app: fakeShopifyApp(website.url), partner: Option.none() });
+    return {
+      backendUrl: backend.url.as<string>(),
+      websiteUrl: website.url.as<string>(),
+    };
+  }),
+);

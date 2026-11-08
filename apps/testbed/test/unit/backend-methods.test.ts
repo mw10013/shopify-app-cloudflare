@@ -5,6 +5,7 @@ import { ShopDomain, ShopGid } from "@mw10013/shopify-app-workers/backend";
 import { fakePlanSelectionUrl, mintIdToken, PartnerFake } from "@mw10013/shopify-app-workers/test";
 import { ShopifyAppTest } from "@mw10013/shopify-app-workers/test/node";
 import * as Cause from "effect/Cause";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Schema from "effect/Schema";
@@ -66,6 +67,57 @@ describe("Backend.authenticateMerchant over the binding", () => {
     Effect.gen(function* () {
       const methods = yield* backendMethods;
       assert.deepStrictEqual(yield* crossed(methods.authenticateMerchant({ idToken: "nope" })), {
+        _tag: "InvalidIdTokenError",
+      });
+    }).pipe(Effect.provide(testbed())),
+  );
+});
+
+describe("Backend.appHome over the binding", () => {
+  it.effect("answers the shop, the plan's handle and when the row was inserted", () =>
+    Effect.gen(function* () {
+      const methods = yield* backendMethods;
+      const answer = yield* methods.appHome({ idToken: yield* mintIdToken({ shop: SHOP }) });
+      // The seed's insert ran at the test clock's start.
+      assert.deepStrictEqual(answer, {
+        shop: SHOP,
+        planHandle: "testbed-basic",
+        installedAt: DateTime.formatIso(DateTime.makeUnsafe(0)),
+      });
+    }).pipe(Effect.provide(testbed())),
+  );
+
+  it.effect("names the plan the Partner API holds, testbed-pro included", () =>
+    Effect.gen(function* () {
+      const partner = yield* PartnerFake;
+      yield* partner.script(SHOP_GID, {
+        _tag: "Subscribed",
+        handle: "testbed-pro",
+        cycleStartAt: null,
+        boundaryAt: null,
+      });
+      const methods = yield* backendMethods;
+      const answer = yield* methods.appHome({ idToken: yield* mintIdToken({ shop: SHOP }) });
+      assert.strictEqual(answer.planHandle, "testbed-pro");
+    }).pipe(Effect.provide(testbed())),
+  );
+
+  it.effect("an unsubscribed merchant crosses as PlanUnsubscribedError", () =>
+    Effect.gen(function* () {
+      const partner = yield* PartnerFake;
+      yield* partner.script(SHOP_GID, { _tag: "None" });
+      const methods = yield* backendMethods;
+      const failure = yield* crossed(
+        methods.appHome({ idToken: yield* mintIdToken({ shop: SHOP }) }),
+      );
+      assert.strictEqual((failure as { readonly _tag: string })._tag, "PlanUnsubscribedError");
+    }).pipe(Effect.provide(testbed())),
+  );
+
+  it.effect("a token that does not verify crosses as InvalidIdTokenError", () =>
+    Effect.gen(function* () {
+      const methods = yield* backendMethods;
+      assert.deepStrictEqual(yield* crossed(methods.appHome({ idToken: "nope" })), {
         _tag: "InvalidIdTokenError",
       });
     }).pipe(Effect.provide(testbed())),

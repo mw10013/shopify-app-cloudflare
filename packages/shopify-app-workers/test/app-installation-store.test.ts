@@ -3,11 +3,13 @@ import type { SQLInputValue } from "node:sqlite";
 
 import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
+import * as TestClock from "effect/testing/TestClock";
 
 import {
   AppInstallation,
@@ -29,12 +31,14 @@ const row: AppInstallation = {
   planHandle: null,
   planHandleExpiresAt: null,
   planBoundaryAt: null,
+  installedAt: at(500),
 };
 
 const {
   planHandle: _handle,
   planHandleExpiresAt: _expires,
   planBoundaryAt: _boundary,
+  installedAt: _installed,
   ...upsert
 }: AppInstallation = row;
 const asUpsert: AppInstallationUpsert = upsert;
@@ -116,34 +120,40 @@ describe.each([
     }).pipe(Effect.provide(layer([]))),
   );
 
-  it.effect("2. upsert inserts a new row with its plan never fetched", () =>
-    Effect.gen(function* () {
-      const installations = yield* AppInstallationStore;
-      yield* installations.upsert(asUpsert);
-      assert.deepStrictEqual(yield* stored, row);
-    }).pipe(Effect.provide(layer([]))),
+  it.effect(
+    "2. upsert inserts a new row with its plan never fetched, stamped installedAt now",
+    () =>
+      Effect.gen(function* () {
+        const installations = yield* AppInstallationStore;
+        yield* TestClock.adjust(Duration.millis(500));
+        yield* installations.upsert(asUpsert);
+        assert.deepStrictEqual(yield* stored, row);
+      }).pipe(Effect.provide(layer([]))),
   );
 
-  it.effect("2. upsert on conflict rewrites the grant columns and leaves the plan cache", () =>
-    Effect.gen(function* () {
-      const installations = yield* AppInstallationStore;
-      yield* installations.updatePlan({
-        shop: SHOP,
-        planHandle: "baton-pro",
-        planHandleExpiresAt: at(3000),
-        planBoundaryAt: at(4000),
-      });
-      yield* installations.upsert({ ...asUpsert, accessToken: "shpat_c", scope: "write_orders" });
-      assert.deepStrictEqual(yield* stored, {
-        ...row,
-        accessToken: "shpat_c",
-        scope: "write_orders",
-        planHandle: "baton-pro",
-        planHandleExpiresAt: at(3000),
-        planBoundaryAt: at(4000),
-      });
-      assert.deepStrictEqual(yield* installations.shops(), [SHOP]);
-    }).pipe(Effect.provide(layer([row]))),
+  it.effect(
+    "2. upsert on conflict rewrites the grant columns and leaves the plan cache and installedAt",
+    () =>
+      Effect.gen(function* () {
+        const installations = yield* AppInstallationStore;
+        yield* installations.updatePlan({
+          shop: SHOP,
+          planHandle: "baton-pro",
+          planHandleExpiresAt: at(3000),
+          planBoundaryAt: at(4000),
+        });
+        yield* TestClock.adjust(Duration.millis(9000));
+        yield* installations.upsert({ ...asUpsert, accessToken: "shpat_c", scope: "write_orders" });
+        assert.deepStrictEqual(yield* stored, {
+          ...row,
+          accessToken: "shpat_c",
+          scope: "write_orders",
+          planHandle: "baton-pro",
+          planHandleExpiresAt: at(3000),
+          planBoundaryAt: at(4000),
+        });
+        assert.deepStrictEqual(yield* installations.shops(), [SHOP]);
+      }).pipe(Effect.provide(layer([row]))),
   );
 
   it.effect("3. delete removes the row, and again is a no-op", () =>

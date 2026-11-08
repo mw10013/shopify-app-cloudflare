@@ -114,7 +114,11 @@ export default defineConfig(({ command, mode, isPreview }) => {
           // under test, so `vp build` and `vp run dev` do not run the script.
           test: {
             name: "integ",
-            globalSetup: ["@mw10013/devkit/cloudflare/integ-setup"],
+            // `build-website.ts` builds the Website that `website-http.test.ts` serves.
+            globalSetup: [
+              "@mw10013/devkit/cloudflare/integ-setup",
+              "./test/integ/build-website.ts",
+            ],
             include: ["test/integ/**/*.test.ts"],
             env:
               mode === "test"

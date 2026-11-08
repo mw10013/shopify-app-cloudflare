@@ -7,6 +7,7 @@
  */
 
 import * as Context from "effect/Context";
+import type * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
@@ -56,12 +57,15 @@ export interface MerchantGateShape {
   /**
    * A screen read: verify the ID token, read the row, resolve the plan from it. It never
    * exchanges, since a call per screen must not cost a grant. No row is a defect: the guard's
-   * exchange wrote it. Unsubscribed: `PlanUnsubscribedError { href }`.
+   * exchange wrote it. Unsubscribed: `PlanUnsubscribedError { href }`. Answers the row's
+   * `installedAt` too, so a screen that shows it reads the row once.
    */
-  readonly subscribedShop: (
-    idToken: string,
-  ) => Effect.Effect<
-    { readonly shop: ShopDomain; readonly handle: PlanHandle },
+  readonly subscribedShop: (idToken: string) => Effect.Effect<
+    {
+      readonly shop: ShopDomain;
+      readonly handle: PlanHandle;
+      readonly installedAt: DateTime.Utc | null;
+    },
     AuthenticateMerchantFailure
   >;
   /**
@@ -129,7 +133,7 @@ const make = Effect.gen(function* () {
     );
     const status = yield* plans.resolve(row);
     if (status._tag === "Unsubscribed") return yield* unsubscribed(row.shop);
-    return { shop: row.shop, handle: status.handle };
+    return { shop: row.shop, handle: status.handle, installedAt: row.installedAt };
   });
 
   const merchantStanding = Effect.fn("MerchantGate.merchantStanding")(function* (idToken: string) {

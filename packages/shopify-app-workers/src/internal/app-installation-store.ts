@@ -56,15 +56,27 @@ export const AppInstallation = Schema.Struct({
    * expires without a second Partner call. Meaningful only while `planHandleExpiresAt` is ahead.
    */
   planBoundaryAt: StoredInstant,
+  /**
+   * When the row was inserted: the shop's first token exchange, or its first after an uninstall
+   * deleted the row. An exchange on an existing row leaves it. Null on a row inserted before the
+   * column existed.
+   */
+  installedAt: StoredInstant,
 });
 export type AppInstallation = typeof AppInstallation.Type;
 
 /**
  * An `AppInstallation` as a token exchange writes it: everything but the plan columns, so an
  * exchange never disturbs a cached plan, and a fresh insert leaves them null (never fetched).
+ * Nor `installedAt`, which the insert stamps with the current time.
  */
 export const AppInstallationUpsert = Schema.Struct(
-  Struct.omit(AppInstallation.fields, ["planHandle", "planHandleExpiresAt", "planBoundaryAt"]),
+  Struct.omit(AppInstallation.fields, [
+    "planHandle",
+    "planHandleExpiresAt",
+    "planBoundaryAt",
+    "installedAt",
+  ]),
 );
 export type AppInstallationUpsert = typeof AppInstallationUpsert.Type;
 
@@ -168,14 +180,16 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
     /**
      * An exchange's write: `insert … on conflict do update`, never `insert or replace`, which is a
      * delete and would cascade into every app table. It names no plan column, since an unchanged
-     * column in `set` still rewrites its index, a billed row write.
+     * column in `set` still rewrites its index, a billed row write. An insert stamps
+     * `installedAt`; a conflict leaves it.
      */
     const upsert = Effect.fn("AppInstallationStore.upsert")(function* (
       installation: AppInstallationUpsert,
     ) {
       const row = yield* encodeUpsert(installation);
-      yield* sql`insert into AppInstallation (shop, shopGid, scope, accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt)
-      values (${row.shop}, ${row.shopGid}, ${row.scope}, ${row.accessToken}, ${row.accessTokenExpiresAt}, ${row.refreshToken}, ${row.refreshTokenExpiresAt})
+      const installedAt = DateTime.toEpochMillis(yield* DateTime.now);
+      yield* sql`insert into AppInstallation (shop, shopGid, scope, accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt, installedAt)
+      values (${row.shop}, ${row.shopGid}, ${row.scope}, ${row.accessToken}, ${row.accessTokenExpiresAt}, ${row.refreshToken}, ${row.refreshTokenExpiresAt}, ${installedAt})
       on conflict (shop) do update set
         shopGid = excluded.shopGid,
         scope = excluded.scope,
@@ -277,7 +291,7 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
     ) {
       const [row] = yield* decodeRedactedRows(
         yield* sql`select shop, shopGid, scope, accessTokenExpiresAt, refreshTokenExpiresAt,
-            planHandle, planHandleExpiresAt, planBoundaryAt,
+            planHandle, planHandleExpiresAt, planBoundaryAt, installedAt,
             (accessToken is not null) as hasAccessToken,
             (refreshToken is not null) as hasRefreshToken
           from AppInstallation
@@ -303,7 +317,7 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
       ];
       const fetched = yield* decodeRedactedRows(
         yield* sql`select shop, shopGid, scope, accessTokenExpiresAt, refreshTokenExpiresAt,
-            planHandle, planHandleExpiresAt, planBoundaryAt,
+            planHandle, planHandleExpiresAt, planBoundaryAt, installedAt,
             (accessToken is not null) as hasAccessToken,
             (refreshToken is not null) as hasRefreshToken
           from AppInstallation
@@ -383,7 +397,7 @@ export class AppInstallationStore extends Context.Service<
       return {
         find: (shop: ShopDomain) => Effect.sync(() => Option.fromUndefinedOr(rows.get(shop))),
         upsert: (installation: AppInstallationUpsert) =>
-          Effect.sync(() => {
+          Effect.map(DateTime.now, (installedAt) => {
             const existing = rows.get(installation.shop);
             rows.set(
               installation.shop,
@@ -393,6 +407,7 @@ export class AppInstallationStore extends Context.Service<
                     planHandle: null,
                     planHandleExpiresAt: null,
                     planBoundaryAt: null,
+                    installedAt,
                   }
                 : { ...existing, ...installation },
             );
