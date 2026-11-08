@@ -8,6 +8,7 @@
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import type * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Function from "effect/Function";
 import * as FetchHttpClient from "effect/http/FetchHttpClient";
@@ -20,51 +21,11 @@ import * as Redacted from "effect/Redacted";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 
+import { type PartnerConfig, partnerConfig } from "./bindings.ts";
 import type { ShopifyUnavailableError } from "./contract.ts";
 import type { ShopDomain, ShopGid } from "./domain.ts";
 import { isAlchemyRuntime, unavailable } from "./shopify-client.ts";
 import { PARTNER_API_VERSION } from "./versions.ts";
-
-/**
- * A Shopify app's URL handle: the `<handle>` of its pricing page,
- * `admin.shopify.com/store/<store>/charges/<handle>/pricing_plans`. Lowercase letters, digits
- * and dashes.
- */
-const AppHandle = Schema.NonEmptyString.check(Schema.isPattern(/^[a-z0-9-]+$/u));
-
-/** A Partner Dashboard id (an organization's or an app's): the digits in its URL. */
-const PartnerId = Schema.NonEmptyString.check(Schema.isPattern(/^[0-9]+$/u));
-
-/**
- * What the app's Partner organization issues for one stage, beyond the app's key and secret: its
- * handle, the organization and app ids, and a Partner API token with **Manage apps**. The stack
- * binds them to the Backend under these names.
- */
-export const PartnerConfig = Schema.Struct({
-  SHOPIFY_APP_HANDLE: AppHandle,
-  SHOPIFY_PARTNER_ORG_ID: PartnerId,
-  SHOPIFY_PARTNER_APP_ID: PartnerId,
-  SHOPIFY_PARTNER_API_TOKEN: Schema.Redacted(Schema.NonEmptyString),
-});
-export type PartnerConfig = typeof PartnerConfig.Type;
-
-/**
- * {@link PartnerConfig} read one key at a time, then decoded: a `Config.schema` of the whole
- * struct finds nothing among a Worker's bindings, which answer one name at a time (measured in
- * baton under `alchemy dev`).
- */
-const partnerConfig: Config.Config<PartnerConfig> = Config.all({
-  SHOPIFY_APP_HANDLE: Config.String("SHOPIFY_APP_HANDLE"),
-  SHOPIFY_PARTNER_ORG_ID: Config.String("SHOPIFY_PARTNER_ORG_ID"),
-  SHOPIFY_PARTNER_APP_ID: Config.String("SHOPIFY_PARTNER_APP_ID"),
-  SHOPIFY_PARTNER_API_TOKEN: Config.Redacted("SHOPIFY_PARTNER_API_TOKEN"),
-}).pipe(
-  Config.mapEffect((values) =>
-    Schema.decodeUnknownEffect(PartnerConfig)(values).pipe(
-      Effect.mapError((issue) => new Config.ConfigError(issue)),
-    ),
-  ),
-);
 
 /** Stand-ins while the stack is planned, when nothing calls the Partner API; they only decode. */
 const PLANNING_CONFIG: PartnerConfig = {
@@ -156,6 +117,14 @@ const instantOrNull = (value: string | null | undefined): DateTime.Utc | null =>
 /** `PARTNER_RETRIES` transient retries, exponential from 500 ms, jittered: about 1.5 s. */
 export const PARTNER_RETRIES = 2;
 
+/**
+ * How long one attempt waits for the Partner API's response, the same as a grant attempt's
+ * deadline (`GRANT_ATTEMPT_DEADLINE`): the merchant gate waits on this call. An attempt past it is
+ * abandoned and counts as transient, so it is retried, and once the retries are spent it is
+ * `ShopifyUnavailableError`. With the retries, a hung Partner API holds a page about 16.5 s.
+ */
+export const PARTNER_ATTEMPT_DEADLINE = Duration.seconds(5);
+
 const make = Effect.fnUntraced(function* (config: PartnerConfig) {
   const endpoint = `https://partners.shopify.com/${config.SHOPIFY_PARTNER_ORG_ID}/api/${PARTNER_API_VERSION}/graphql.json`;
   // `activeSubscription` takes the Admin form; the Partner API's own `app(id:)` takes `gid://partners/App/…`.
@@ -171,6 +140,9 @@ const make = Effect.fnUntraced(function* (config: PartnerConfig) {
       ),
     ),
     HttpClient.filterStatusOk,
+    // Before the retries, so each attempt has its own deadline; a timed out attempt is a
+    // transient `TransportError`.
+    HttpClient.timeout(PARTNER_ATTEMPT_DEADLINE),
     HttpClient.retryTransient({
       schedule: Schedule.exponential("500 millis").pipe(Schedule.jittered),
       times: PARTNER_RETRIES,
@@ -249,9 +221,24 @@ export class PartnerApi extends Context.Service<PartnerApi, PartnerApiShape>()("
     Effect.gen(function* () {
       const config = yield* Config.option(partnerConfig).pipe(Effect.orDie);
       if (Option.isSome(config)) return PartnerApi.layer(config.value);
-      if (isAlchemyRuntime())
-        return yield* Effect.die(new Error("the Partner API credentials are not bound"));
+      if (isAlchemyRuntime()) return PartnerApi.layerUnbound;
       return PartnerApi.layer(PLANNING_CONFIG);
     }),
   );
+
+  /**
+   * A Partner API whose every call is a defect: `layerConfig`'s answer in a running Worker the
+   * stack bound no Partner credentials to (a dev stage before the owner adds them to `.env`). The
+   * Backend still boots, so webhooks and the grantor work; only billing, and so the merchant
+   * gate, dies, and says why. A plan is never guessed from a missing credential.
+   */
+  static readonly layerUnbound = Layer.sync(PartnerApi, () => {
+    const unbound = () => new Error("the Partner API credentials are not bound");
+    return PartnerApi.of({
+      activeSubscription: () => Effect.die(unbound()),
+      planSelectionUrl: () => {
+        throw unbound();
+      },
+    });
+  });
 }

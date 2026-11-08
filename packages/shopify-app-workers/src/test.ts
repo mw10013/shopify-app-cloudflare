@@ -13,6 +13,7 @@ export {
   type RequiredBehavior,
 } from "./test/auth-behaviors.ts";
 export { APP_BEHAVIORS } from "./test/app-behaviors.ts";
+export { REQUIRED_BEHAVIORS } from "./test/required-behaviors.ts";
 export { BEHAVIOR_CATALOG, BEHAVIOR_PROBE_TOPIC, behaviorApp } from "./test/behavior-app.ts";
 export {
   FAKE_SHOPIFY_API_KEY,

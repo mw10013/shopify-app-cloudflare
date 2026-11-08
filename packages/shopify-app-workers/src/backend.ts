@@ -21,7 +21,6 @@ export {
 export {
   PartnerApi,
   type PartnerApiShape,
-  PartnerConfig,
   type PartnerSubscription,
 } from "#internal/partner-api.ts";
 export {
@@ -30,7 +29,7 @@ export {
   ShopifyAccess,
 } from "#internal/shopify-access.ts";
 export { ShopifyApp, type ShopifyAppDefinition } from "#internal/shopify-app.ts";
-export type { ShopifyCredentials } from "#internal/shopify-client.ts";
+export { PartnerConfig, type ShopifyCredentials } from "#internal/bindings.ts";
 export {
   type AdminGraphqlFailure,
   type EnsureSessionFailure,
@@ -45,6 +44,7 @@ export {
   SubscriptionPlan,
   type SubscriptionPlanShape,
 } from "#internal/subscription-plan.ts";
+export { type Failures, type Served, serve, serveAll } from "#internal/serve.ts";
 export { ADMIN_API_VERSION, PARTNER_API_VERSION } from "#internal/versions.ts";
 export {
   BUILT_IN_TOPICS,

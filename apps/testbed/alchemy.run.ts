@@ -4,10 +4,20 @@ import {
   stageProviders,
   stageState,
 } from "@mw10013/devkit/cloudflare/deployed-stack";
-import { workerNameOf } from "@mw10013/devkit/cloudflare/stage";
+import { environmentOf, workerNameOf } from "@mw10013/devkit/cloudflare/stage";
+import {
+  bindShopifyApp,
+  deployedShopifyApp,
+  fakeShopifyApp,
+  partnerBindingFromConfig,
+  type ShopifyAppBinding,
+  shopifyCliApp,
+} from "@mw10013/shopify-app-workers/stack";
 import * as Alchemy from "alchemy";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
+import * as Match from "effect/Match";
+import * as Option from "effect/Option";
 
 import Backend from "#backend/worker.ts";
 
@@ -39,12 +49,53 @@ export class Website extends Cloudflare.Website.Vite<Website>()(
 
 export type WebsiteEnv = Cloudflare.InferEnv<typeof Website>;
 
+/**
+ * The Shopify app this stage's Backend serves, served at `appUrl` unless the CLI's tunnel is.
+ * `dev` and `e2e` serve Shopify CLI's app under `shopify app dev` and the fake app otherwise (a
+ * bare `alchemy destroy`); a deployed stage reads its app from the deploy's environment, so a
+ * missing value fails the plan; `test` always serves the fake app.
+ */
+const shopifyAppFor = (appUrl: ShopifyAppBinding["appUrl"]) =>
+  Effect.gen(function* () {
+    const environment = yield* environmentOf(yield* Alchemy.Stage);
+    return yield* Match.value(environment).pipe(
+      Match.whenOr("dev", "e2e", () =>
+        Effect.map(
+          shopifyCliApp,
+          Option.getOrElse(() => fakeShopifyApp(appUrl)),
+        ),
+      ),
+      Match.whenOr("staging", "production", () => deployedShopifyApp(appUrl)),
+      Match.when("test", () => Effect.succeed(fakeShopifyApp(appUrl))),
+      Match.exhaustive,
+    );
+  });
+
+/**
+ * The Partner values this stage binds: from `.env` on `dev` and `e2e`, and none while the owner
+ * has not added them, when the Backend's billing dies on its first call and webhooks and the
+ * grantor still work; required on a deployed stage; none on `test`, whose Backend uses the fake.
+ */
+const partnerFor = Effect.gen(function* () {
+  const environment = yield* environmentOf(yield* Alchemy.Stage);
+  return yield* Match.value(environment).pipe(
+    Match.whenOr("dev", "e2e", () => Config.option(partnerBindingFromConfig)),
+    Match.whenOr("staging", "production", () => Effect.map(partnerBindingFromConfig, Option.some)),
+    Match.when("test", () => Effect.succeedNone),
+    Match.exhaustive,
+  );
+});
+
 export default Alchemy.Stack(
   "testbed",
   { providers: stageProviders, state: stageState, secrets: deployedSecrets },
   Effect.gen(function* () {
     const website = yield* Website;
-    yield* Backend;
+    const backend = yield* Backend;
+    yield* bindShopifyApp(backend, {
+      app: yield* shopifyAppFor(website.url),
+      partner: yield* partnerFor,
+    });
     return { websiteUrl: website.url.as<string>() };
-  }),
+  }).pipe(Effect.orDie),
 );

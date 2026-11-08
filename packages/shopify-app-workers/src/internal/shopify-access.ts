@@ -18,9 +18,10 @@ import {
   AppInstallationStore,
   type RedactedPageInput,
 } from "./app-installation-store.ts";
+import type { ShopifyCredentials } from "./bindings.ts";
 import type { ShopDomain } from "./domain.ts";
 import { ShopGrantorLive, ShopGrantors } from "./shop-grantor.ts";
-import { ShopifyClient, type ShopifyCredentials } from "./shopify-client.ts";
+import { ShopifyClient } from "./shopify-client.ts";
 import { layerShopify } from "./shopify.ts";
 
 export interface AppInstallationsShape {

@@ -7,7 +7,7 @@
 
 import * as Redacted from "effect/Redacted";
 
-import type { ShopifyCredentials } from "#internal/shopify-client.ts";
+import type { ShopifyCredentials } from "#internal/bindings.ts";
 
 /** The fake app's API key (its client ID): an ID token's `aud`. */
 export const FAKE_SHOPIFY_API_KEY = "fake-api-key";
