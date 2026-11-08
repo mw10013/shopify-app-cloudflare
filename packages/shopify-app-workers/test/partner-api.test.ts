@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Cause from "effect/Cause";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
@@ -10,16 +11,24 @@ import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 import * as TestClock from "effect/testing/TestClock";
 
-import { layerHttpClient, PartnerApi, type PartnerConfig } from "#internal/partner-api.ts";
+import {
+  layerHttpClient,
+  PARTNER_ATTEMPT_DEADLINE,
+  PARTNER_RETRIES,
+  PartnerApi,
+  type PartnerApiOptions,
+} from "#internal/partner-api.ts";
 import { PARTNER_API_VERSION } from "#internal/versions.ts";
 
 import { millisOf, SHOP, SHOP_GID } from "./fixtures.ts";
 
-const CONFIG: PartnerConfig = {
-  SHOPIFY_APP_HANDLE: "test-app",
-  SHOPIFY_PARTNER_ORG_ID: "123",
-  SHOPIFY_PARTNER_APP_ID: "456",
-  SHOPIFY_PARTNER_API_TOKEN: Redacted.make("prtapi_test"),
+const OPTIONS: PartnerApiOptions = {
+  handle: "test-app",
+  partner: {
+    SHOPIFY_PARTNER_ORG_ID: "123",
+    SHOPIFY_PARTNER_APP_ID: "456",
+    SHOPIFY_PARTNER_API_TOKEN: Redacted.make("prtapi_test"),
+  },
 };
 
 interface Seen {
@@ -28,11 +37,17 @@ interface Seen {
   readonly body: unknown;
 }
 
-/** `PartnerApi.layer` over an `HttpClient` that answers each request with the next of `replies`. */
-const partnerOver = (replies: readonly (() => Response)[]) => {
+/** A reply that never comes: the request hangs. */
+const HANG = "hang";
+
+/**
+ * `PartnerApi.layer` over an `HttpClient` that answers each request with the next of `replies`,
+ * the last one repeating.
+ */
+const partnerOver = (replies: readonly ((() => Response) | typeof HANG)[]) => {
   const seen: Seen[] = [];
   const client = HttpClient.make((request) =>
-    Effect.sync(() => {
+    Effect.suspend(() => {
       const reply = replies[seen.length] ?? replies.at(-1);
       seen.push({
         url: request.url,
@@ -42,13 +57,14 @@ const partnerOver = (replies: readonly (() => Response)[]) => {
             ? JSON.parse(new TextDecoder().decode(request.body.body))
             : undefined,
       });
-      if (reply === undefined) throw new Error("no reply scripted");
-      return HttpClientResponse.fromWeb(request, reply());
+      if (reply === undefined) return Effect.die(new Error("no reply scripted"));
+      if (reply === HANG) return Effect.never;
+      return Effect.succeed(HttpClientResponse.fromWeb(request, reply()));
     }),
   );
   return {
     seen,
-    layer: layerHttpClient(CONFIG).pipe(
+    layer: layerHttpClient(OPTIONS).pipe(
       Layer.provide(Layer.succeed(HttpClient.HttpClient, client)),
     ),
   };
@@ -56,6 +72,13 @@ const partnerOver = (replies: readonly (() => Response)[]) => {
 
 const subscription = (activeSubscription: unknown) => () =>
   Response.json({ data: { activeSubscription } });
+
+/** A 200 whose headers arrive and whose body never finishes. */
+const hangingBody = () =>
+  new Response(new ReadableStream({ start: () => undefined }), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
 
 const activeSubscription = Effect.flatMap(PartnerApi, (partner) =>
   partner.activeSubscription(SHOP, SHOP_GID),
@@ -131,6 +154,59 @@ describe("PartnerApi.activeSubscription", () => {
     },
   );
 
+  it.effect(
+    "an attempt unanswered at PARTNER_ATTEMPT_DEADLINE is abandoned and retried as transient",
+    () => {
+      const { seen, layer } = partnerOver([HANG, subscription(null)]);
+      return Effect.gen(function* () {
+        const fiber = yield* Effect.forkChild(activeSubscription);
+        yield* TestClock.adjust(Duration.subtract(PARTNER_ATTEMPT_DEADLINE, Duration.millis(1)));
+        assert.strictEqual(seen.length, 1, "the first attempt still waits inside its deadline");
+        yield* TestClock.adjust("5 seconds");
+        assert.isTrue(Option.isNone(yield* Fiber.join(fiber)));
+        assert.strictEqual(seen.length, 2);
+      }).pipe(Effect.provide(layer));
+    },
+  );
+
+  it.effect(
+    "a Partner API that never answers, retries spent, is ShopifyUnavailableError, never None",
+    () => {
+      const { seen, layer } = partnerOver([HANG]);
+      return Effect.gen(function* () {
+        const fiber = yield* Effect.forkChild(Effect.exit(activeSubscription));
+        yield* TestClock.adjust("30 seconds");
+        const exit = yield* Fiber.join(fiber);
+        assert.isTrue(Exit.isFailure(exit));
+        if (Exit.isFailure(exit)) {
+          const error = Cause.findErrorOption(exit.cause);
+          assert.strictEqual(Option.getOrThrow(error)._tag, "ShopifyUnavailableError");
+        }
+        assert.strictEqual(seen.length, 1 + PARTNER_RETRIES, "each attempt met its deadline");
+      }).pipe(Effect.provide(layer));
+    },
+  );
+
+  it.effect(
+    "a 200 whose body never finishes meets the deadline too: retried, then ShopifyUnavailableError",
+    () => {
+      const { seen, layer } = partnerOver([hangingBody]);
+      return Effect.gen(function* () {
+        const fiber = yield* Effect.forkChild(Effect.exit(activeSubscription));
+        yield* TestClock.adjust(Duration.subtract(PARTNER_ATTEMPT_DEADLINE, Duration.millis(1)));
+        assert.strictEqual(seen.length, 1, "the first attempt still reads inside its deadline");
+        yield* TestClock.adjust("30 seconds");
+        const exit = yield* Fiber.join(fiber);
+        assert.isTrue(Exit.isFailure(exit));
+        if (Exit.isFailure(exit)) {
+          const error = Cause.findErrorOption(exit.cause);
+          assert.strictEqual(Option.getOrThrow(error)._tag, "ShopifyUnavailableError");
+        }
+        assert.strictEqual(seen.length, 1 + PARTNER_RETRIES, "each attempt met its deadline");
+      }).pipe(Effect.provide(layer));
+    },
+  );
+
   it.effect("a 401, a misconfigured token, is a defect after one call", () => {
     const { seen, layer } = partnerOver([() => new Response("no", { status: 401 })]);
     return Effect.gen(function* () {
@@ -169,5 +245,30 @@ describe("PartnerApi.planSelectionUrl", () => {
         "https://admin.shopify.com/store/seed-shop/charges/test-app/pricing_plans",
       );
     }).pipe(Effect.provide(partnerOver([]).layer)),
+  );
+});
+
+describe("PartnerApi.layerUnbound", () => {
+  it.effect(
+    "activeSubscription dies, naming the missing credentials, while the handle still builds the plan page",
+    () =>
+      Effect.gen(function* () {
+        const partner = yield* PartnerApi;
+        const exit = yield* Effect.exit(partner.activeSubscription(SHOP, SHOP_GID));
+        assert.isTrue(Exit.isFailure(exit) && Cause.hasDies(exit.cause));
+        if (Exit.isFailure(exit))
+          assert.match(String(Cause.squash(exit.cause)), /Partner API credentials are not bound/u);
+        assert.strictEqual(
+          partner.planSelectionUrl(SHOP),
+          "https://admin.shopify.com/store/seed-shop/charges/test-app/pricing_plans",
+        );
+      }).pipe(Effect.provide(PartnerApi.layerUnbound(Option.some("test-app")))),
+  );
+
+  it.effect("without the handle either, the plan page throws, naming it", () =>
+    Effect.gen(function* () {
+      const partner = yield* PartnerApi;
+      assert.throws(() => partner.planSelectionUrl(SHOP), /app handle is not bound/u);
+    }).pipe(Effect.provide(PartnerApi.layerUnbound(Option.none()))),
   );
 });

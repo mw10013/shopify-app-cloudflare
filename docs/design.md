@@ -18,6 +18,10 @@ An app supplies its config and secrets, its plan catalog, lifecycle hooks (befor
 
 The work starts with authentication, billing and webhooks, then the shop actor machinery and client, then the Website side.
 
+## Where an app's identity and secrets live
+
+Each stage's `shopify.app*.toml` in the app's repository is the only place its app's public identity is written: the top-level `handle` and `client_id`, which is the app's API key (`SHOPIFY_API_KEY`). The app's `alchemy.run.ts` reads them from the toml at stack time (`readAppIdentity`, `shopifyCliApp`, `deployedShopifyApp`) and binds them into the Backend; the deployed Worker never reads a file. Only secrets come from the environment: `SHOPIFY_API_SECRET` and the Partner values. Under `shopify app dev` the CLI's injected `SHOPIFY_API_KEY` must equal the toml's `client_id`, or the stack fails.
+
 ## Why a library inside each Worker
 
 The package runs inside each app's Backend Worker. A separate authentication Worker that every app calls was ruled out:

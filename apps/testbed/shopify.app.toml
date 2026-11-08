@@ -28,5 +28,9 @@ topics = ["app/scopes_update"]
 uri = "/webhooks/app/uninstalled"
 topics = ["app/uninstalled"]
 
+[[webhooks.subscriptions]]
+uri = "/webhooks/shop/update"
+topics = ["shop/update"]
+
 [build]
 automatically_update_urls_on_dev = true

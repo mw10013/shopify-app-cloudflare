@@ -21,15 +21,11 @@ import type { ShopDomain } from "#internal/domain.ts";
 import { ShopifyHooks, type ShopifyHooksShape } from "#internal/hooks.ts";
 import { MerchantGate } from "#internal/merchant-gate.ts";
 import { ShopGrantors } from "#internal/shop-grantor.ts";
-import { ShopifyAccess } from "#internal/shopify-access.ts";
-import { ShopifyApp, type ShopifyAppDefinition } from "#internal/shopify-app.ts";
-import { ShopifyClient } from "#internal/shopify-client.ts";
+import type { ShopifyAppDefinition } from "#internal/shopify-app.ts";
 import { Shopify } from "#internal/shopify.ts";
 import { SubscriptionPlan } from "#internal/subscription-plan.ts";
 import { Webhooks } from "#internal/webhooks.ts";
 import { behaviorApp } from "#test/behavior-app.ts";
-import { FAKE_SHOPIFY_CREDENTIALS } from "#test/fake-app.ts";
-import { PartnerFake } from "#test/partner-fake.ts";
 import { ShopifyFake } from "#test/shopify-fake.ts";
 import {
   type HarnessLogLine,
@@ -39,7 +35,8 @@ import {
 } from "#test/shopify-harness.ts";
 import { signWebhook } from "#test/webhook.ts";
 
-import { D1Test, type D1TestOptions } from "./d1-test.ts";
+import type { D1TestOptions } from "./d1-test.ts";
+import { d1Store, seedInstallation, testTiers } from "./shopify-app-test.ts";
 
 const ShopId = Schema.Struct({ shop: Schema.Struct({ id: Schema.String }) });
 
@@ -82,20 +79,7 @@ const holdableStore = (options: D1TestOptions) => {
       updateTokens: (...args: Parameters<typeof inner.updateTokens>) =>
         held(inner.updateTokens(...args)),
     })),
-  ).pipe(
-    // The database itself, not `D1Test.database`, which each statement would read from the
-    // context it runs in: a case runs harness calls from inside a fake's reply, with none.
-    // For the same reason each such call is scoped below: the D1 client is memoized on the
-    // running call's `Scope`.
-    Layer.provide(
-      Layer.unwrap(
-        Effect.map(D1Test, ({ database }) =>
-          AppInstallationStore.layerD1(Effect.succeed(database)),
-        ),
-      ),
-    ),
-    Layer.provideMerge(D1Test.layer(options)),
-  );
+  ).pipe(Layer.provideMerge(d1Store(options)));
   return { store, holdWrite };
 };
 
@@ -177,33 +161,7 @@ export const inProcessHarness = (
       const fake = yield* ShopifyFake;
       return {
         can: new Set(["clock", "interleave"] as const),
-        seed: (row) =>
-          Effect.scoped(
-            Effect.gen(function* () {
-              yield* installations.upsert({
-                shop: row.shop,
-                shopGid: row.shopGid,
-                scope: row.scope ?? null,
-                accessToken: row.accessToken ?? null,
-                accessTokenExpiresAt: row.accessTokenExpiresAt ?? null,
-                refreshToken: row.refreshToken ?? null,
-                refreshTokenExpiresAt: row.refreshTokenExpiresAt ?? null,
-              });
-              if (row.planHandleExpiresAt !== undefined && row.planHandleExpiresAt !== null)
-                yield* installations.updatePlan({
-                  shop: row.shop,
-                  planHandle: row.planHandle ?? null,
-                  planHandleExpiresAt: row.planHandleExpiresAt,
-                  planBoundaryAt: row.planBoundaryAt ?? null,
-                });
-              if (
-                row.recognized !== false &&
-                row.refreshToken !== null &&
-                row.refreshToken !== undefined
-              )
-                yield* fake.recognize(row.shop, row.refreshToken);
-            }),
-          ),
+        seed: (row) => Effect.scoped(seedInstallation(installations, fake, row)),
         stored: installations.find,
         expireAccessToken: (shop: ShopDomain) =>
           Effect.gen(function* () {
@@ -256,14 +214,7 @@ export const inProcessHarness = (
     }),
   );
   return harness.pipe(
-    Layer.provideMerge(ShopifyApp.layerNoDeps(app)),
-    Layer.provideMerge(hooks.layer),
-    Layer.provideMerge(PartnerFake.layer({ defaultHandle: app.catalog.handles[0] })),
-    Layer.provideMerge(ShopifyAccess.layerNoDeps),
-    Layer.provideMerge(ShopGrantors.layerMemory),
-    Layer.provideMerge(ShopifyClient.layer(FAKE_SHOPIFY_CREDENTIALS)),
-    Layer.provideMerge(store),
-    Layer.provideMerge(ShopifyFake.layer),
+    Layer.provideMerge(testTiers({ app, hooks: hooks.layer, store })),
     Layer.provideMerge(logs.layer),
   );
 };

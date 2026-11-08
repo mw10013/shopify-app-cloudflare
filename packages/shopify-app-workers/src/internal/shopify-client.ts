@@ -19,7 +19,6 @@ import {
   shopifyApi,
   WebhookValidationErrorReason,
 } from "@shopify/shopify-api";
-import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
@@ -29,6 +28,7 @@ import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 
+import { type ShopifyCredentials, shopifyCredentialsConfig } from "./bindings.ts";
 import {
   AccessDeniedError,
   InvalidIdTokenError,
@@ -70,14 +70,6 @@ export type ShopifySpan =
   | "ShopGrantor.ensure"
   | "PartnerApi.activeSubscription"
   | "MerchantGate.authenticateMerchant";
-
-/** The app's credentials, as Shopify CLI or a deployed stage binds them. Scopes are the app configuration's. */
-export interface ShopifyCredentials {
-  readonly apiKey: string;
-  readonly apiSecret: Redacted.Redacted;
-  /** The app's URL; its host and scheme are the library's `hostName` and `hostScheme`. */
-  readonly appUrl: string;
-}
 
 const decodeWebhookShop = Schema.decodeUnknownOption(ShopDomain);
 const decodeWebhookPayload = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown));
@@ -348,9 +340,7 @@ export class ShopifyClient extends Context.Service<
    */
   static readonly layerConfig = Layer.unwrap(
     Effect.gen(function* () {
-      const apiKey = yield* Config.option(Config.String("SHOPIFY_API_KEY"));
-      const apiSecret = yield* Config.option(Config.Redacted("SHOPIFY_API_SECRET"));
-      const appUrl = yield* Config.option(Config.String("SHOPIFY_APP_URL"));
+      const { apiKey, apiSecret, appUrl } = yield* shopifyCredentialsConfig;
       if (
         isAlchemyRuntime() &&
         (Option.isNone(apiKey) || Option.isNone(apiSecret) || Option.isNone(appUrl))

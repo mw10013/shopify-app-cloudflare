@@ -25,6 +25,9 @@ const INTERNAL = new Set([
   "PARTNER_RETRIES",
   "STALE_PLAN_CONCURRENCY",
   "layerHttpClient",
+  "bindShopifyApp",
+  "shopifyCredentialsConfig",
+  "partnerConfig",
 ]);
 
 describe("/backend", () => {
@@ -46,6 +49,9 @@ describe("/backend", () => {
       "decodePayload",
       "MerchantAuthenticated",
       "AuthenticateMerchantInput",
+      "serve",
+      "serveAll",
+      "scheduledJob",
     ])
       assert.include(exported, name);
     assert.deepStrictEqual(

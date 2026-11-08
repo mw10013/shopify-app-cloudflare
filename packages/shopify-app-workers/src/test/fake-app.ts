@@ -7,7 +7,7 @@
 
 import * as Redacted from "effect/Redacted";
 
-import type { ShopifyCredentials } from "#internal/shopify-client.ts";
+import type { ShopifyCredentials } from "#internal/bindings.ts";
 
 /** The fake app's API key (its client ID): an ID token's `aud`. */
 export const FAKE_SHOPIFY_API_KEY = "fake-api-key";
@@ -17,6 +17,9 @@ export const FAKE_SHOPIFY_API_KEY = "fake-api-key";
  * Shopify would with the real app's; it protects nothing, because no real app uses it.
  */
 export const FAKE_SHOPIFY_API_SECRET = "fake-api-secret";
+
+/** The fake app's handle, which its plan selection URL names. */
+export const FAKE_APP_HANDLE = "fake-app";
 
 /** The fake app's URL. Only its host and scheme reach the library. */
 export const FAKE_SHOPIFY_APP_URL = "http://localhost";
