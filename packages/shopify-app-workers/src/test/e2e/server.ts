@@ -203,7 +203,11 @@ export interface E2eServerOptions<R = never> {
   readonly restartFiles: readonly string[];
   /** The store auth scopes the app's suite needs (its `E2eApp` `storeScopes`); none skips it. */
   readonly storeScopes: readonly string[];
-  /** The app's own preparation of the store, on every start once store auth is granted. */
+  /**
+   * The app's own preparation of the store, on every start once store auth is granted. The store
+   * is already recorded when it runs, so it cannot use the record to tell a new store from one it
+   * prepared; it checks the store itself.
+   */
   readonly prepareStore?: (
     server: Server,
     running: RunningServer,
@@ -280,7 +284,7 @@ export const e2eServerCommand = <R = never>({
         const running = yield* startServer(server);
         yield* recordStore(server);
         yield* Console.log(`\n${yield* describeRunning(server, running)}`);
-        if (!adopted) yield* step("app deployed", awaitServerReady(running, resetExpected));
+        if (!adopted) yield* step("app dev ready", awaitServerReady(running, resetExpected));
         yield* prepare(server, running);
         return running;
       }).pipe(
