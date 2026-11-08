@@ -23,6 +23,7 @@ import { ShopDomain, ShopGid } from "#internal/domain.ts";
 
 import { mintIdToken } from "./id-token.ts";
 import {
+  FAKE_SCOPE,
   FAKE_SHOP_GID,
   grantBody,
   REFRESH_GRANT,
@@ -828,6 +829,64 @@ const abandonedAttempts: readonly RequiredBehavior[] = [
       assert.equal((yield* ensure).accessToken, "shpat_1");
       assert.deepEqual(grantsOf(yield* calls), [REFRESH_GRANT, REFRESH_GRANT, REFRESH_GRANT]);
       assert.equal((yield* storedRow).refreshToken, "shprt_1");
+      yield* assertInvariant;
+    }),
+    { needs: interleave, timeout: 20_000 },
+  ),
+  behavior(
+    "51",
+    "a first install whose last exchange outlived its retries: the merchant's next exchange adopts its pair, fetches shopGid and writes the row, with no second exchange",
+    Effect.gen(function* () {
+      yield* (yield* ShopifyFake).script(
+        Array.from({ length: 2 }, () => ({
+          route: "token" as const,
+          status: 503,
+          body: { error: "down" },
+        })),
+      );
+      const late = yield* lateTokenCall({ index: 2, delayMs: 7000 });
+      assert.equal(yield* failureOf(authenticate), "ShopifyUnavailableError");
+      assert.equal(late.settledAt(), Infinity, "the abandoned exchange is still unsettled");
+      assert.deepEqual(yield* authenticate, { shop: SHOP, shopGid: FAKE_SHOP_GID });
+      assert.deepEqual(grantsOf(yield* calls), [
+        TOKEN_EXCHANGE_GRANT,
+        TOKEN_EXCHANGE_GRANT,
+        TOKEN_EXCHANGE_GRANT,
+        "graphql",
+      ]);
+      const row = yield* storedRow;
+      assert.equal(row.accessToken, "shpat_1");
+      assert.equal(row.shopGid, FAKE_SHOP_GID);
+      assert.equal(row.scope, FAKE_SCOPE);
+      yield* assertInvariant;
+    }),
+    { needs: interleave, timeout: 20_000 },
+  ),
+  behavior(
+    "51",
+    "an adopted exchange whose scope differs from the stored one: its scope is written with its pair",
+    Effect.gen(function* () {
+      yield* seedAt();
+      yield* (yield* ShopifyFake).script(
+        Array.from({ length: 2 }, () => ({
+          route: "token" as const,
+          status: 503,
+          body: { error: "down" },
+        })),
+      );
+      const late = yield* lateTokenCall({ index: 2, delayMs: 7000 });
+      assert.equal(yield* failureOf(authenticate), "ShopifyUnavailableError");
+      assert.equal(late.settledAt(), Infinity, "the abandoned exchange is still unsettled");
+      assert.notEqual(FAKE_SCOPE, "read_orders");
+      yield* authenticate;
+      assert.deepEqual(grantsOf(yield* calls), [
+        TOKEN_EXCHANGE_GRANT,
+        TOKEN_EXCHANGE_GRANT,
+        TOKEN_EXCHANGE_GRANT,
+      ]);
+      const row = yield* storedRow;
+      assert.equal(row.accessToken, "shpat_1");
+      assert.equal(row.scope, FAKE_SCOPE);
       yield* assertInvariant;
     }),
     { needs: interleave, timeout: 20_000 },

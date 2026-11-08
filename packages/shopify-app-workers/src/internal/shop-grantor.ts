@@ -56,13 +56,25 @@ export const GRANT_ATTEMPT_DEADLINE = Duration.seconds(5);
 /**
  * How long the shop's next grant request waits for an abandoned attempt to settle, in the same
  * grant or the next. An abandoned attempt may still complete at Shopify, and a request sent after
- * it would then be retired by it (rules 2, 3) and overlap it (rule 4). Bounded so a grant stays
- * within the 30 s Workers keeps `waitUntil` work alive: one wait at the start for an earlier
- * grant's last attempt, then {@link GRANT_TRANSIENT_RETRIES} + 1 attempts at
- * {@link GRANT_ATTEMPT_DEADLINE} with a wait and a backoff before each retry, is
- * 3 + 3 × 5 + 2 × 3 + about 1.5, about 26 s.
+ * it would then be retired by it (rules 2, 3) and overlap it (rule 4).
  *
- * @see https://developers.cloudflare.com/workers/runtime-apis/context/#waituntil
+ * The attempt budget: one wait at the start for an earlier grant's last attempt, then
+ * {@link GRANT_TRANSIENT_RETRIES} + 1 attempts at {@link GRANT_ATTEMPT_DEADLINE} with a wait and a
+ * backoff before each retry, 3 + 3 × 5 + 2 × 3 + about 1.5, about 26 s. A whole request can take
+ * longer: a first install adds up to 5 s for `shopGid` plus D1 I/O, about 31 s, and a caller that
+ * joined a grant can wait through it and then run its own, {@link GRANT_JOIN_ROUNDS}.
+ *
+ * No platform limit cuts a grant short. It runs in the grantor, a Durable Object, whose request
+ * or RPC has no fixed wall-time limit while the caller stays connected, and `keepAlive` is the
+ * object's `waitUntil`, which prevents eviction for up to 15 minutes after the caller goes. The
+ * Worker's own request has no fixed duration while connected either; its 30 s `waitUntil`
+ * extension starts only after the response or disconnect, and the grant does not need it. What
+ * can expire first is the caller's own deadline: a merchant's browser that gives up, or a
+ * webhook delivery Shopify times out. Either loses only the answer; the grant still stores its
+ * pair.
+ *
+ * @see https://developers.cloudflare.com/durable-objects/api/state/#waituntil
+ * @see https://developers.cloudflare.com/workers/platform/limits/#duration
  */
 export const GRANT_SETTLE_LIMIT = Duration.seconds(3);
 
@@ -392,34 +404,57 @@ export const makeGrantor = ({
 
   /**
    * Before a grant starts: settles an earlier grant's abandoned last attempt, and when it
-   * succeeded stores its pair, the shop's newest, under that grant's epoch, as a refresh writes
-   * (`updateTokens`, so a first install it never wrote stays unwritten). The new grant then reads
-   * the row it left.
+   * succeeded stores its pair, the shop's newest, under that grant's epoch, as that grant would
+   * have: an exchange `upsert`s with its `scope`, fetching `shopGid` on a first install, and a
+   * refresh `updateTokens`. The new grant then reads the row it left.
    */
   const adoptAbandoned = Effect.gen(function* () {
     const adopted = yield* settleAbandoned;
     if (Option.isNone(adopted)) return;
     const { prior, session } = adopted.value;
-    const granted = yield* Schema.decodeUnknownEffect(
-      prior.grant === "exchange" ? ExchangeGrant : RefreshGrant,
-    )(session).pipe(Effect.orDie);
-    const written = yield* fencedWrite(
-      Effect.succeed(false),
-      prior.started,
-      installations.updateTokens(shop, {
-        accessToken: granted.accessToken,
-        accessTokenExpiresAt: granted.expires,
-        refreshToken: granted.refreshToken,
-        refreshTokenExpiresAt: granted.refreshTokenExpires,
-      }),
-    );
-    if (written)
-      yield* logStatus(
-        Effect.logInfo,
-        prior.grant === "exchange" ? "ShopGrantor.exchange" : "ShopGrantor.ensure",
-        shop,
-        "adopted",
-      );
+    const span = prior.grant === "exchange" ? "ShopGrantor.exchange" : "ShopGrantor.ensure";
+    const written =
+      prior.grant === "exchange"
+        ? yield* Effect.gen(function* () {
+            const granted = yield* Schema.decodeUnknownEffect(ExchangeGrant)(session).pipe(
+              Effect.orDie,
+            );
+            const row = yield* installations.find(shop);
+            const shopGid = Option.isSome(row)
+              ? row.value.shopGid
+              : yield* fetchShopGid(granted.accessToken);
+            return yield* fencedWrite(
+              Effect.succeed(false),
+              prior.started,
+              installations
+                .upsert({
+                  shop,
+                  shopGid,
+                  scope: granted.scope,
+                  accessToken: granted.accessToken,
+                  accessTokenExpiresAt: granted.expires,
+                  refreshToken: granted.refreshToken,
+                  refreshTokenExpiresAt: granted.refreshTokenExpires,
+                })
+                .pipe(Effect.as(true)),
+            );
+          })
+        : yield* Effect.gen(function* () {
+            const granted = yield* Schema.decodeUnknownEffect(RefreshGrant)(session).pipe(
+              Effect.orDie,
+            );
+            return yield* fencedWrite(
+              Effect.succeed(false),
+              prior.started,
+              installations.updateTokens(shop, {
+                accessToken: granted.accessToken,
+                accessTokenExpiresAt: granted.expires,
+                refreshToken: granted.refreshToken,
+                refreshTokenExpiresAt: granted.refreshTokenExpires,
+              }),
+            );
+          });
+    if (written) yield* logStatus(Effect.logInfo, span, shop, "adopted");
   });
 
   /**
