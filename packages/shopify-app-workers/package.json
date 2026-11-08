@@ -25,7 +25,8 @@
   },
   "scripts": {
     "build": "vpx scripts/build.ts",
-    "release": "vpx scripts/release.ts"
+    "release": "vpx scripts/release.ts",
+    "consumer-check": "vpx scripts/consumer-check.ts"
   },
   "dependencies": {
     "@shopify/shopify-api": "15.0.1"
