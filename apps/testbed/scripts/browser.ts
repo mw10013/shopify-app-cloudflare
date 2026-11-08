@@ -1,5 +1,6 @@
 #!/usr/bin/env vpx
 import { createHash } from "node:crypto";
+import path from "node:path";
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
@@ -29,6 +30,8 @@ import * as Command from "effect/cli/Command";
 import * as Flag from "effect/cli/Flag";
 import * as Console from "effect/Console";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
+import * as Option from "effect/Option";
 import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as Schema from "effect/Schema";
@@ -117,10 +120,70 @@ const login = Effect.gen(function* () {
   yield* agent;
 });
 
-const close = runCLI(["--raw", "run-code", "async (page) => { await page.close(); }"]).pipe(
-  Effect.ignore,
-  Effect.andThen(runCLI(["detach"])),
+/**
+ * Where `open` records the tab it made, the only tab `close` closes: the session's selected page
+ * can be one the session attached to, another agent's tab in the shared agent Chrome.
+ */
+const tabFile = () => path.join(app().root, ".playwright-cli", "browser-tab.json");
+
+const OpenedTab = Schema.Struct({ targetId: Schema.NonEmptyString });
+const OpenedTabJson = Schema.fromJsonString(OpenedTab);
+
+const runCode = (code: string) =>
+  runCommand("vp", ["exec", "playwright", "cli", `-s=${session}`, "--raw", "run-code", code]).pipe(
+    Effect.mapError(
+      (error) =>
+        new BrowserError({
+          message: `Browser command failed: ${error.message}. Check vp run dev:status, then vp run browser agent.`,
+        }),
+    ),
+  );
+
+/** Records the session's selected page, the tab `open` just made, by its CDP target id. */
+const recordTab = Effect.gen(function* () {
+  const out = yield* runCode(`async (page) => {
+    const session = await page.context().newCDPSession(page);
+    const { targetInfo } = await session.send("Target.getTargetInfo");
+    await session.detach();
+    return { targetId: targetInfo.targetId };
+  }`);
+  const tab = yield* Schema.decodeUnknownEffect(OpenedTabJson)(out.trim()).pipe(
+    Effect.mapError(
+      () => new BrowserError({ message: `could not read the new tab's target id from: ${out}` }),
+    ),
+  );
+  const fs = yield* FileSystem.FileSystem;
+  yield* fs.makeDirectory(path.dirname(tabFile()), { recursive: true });
+  yield* fs.writeFileString(tabFile(), yield* Schema.encodeEffect(OpenedTabJson)(tab));
+}).pipe(
+  Effect.mapError((error) =>
+    error instanceof BrowserError ? error : new BrowserError({ message: error.message }),
+  ),
 );
+
+/**
+ * Closes the tab `open` recorded, by its target id, if it is still open, and detaches the
+ * session. Without a record it closes nothing.
+ */
+const close = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const recorded = yield* fs
+    .readFileString(tabFile())
+    .pipe(Effect.flatMap(Schema.decodeEffect(OpenedTabJson)), Effect.option);
+  if (Option.isSome(recorded)) {
+    const id = JSON.stringify(recorded.value.targetId);
+    yield* runCode(`async (page) => {
+      const session = await page.context().browser().newBrowserCDPSession();
+      const { targetInfos } = await session.send("Target.getTargets");
+      const target = targetInfos.find((info) => info.targetId === ${id});
+      if (target !== undefined) await session.send("Target.closeTarget", { targetId: target.targetId });
+      await session.detach();
+      return { closed: target !== undefined };
+    }`).pipe(Effect.ignore);
+    yield* fs.remove(tabFile()).pipe(Effect.ignore);
+  } else yield* Console.log("No tab recorded by vp run browser open; closing none.");
+  yield* runCLI(["detach"]);
+});
 
 const Target = Schema.Literals(["dev", ...Deployed.literals]);
 type Target = typeof Target.Type;
@@ -153,6 +216,7 @@ const open = Effect.fn("Browser.open")(function* (target: Target) {
   yield* Effect.gen(function* () {
     yield* runCLI(["attach", `--cdp=${AGENT_CDP}`]);
     yield* runCLI(["tab-new"]);
+    yield* recordTab;
     yield* runCLI(["--raw", "run-code", readinessCode(url)]);
     yield* runCLI(["snapshot", "--filename=.playwright-cli/dev-ready.yml"]);
     yield* Console.log(`Ready: session=dev; ${url}; snapshot=.playwright-cli/dev-ready.yml`);

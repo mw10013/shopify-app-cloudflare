@@ -13,6 +13,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { app } from "@mw10013/devkit/core/app";
 import {
   describeRunning,
+  loadClientId,
   loadServer,
   type RunningServer,
   runningServer,
@@ -29,10 +30,12 @@ import * as CliError from "effect/cli/CliError";
 import * as Command from "effect/cli/Command";
 import * as Flag from "effect/cli/Flag";
 import * as Console from "effect/Console";
+import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
+import * as Ref from "effect/Ref";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 
@@ -121,31 +124,81 @@ const RESET_WEBHOOK_SENT = /Sending APP_UNINSTALLED webhook to app server/u;
 const RESET_WEBHOOK_SETTLED =
   /APP_UNINSTALLED webhook delivered|APP_UNINSTALLED webhook delivery failed|App hasn't started in time, giving up/u;
 
+/** bosun stamps each line of the log, and opens each run with this. */
+const RUN_MARKER = "==== e2e start ";
+
 /** Alchemy takes about 20 s; the CLI tries the webhook three times, five seconds apart. */
 const SERVER_READY_TIMEOUT = Duration.minutes(3);
 
 /**
- * Waits, from the server's log after its start's `==== e2e start` line, until Alchemy has deployed the
- * stack and the Shopify CLI has settled the `app/uninstalled` it sends the app when the checkout's
- * cached app ID differs from the app's (a checkout's first start). The app deletes the shop's
- * `AppInstallation` row on it, so a row the suite's first load wrote before it arrived would
- * vanish. The CLI announces it seconds after starting, long before Alchemy is done.
+ * How long a start that expects no `app/uninstalled` still watches for one after the stack has
+ * deployed. The CLI announces it seconds after starting, long before Alchemy is done, so one that
+ * has not shown by then is not coming.
  */
-const awaitServerReady = (running: RunningServer) =>
+const RESET_WEBHOOK_GRACE = Duration.seconds(5);
+
+/**
+ * Whether this start's `shopify app dev` sends the app an `app/uninstalled`: it does when the
+ * checkout's project cache, `.shopify/project.json`, has no entry for the app's client ID, which a
+ * checkout's first start writes.
+ */
+const expectsResetWebhook = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  const clientId = yield* loadClientId;
+  const cached = yield* fs.readFileString(path.join(app().root, ".shopify", "project.json")).pipe(
+    Effect.flatMap(
+      Schema.decodeEffect(Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown))),
+    ),
+    Effect.map((project) => Object.hasOwn(project, clientId)),
+    Effect.orElseSucceed(() => false),
+  );
+  return !cached;
+});
+
+/** What the server's log says of its current run, from that run's {@link RUN_MARKER} on. */
+const readRun = (log: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
+    const text = yield* fs.readFileString(log).pipe(Effect.orElseSucceed(() => ""));
+    const start = text.lastIndexOf(RUN_MARKER);
+    if (start === -1)
+      return yield* new ServerError({
+        message: `${log} has no "${RUN_MARKER.trim()}" line for the run just started: read vp run e2e:logs`,
+      });
+    const run = text.slice(start);
+    return {
+      deployed: STACK_DEPLOYED.test(run),
+      sent: RESET_WEBHOOK_SENT.test(run),
+      settled: RESET_WEBHOOK_SETTLED.test(run),
+    };
+  });
+
+/**
+ * Waits, from the server's log of the run just started, until Alchemy has deployed the stack and
+ * the Shopify CLI has settled the `app/uninstalled` it sends on a checkout's first start
+ * ({@link expectsResetWebhook}). The app deletes the shop's `AppInstallation` row on it, so a row
+ * the suite's first load wrote before it arrived would vanish. A start that expects none waits
+ * {@link RESET_WEBHOOK_GRACE} after the deploy, and settles one that shows within it.
+ */
+const awaitServerReady = (running: RunningServer, resetExpected: boolean) =>
+  Effect.gen(function* () {
     const log = path.resolve(app().root, running.log);
-    const ready = fs.readFileString(log).pipe(
-      Effect.map((text) => {
-        // bosun stamps each line, then opens each run with `==== e2e start`.
-        const run = text.slice(Math.max(text.lastIndexOf("==== e2e start "), 0));
-        return (
-          STACK_DEPLOYED.test(run) &&
-          (!RESET_WEBHOOK_SENT.test(run) || RESET_WEBHOOK_SETTLED.test(run))
-        );
-      }),
-      Effect.orElseSucceed(() => false),
-    );
+    const deployedAt = yield* Ref.make(Option.none<DateTime.Utc>());
+    const ready = Effect.gen(function* () {
+      const run = yield* readRun(log);
+      if (!run.deployed) return false;
+      if (run.sent) return run.settled;
+      if (resetExpected) return false;
+      const now = yield* DateTime.now;
+      const since = yield* Ref.updateAndGet(
+        deployedAt,
+        Option.orElse(() => Option.some(now)),
+      );
+      return Option.exists(
+        since,
+        (at) => !DateTime.isLessThan(now, DateTime.addDuration(at, RESET_WEBHOOK_GRACE)),
+      );
+    });
     yield* ready.pipe(
       Effect.repeat({ until: (done) => done, schedule: Schedule.spaced(Duration.seconds(1)) }),
       Effect.timeoutOrElse({
@@ -153,7 +206,7 @@ const awaitServerReady = (running: RunningServer) =>
         orElse: () =>
           Effect.fail(
             new ServerError({
-              message: `the e2e server was not ready within ${Duration.format(SERVER_READY_TIMEOUT)}: read vp run e2e:logs`,
+              message: `the e2e server was not ready within ${Duration.format(SERVER_READY_TIMEOUT)}${resetExpected ? " (a first start waits for the Shopify CLI's app/uninstalled)" : ""}: read vp run e2e:logs`,
             }),
           ),
       }),
@@ -163,7 +216,9 @@ const awaitServerReady = (running: RunningServer) =>
 /**
  * The store is recorded as soon as the server runs on it, so a later start knows which store the
  * stage holds even when store auth fails. A server this invocation started is stopped when it is
- * not ready in time or store auth fails; an adopted one keeps running.
+ * not ready in time, store auth fails, or the invocation is interrupted (a killed restart): a
+ * later start adopts a running server without waiting for it, so none is left unconfirmed. An
+ * adopted one keeps running.
  */
 const start = (mode: SessionMode) =>
   Effect.gen(function* () {
@@ -172,21 +227,26 @@ const start = (mode: SessionMode) =>
     yield* resetStaleStage(server);
     const adopted = Option.isSome(yield* Effect.option(runningServer("e2e")));
     yield* prepareSession(server, adopted ? "kept" : mode);
-    const running = yield* startServer(server);
-    yield* recordStore(server);
-    yield* Console.log(`\n${yield* describeRunning(server, running)}`);
-    yield* Effect.gen(function* () {
-      if (!adopted) yield* step("app deployed", awaitServerReady(running));
+    const resetExpected = yield* expectsResetWebhook;
+    return yield* Effect.gen(function* () {
+      const running = yield* startServer(server);
+      yield* recordStore(server);
+      yield* Console.log(`\n${yield* describeRunning(server, running)}`);
+      if (!adopted) yield* step("app deployed", awaitServerReady(running, resetExpected));
       yield* prepareStore(server);
-    }).pipe(Effect.tapError(() => (adopted ? Effect.void : step("stop", stopServer("e2e")))));
-    return running;
+      return running;
+    }).pipe(
+      Effect.onError(() =>
+        adopted ? Effect.void : step("stop", stopServer("e2e")).pipe(Effect.ignore),
+      ),
+    );
   });
 
 const startCommand = Command.make("start", {}, () =>
   start("fresh").pipe(Effect.mapError(toUserError)),
 ).pipe(
   Command.withDescription(
-    "Start the e2e server, or adopt the one already running, on the e2e lease's pool store. It keeps its data unless its stage was set up for another store: that stage is destroyed first. A started server gets a fresh status route token in .state/e2e.session.json, and is waited for until its stack is deployed and the Shopify CLI has delivered the app/uninstalled it sends on a checkout's first start. It then checks the store's store auth, and stops a server it started when either fails.",
+    "Start the e2e server, or adopt the one already running, on the e2e lease's pool store. It keeps its data unless its stage was set up for another store: that stage is destroyed first. A started server gets a fresh status route token in .state/e2e.session.json, and is waited for until its stack is deployed and the Shopify CLI has settled the app/uninstalled it sends on a checkout's first start (a later start watches a few seconds for one). It then checks the store's store auth, and stops a server it started when either fails or the start is interrupted.",
   ),
 );
 

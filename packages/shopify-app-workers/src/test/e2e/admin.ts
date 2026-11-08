@@ -56,21 +56,41 @@ const foreignStore = (page: Page, app: E2eApp) => {
   return store !== undefined && store !== app.store ? store : undefined;
 };
 
+/**
+ * The error for a page on `store`, another than the leased one. It names the two stores only:
+ * nothing of the foreign store's page (its URL, title or content) leaves the browser.
+ */
+const isolationError = (store: string, app: E2eApp, cause?: unknown) =>
+  new ShopifyScreenError(
+    `The admin switched to ${store}, which this checkout does not lease (it leases ${app.store}); the suite stops before acting or capturing anything there.`,
+    { cause },
+  );
+
 /** Fails before the suite acts on any store but the leased one. */
 export const requireLeasedStore = (page: Page, app: E2eApp) => {
   const store = foreignStore(page, app);
-  if (store !== undefined)
-    throw new ShopifyScreenError(
-      `The admin switched to ${store}, which this checkout does not lease (it leases ${app.store}), at ${page.url()}; the suite stops before acting there.`,
-    );
+  if (store !== undefined) throw isolationError(store, app);
 };
 
 /**
- * Names the screen `page` shows when a wait for `expected` timed out: a lapsed login and
+ * Whether `page` shows the leased store's admin, the only page the suite may capture: a failure's
+ * snapshot of any other page could hold another agent's store.
+ */
+export const onLeasedStore = (page: Page, app: E2eApp) => {
+  const url = page.url();
+  const admin = `https://admin.shopify.com/store/${app.store}`;
+  return url === admin || (url.startsWith(admin) && /^[/?#]/u.test(url.slice(admin.length)));
+};
+
+/**
+ * Names the screen `page` shows when a wait for `expected` timed out: a page on another store than
+ * the leased one is named by its store alone ({@link requireLeasedStore}); a lapsed login and
  * Shopify's connection check need the owner; anything else is quoted by its URL, title and first
  * heading, for the owner to look at in the agent Chrome.
  */
-export const screenError = async (page: Page, expected: string, cause?: unknown) => {
+export const screenError = async (page: Page, app: E2eApp, expected: string, cause?: unknown) => {
+  const store = foreignStore(page, app);
+  if (store !== undefined) return isolationError(store, app, cause);
   const url = page.url();
   const title = await page.title().catch(() => "");
   if (new URL(url).hostname === "accounts.shopify.com" || title.startsWith("Log in"))
@@ -114,8 +134,7 @@ export const awaitScreen = async (
     .first()
     .waitFor({ timeout })
     .catch(async (cause: unknown) => {
-      requireLeasedStore(page, app);
-      throw await screenError(page, expected, cause);
+      throw await screenError(page, app, expected, cause);
     });
   requireLeasedStore(page, app);
 };
@@ -156,7 +175,7 @@ export const awaitLanding = async (page: Page, app: E2eApp): Promise<AdminLandin
     if (landing === undefined) await page.waitForTimeout(LANDING_POLL);
   }
   if (landing === undefined)
-    throw await screenError(page, "the app, its plan selection or its install page");
+    throw await screenError(page, app, "the app, its plan selection or its install page");
   return landing;
 };
 
@@ -173,8 +192,9 @@ export const approveInstall = async (page: Page, app: E2eApp) => {
       },
     )
     .catch(async (cause: unknown) => {
-      throw await screenError(page, "the admin to leave the install page", cause);
+      throw await screenError(page, app, "the admin to leave the install page", cause);
     });
+  requireLeasedStore(page, app);
 };
 
 /**
@@ -220,8 +240,9 @@ export const choosePlan = async (page: Page, app: E2eApp, plan: E2ePlan) => {
   const button = card.getByRole("button", { name: PLAN_BUTTON });
   if ((await button.count()) === 0) {
     if (await visible(card.getByText("Current", { exact: true }))) return false;
-    throw await screenError(page, `a button on the "${plan.name}" card`);
+    throw await screenError(page, app, `a button on the "${plan.name}" card`);
   }
+  requireLeasedStore(page, app);
   await button.first().click();
   await awaitScreen(
     page,
@@ -236,7 +257,7 @@ export const choosePlan = async (page: Page, app: E2eApp, plan: E2ePlan) => {
       waitUntil: "commit",
     })
     .catch(async (cause: unknown) => {
-      throw await screenError(page, `the app after approving ${plan.name}`, cause);
+      throw await screenError(page, app, `the app after approving ${plan.name}`, cause);
     });
   return true;
 };
@@ -264,9 +285,11 @@ export const uninstall = async (page: Page, app: E2eApp) => {
   // A click outside the popover closes it, once it has finished opening; until then the click is
   // lost and the reasons stay over the dialog's buttons.
   await expect(async () => {
+    requireLeasedStore(page, app);
     await dialog.getByRole("heading", { level: 2 }).first().click();
     await expect(reason).toBeHidden({ timeout: 1000 });
   }).toPass({ timeout: 10_000 });
+  requireLeasedStore(page, app);
   await dialog.getByRole("button", { name: "Uninstall", exact: true }).click();
   await awaitScreen(
     page,
