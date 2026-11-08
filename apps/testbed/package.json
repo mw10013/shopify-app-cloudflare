@@ -43,6 +43,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
     "playwright": "1.64.1",
+    "seroval": "1.7.9",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:",

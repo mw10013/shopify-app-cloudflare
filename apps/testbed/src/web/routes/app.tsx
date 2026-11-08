@@ -22,6 +22,14 @@ import {
 const reads: AppGuardReads = { getShopifyApp, authenticateApp, documentHasBearer };
 
 /** The document's guard during SSR, the navigation guard in the browser. */
+/**
+ * The document's `id_token` for the loader during SSR. In the browser App Bridge's bearer carries
+ * the token, so none rides in the GET server function's URL.
+ */
+const documentIdToken = createIsomorphicFn()
+  .server((searchStr: string) => appSearch(searchStr).id_token)
+  .client(() => undefined);
+
 const appGuard = createIsomorphicFn()
   .server((input: GuardInput) => documentGuard(reads)(input))
   .client(() => navigationGuard(reads)());
@@ -33,8 +41,7 @@ const appGuard = createIsomorphicFn()
  */
 export const Route = createFileRoute("/app")({
   beforeLoad: ({ location }) => appGuard({ location }),
-  loader: ({ location }) =>
-    getAppHome({ data: { idToken: appSearch(location.searchStr).id_token } }),
+  loader: ({ location }) => getAppHome({ data: { idToken: documentIdToken(location.searchStr) } }),
   head: ({ match }) => ({
     meta: [{ name: "shopify-api-key", content: match.context.apiKey }],
     scripts: [{ src: APP_BRIDGE_URL }],

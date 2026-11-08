@@ -3,13 +3,7 @@ import * as Option from "effect/Option";
 
 import { appBridgePage } from "#web/server/app-bridge-page.ts";
 import { env } from "#web/server/env.server.ts";
-import { exitIframeDestination } from "#web/server/shopify-urls.ts";
-
-/**
- * A string for a classic inline script: JSON with `<` escaped, because the HTML parser ends the
- * script at `</script>` before JavaScript sees the quotes.
- */
-const inlineScriptString = (value: string) => JSON.stringify(value).replaceAll("<", String.raw`<`);
+import { exitIframeDestination, inlineScriptString } from "#web/server/shopify-urls.ts";
 
 /**
  * The exit-iframe page: App Bridge, then the top window sent to `?exitIframe` (the app's URL when

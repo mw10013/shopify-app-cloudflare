@@ -118,8 +118,10 @@ const decodeShop = Schema.decodeUnknownOption(ShopDomain);
 
 /**
  * The headers of a document the Shopify admin frames, as `@shopify/shopify-app-react-router`'s
- * `addDocumentResponseHeaders` sends them. Empty unless `shop` is a {@link ShopDomain}, so a page
- * without one cannot be framed by the Shopify admin.
+ * `addDocumentResponseHeaders` sends them for an embedded app. Empty unless `shop` is a
+ * {@link ShopDomain}: a page without one sends no `frame-ancestors`, so any site may frame it, as
+ * the library leaves it. `frame-ancestors 'none'` would break the ID token bounce, which the
+ * Shopify admin frames for a request that lost its `shop`.
  */
 export const documentHeaders = (shop: unknown): Record<string, string> =>
   Option.match(decodeShop(shop), {
@@ -148,3 +150,10 @@ const decodeSearch = Schema.decodeUnknownOption(AppSearch);
 /** {@link AppSearch} from a location's `searchStr`; anything that does not decode is empty. */
 export const appSearch = (searchStr: string): AppSearch =>
   Option.getOrElse(decodeSearch(Object.fromEntries(new URLSearchParams(searchStr))), () => ({}));
+
+/**
+ * A string for a classic inline script: JSON with `<` escaped as `\u003c`, because the HTML
+ * parser ends the script at `</script>` before JavaScript sees the quotes.
+ */
+export const inlineScriptString = (value: string): string =>
+  JSON.stringify(value).replaceAll("<", String.raw`\u003c`);

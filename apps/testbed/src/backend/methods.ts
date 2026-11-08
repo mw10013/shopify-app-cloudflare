@@ -7,7 +7,6 @@
  */
 
 import {
-  AppInstallations,
   AuthenticateMerchantFailure,
   AuthenticateMerchantInput,
   MerchantAuthenticated,
@@ -17,7 +16,6 @@ import {
   ShopDomain,
 } from "@mw10013/shopify-app-workers/backend";
 import * as Effect from "effect/Effect";
-import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 /** What the App Home's screen read sends the Backend: the ID token alone. */
@@ -47,7 +45,6 @@ const encodeAppHome = Schema.encodeEffect(AppHome);
 
 export const backendMethods = Effect.gen(function* () {
   const gate = yield* MerchantGate;
-  const installations = yield* AppInstallations;
 
   /** The App Home guard: `MerchantGate.authenticateMerchant` over the binding. */
   const authenticateMerchant = Effect.fn("Backend.authenticateMerchant")(function* (
@@ -62,21 +59,14 @@ export const backendMethods = Effect.gen(function* () {
   });
 
   /**
-   * The App Home's screen read: `MerchantGate.subscribedShop`, which verifies the ID token and
-   * resolves the plan without an exchange, then the row's install instant. The row the gate just
-   * read is gone only if an uninstall raced the read, which the guard's next exchange answers.
+   * The App Home's screen read: `MerchantGate.subscribedShop`, which verifies the ID token,
+   * reads the row and resolves the plan from it without an exchange. The install instant comes
+   * from that same row, so the answer never mixes two installations.
    */
   const appHome = Effect.fn("Backend.appHome")(function* (payload: AppHomeInput) {
     const { idToken } = yield* decodeAppHomeInput(payload).pipe(Effect.orDie);
-    const { shop, handle } = yield* gate.subscribedShop(idToken);
-    const row = yield* installations.find(shop);
-    if (Option.isNone(row))
-      return yield* Effect.die(new Error(`Backend.appHome: shop=${shop}: no AppInstallation row`));
-    return yield* encodeAppHome({
-      shop,
-      planHandle: handle,
-      installedAt: row.value.installedAt,
-    }).pipe(Effect.orDie);
+    const { shop, handle, installedAt } = yield* gate.subscribedShop(idToken);
+    return yield* encodeAppHome({ shop, planHandle: handle, installedAt }).pipe(Effect.orDie);
   });
 
   return serveAll(

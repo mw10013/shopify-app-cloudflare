@@ -9,6 +9,7 @@ import {
   embeddedAppUrl,
   exitIframeDestination,
   idTokenBounce,
+  inlineScriptString,
 } from "#web/server/shopify-urls.ts";
 
 const APP_URL = "https://testbed.example.com";
@@ -138,12 +139,20 @@ describe("shopify-urls", () => {
       assert.isTrue(Option.isNone(exitIframeDestination(APP_URL, refused)), refused);
   });
 
-  it("documentHeaders frames only a page with a valid shop", () => {
+  it("documentHeaders sends frame-ancestors only for a valid shop", () => {
     assert.deepStrictEqual(documentHeaders("not a shop"), {});
     assert.include(
       documentHeaders(SHOP)["Content-Security-Policy"],
       `frame-ancestors https://${SHOP}`,
     );
+  });
+
+  it("inlineScriptString cannot end its script: no `<` survives, and it reads back the same", () => {
+    const value = `${APP_URL}/app?x=</script><script>alert(1)</script>`;
+    const literal = inlineScriptString(value);
+    assert.notInclude(literal, "<");
+    assert.notInclude(literal.toLowerCase(), "</script");
+    assert.strictEqual(JSON.parse(literal), value);
   });
 
   it("appSearch reads the text Shopify sent, plan_handle included", () => {
