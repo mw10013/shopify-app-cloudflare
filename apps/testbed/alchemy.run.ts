@@ -16,10 +16,21 @@ import {
 import * as Alchemy from "alchemy";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
 import * as Match from "effect/Match";
 import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
-import Backend from "#backend/worker.ts";
+import { backendWorkerFor } from "#e2e/backend-worker.ts";
+import {
+  E2E_SESSION_BINDING,
+  E2E_SESSION_FILE,
+  e2eSessionEnv,
+  E2eSessionJson,
+} from "#e2e/session.ts";
+
+/** The Backend Worker this stage deploys ({@link backendWorkerFor}). */
+const backendWorker = Effect.map(Effect.flatMap(Alchemy.Stage, environmentOf), backendWorkerFor);
 
 /**
  * The TanStack Start app. `alchemy dev` serves it on `WEBSITE_PORT`, which `dev:alchemy` sets to
@@ -43,7 +54,7 @@ export class Website extends Cloudflare.Website.Vite<Website>()(
       compatibility: { date: "2026-07-01", flags: ["nodejs_compat"] },
       dev,
       env: {
-        BACKEND: Backend,
+        BACKEND: yield* backendWorker,
         SHOPIFY_API_KEY: app.apiKey,
         SHOPIFY_APP_URL:
           typeof app.appUrl === "string" && app.appUrl !== "" ? app.appUrl : Cloudflare.Worker.URL,
@@ -101,16 +112,34 @@ const partnerFor = Effect.gen(function* () {
   );
 });
 
+/**
+ * The e2e session `vp run e2e:start` wrote, on `e2e` only, and none on every other stage or when
+ * the file is absent (a bare `alchemy destroy`), when the status route answers every request 401.
+ */
+const e2eSessionFor = Effect.gen(function* () {
+  if ((yield* environmentOf(yield* Alchemy.Stage)) !== "e2e") return Option.none();
+  const fs = yield* FileSystem.FileSystem;
+  const file = new URL(E2E_SESSION_FILE, import.meta.url);
+  if (!(yield* fs.exists(file.pathname))) return Option.none();
+  return Option.some(
+    yield* Schema.decodeEffect(E2eSessionJson)(yield* fs.readFileString(file.pathname)),
+  );
+});
+
 export default Alchemy.Stack(
   "testbed",
   { providers: stageProviders, state: stageState, secrets: deployedSecrets },
   Effect.gen(function* () {
     const website = yield* Website;
-    const backend = yield* Backend;
+    const BackendWorker = yield* backendWorker;
+    const backend = yield* BackendWorker;
     yield* bindShopifyApp(backend, {
       app: yield* shopifyAppFor(website.url),
       partner: yield* partnerFor,
     });
+    const session = yield* e2eSessionFor;
+    if (Option.isSome(session))
+      yield* backend.bind(E2E_SESSION_BINDING, { env: e2eSessionEnv(session.value) });
     return { websiteUrl: website.url.as<string>() };
   }).pipe(Effect.orDie),
 );

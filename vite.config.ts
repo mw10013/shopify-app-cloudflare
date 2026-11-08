@@ -173,14 +173,19 @@ export default defineConfig({
       },
       runtimeBoundary(
         "apps/testbed/src/web/**",
-        ["backend"],
+        ["backend", "e2e"],
         "The Website bundle never carries Backend code; use `import type`.",
         { allowTypeImports: true },
       ),
       runtimeBoundary(
         "apps/testbed/src/backend/**",
+        ["web", "e2e"],
+        "The Backend never imports the Website or the e2e stage's Backend, which only `e2e` deploys.",
+      ),
+      runtimeBoundary(
+        "apps/testbed/src/e2e/**",
         ["web"],
-        "The Backend never imports the Website.",
+        "The e2e stage's Backend never imports the Website.",
       ),
       {
         // Only `/test/node` runs under Node alone; every other entry can reach a workerd bundle.

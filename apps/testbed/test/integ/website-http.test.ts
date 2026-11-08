@@ -237,3 +237,16 @@ test(
     assert.include(body, SHOP);
   }),
 );
+
+test(
+  "the Website forwards /api/e2e/status, and the production Backend's 404 comes back, an installed shop included",
+  Effect.gen(function* () {
+    const { backendUrl, websiteUrl } = yield* fresh;
+    yield* seedWithPartner(backendUrl, { _tag: "None" });
+    const url = new URL("/api/e2e/status", websiteUrl);
+    url.searchParams.set("shop", SHOP);
+    const response = yield* get(url);
+    assert.strictEqual(response.status, 404);
+    assert.notInclude(yield* Effect.promise(() => response.text()), SHOP);
+  }),
+);

@@ -5,6 +5,7 @@
   "type": "module",
   "imports": {
     "#backend/*": "./src/backend/*",
+    "#e2e/*": "./src/e2e/*",
     "#web/*": "./src/web/*",
     "#test/*": "./test/*",
     "#scripts/*": "./scripts/*",
@@ -16,7 +17,11 @@
     "dev:stop": "bosun stop dev",
     "dev:status": "vpx scripts/dev.ts status",
     "dev:logs": "bosun logs dev",
+    "e2e:start": "vpx scripts/e2e.ts start",
     "e2e:stop": "bosun stop e2e",
+    "e2e:status": "vpx scripts/e2e.ts status",
+    "e2e:restart": "vpx scripts/e2e.ts restart",
+    "e2e:logs": "bosun logs e2e",
     "test:unit": "vp test run --project unit",
     "test:integ": "vp test run --project integ"
   },
