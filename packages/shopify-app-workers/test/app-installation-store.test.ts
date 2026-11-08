@@ -12,10 +12,10 @@ import * as Schema from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
 
 import {
-  AppInstallation,
   AppInstallationStore,
   type AppInstallationUpsert,
 } from "#internal/app-installation-store.ts";
+import { AppInstallation, AppInstallationRedactedPage } from "#internal/app-installation.ts";
 import { D1Test, type D1TestShape } from "#test/node/d1-test.ts";
 
 import { at, millisOf, SHOP, SHOP_GID, shopDomain } from "./fixtures.ts";
@@ -275,6 +275,20 @@ describe.each([
       assert.deepStrictEqual(
         filtered.appInstallations.map((s) => s.shop),
         [SHOP],
+      );
+    }).pipe(Effect.provide(layer([row]))),
+  );
+
+  it.effect("a redacted page crosses a binding through the /contract schema unchanged", () =>
+    Effect.gen(function* () {
+      const installations = yield* AppInstallationStore;
+      const page = yield* installations.getRedactedPage({ limit: 10 });
+      assert.isNotEmpty(page.appInstallations);
+      const encoded = Schema.encodeSync(AppInstallationRedactedPage)(page);
+      assert.notInclude(JSON.stringify(encoded), "shpat_");
+      assert.deepStrictEqual(
+        Schema.decodeUnknownSync(AppInstallationRedactedPage)(structuredClone(encoded)),
+        page,
       );
     }).pipe(Effect.provide(layer([row]))),
   );

@@ -6,12 +6,21 @@
  * @module
  */
 
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
 import { storageStatePath } from "@mw10013/devkit/shopify/agent-chrome";
 import * as Schema from "effect/Schema";
 import type { PlaywrightTestProject } from "playwright/test";
+
+import {
+  E2E_SESSION_FILE,
+  E2E_STATUS_PATH,
+  E2E_TOKEN_HEADER,
+  E2E_WEBHOOKS_PATH,
+  E2eSessionJson,
+} from "#test/e2e-session.ts";
 
 /** A plan as the app's `PlanCatalog` sells it and as Shopify's plan selection page names its card. */
 export const E2ePlan = Schema.Struct({
@@ -119,6 +128,36 @@ export const statusUrl = (app: E2eApp, shop: string) => {
 
 /** The e2e webhook record's URL, on the server's local port. */
 export const webhookRecordUrl = (app: E2eApp) => localServerUrl(app, app.webhooks.record);
+
+const decodeSession = Schema.decodeUnknownSync(E2eSessionJson);
+
+/**
+ * The {@link E2eApp} `status` and `webhooks.record` of an app whose `e2e` Backend serves
+ * `withE2eRoutes`: the routes' paths, and the token of the session the running e2e server was
+ * started with, read from {@link E2E_SESSION_FILE} under the app's `root`. Throws when the file is
+ * absent or is for another store than `store`, the lease's: the server was started before its
+ * session, or for another store.
+ */
+export const e2eRoutes = (
+  root: string,
+  store: string,
+): { readonly status: E2eApp["status"]; readonly record: string } => {
+  const file = path.join(root, E2E_SESSION_FILE);
+  const restart = "vp run e2e:stop && vp run e2e:start";
+  let text: string;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch (cause) {
+    throw new Error(`${file} cannot be read: ${restart}`, { cause });
+  }
+  const session = decodeSession(text);
+  if (session.shop !== `${store}.myshopify.com`)
+    throw new Error(`${file} is for ${session.shop}, not ${store}: ${restart}`);
+  return {
+    status: { path: E2E_STATUS_PATH, headers: { [E2E_TOKEN_HEADER]: session.token } },
+    record: E2E_WEBHOOKS_PATH,
+  };
+};
 
 /** The pack's spec and setup files. */
 export const E2E_SPECS_DIR = import.meta.dirname;

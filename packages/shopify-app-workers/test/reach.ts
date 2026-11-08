@@ -27,10 +27,12 @@ export const reachedPackages = (entry: string) => {
     if (seen.has(file)) return;
     seen.add(file);
     const source = readFileSync(file, "utf8");
+    // `from "x"` or a bare `import "x"`: a string before `from` ends the match, so an exported
+    // string constant is not read as a specifier.
     for (const match of source.matchAll(
-      /^\s*(?:import|export)\b[^;]*?["'](?<specifier>[^"']+)["']/gmu,
+      /^\s*(?:import|export)\b[^;"']*?\bfrom\s*["'](?<named>[^"']+)["']|^\s*import\s*["'](?<bare>[^"']+)["']/gmu,
     )) {
-      const specifier = match.groups?.specifier;
+      const specifier = match.groups?.named ?? match.groups?.bare;
       if (specifier === undefined) continue;
       const mapped = IMPORT_MAPS.find(([prefix]) => specifier.startsWith(prefix));
       if (mapped !== undefined) visit(path.join(SRC, mapped[1], specifier.slice(mapped[0].length)));

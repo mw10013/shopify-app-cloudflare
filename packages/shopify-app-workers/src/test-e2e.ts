@@ -33,6 +33,7 @@ export {
   e2eProject,
   type E2eProjectSpecs,
   e2eProjects,
+  e2eRoutes,
   E2eServer,
   LIFECYCLE_PROJECT,
   LIFECYCLE_SPEC_MATCH,
@@ -52,6 +53,7 @@ export {
   test,
 } from "./test/e2e/fixtures.ts";
 export {
+  authorizeStore,
   missingScopes,
   resultText,
   StoreAuthError,

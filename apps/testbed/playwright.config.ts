@@ -12,15 +12,12 @@ import {
   type E2eApp,
   type E2eOptions,
   e2eProjects,
+  e2eRoutes,
 } from "@mw10013/shopify-app-workers/test/e2e";
 import * as Option from "effect/Option";
-import * as Schema from "effect/Schema";
 import { defineConfig } from "playwright/test";
 
 import { catalog } from "#backend/app.ts";
-import { E2E_SESSION_FILE, E2E_TOKEN_HEADER, E2eSessionJson } from "#e2e/session.ts";
-import { E2E_STATUS_PATH } from "#e2e/status.ts";
-import { E2E_WEBHOOKS_PATH } from "#e2e/webhooks.ts";
 import { STORE_SCOPES } from "#scripts/lib/store-auth.ts";
 
 const devkitApp = app(import.meta.dirname);
@@ -35,12 +32,8 @@ const tunnel = Option.getOrThrowWith(
   server.url,
   () => new Error(`the e2e server published no tunnel (no APP_URL): ${RESTART}`),
 );
-/** The running server's session: the status route's token, for the lease's shop. */
-const session = Schema.decodeUnknownSync(E2eSessionJson)(
-  readFileSync(path.join(root, E2E_SESSION_FILE), "utf8"),
-);
-if (session.shop !== `${store}.myshopify.com`)
-  throw new Error(`${E2E_SESSION_FILE} is for ${session.shop}, not ${store}: ${RESTART}`);
+/** The e2e routes, with the token of the session the running server was started with. */
+const routes = e2eRoutes(root, store);
 
 const clientIdOf = (toml: string) =>
   Option.getOrThrowWith(
@@ -80,9 +73,9 @@ const testbed: E2eApp = {
   clientId,
   plans: PLANS,
   server: { port: server.port, tunnel },
-  status: { path: E2E_STATUS_PATH, headers: { [E2E_TOKEN_HEADER]: session.token } },
+  status: routes.status,
   // shop/update only logs, so Shopify's sample of it is safe to deliver.
-  webhooks: { config: e2eToml, topics: ["shop/update"], record: E2E_WEBHOOKS_PATH },
+  webhooks: { config: e2eToml, topics: ["shop/update"], record: routes.record },
   restart: { command: ["vpx", "scripts/e2e.ts", "reinstall"], cwd: root },
   storeScopes: STORE_SCOPES,
 };

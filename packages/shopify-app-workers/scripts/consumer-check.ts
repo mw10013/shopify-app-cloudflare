@@ -42,10 +42,19 @@ const SUBPATHS = [
   "test",
   "test/node",
   "test/e2e",
+  "test/e2e/backend",
+  "test/e2e/server",
 ] as const;
 
 /** The entries a consumer loads in Node, which must load there. */
-const NODE_REQUIRED: readonly string[] = ["contract", "stack", "test", "test/node", "test/e2e"];
+const NODE_REQUIRED: readonly string[] = [
+  "contract",
+  "stack",
+  "test",
+  "test/node",
+  "test/e2e",
+  "test/e2e/server",
+];
 
 const COMPATIBILITY_DATE = "2026-07-01";
 
@@ -126,7 +135,7 @@ const PROJECT_FILES: Record<string, string> = {
     files: ["entries.ts"],
   }),
   "entries.ts": SUBPATHS.map(
-    (subpath) => `export * as ${subpath.replace("/", "_")} from "${NAME}/${subpath}";\n`,
+    (subpath) => `export * as ${subpath.replaceAll("/", "_")} from "${NAME}/${subpath}";\n`,
   ).join(""),
   "node-imports.mjs": `const results = [];
 for (const entry of ${JSON.stringify(SUBPATHS)}) {
@@ -141,10 +150,15 @@ console.log(JSON.stringify(results));
 `,
   "worker.ts": `import * as backend from "${NAME}/backend";
 import * as website from "${NAME}/website";
+import * as e2eBackend from "${NAME}/test/e2e/backend";
 
 export default {
   fetch: () =>
-    Response.json({ backend: Object.keys(backend).length, website: Object.keys(website).length }),
+    Response.json({
+      backend: Object.keys(backend).length,
+      website: Object.keys(website).length,
+      e2eBackend: Object.keys(e2eBackend).length,
+    }),
 };
 `,
   "bundle-worker.mjs": `import cloudflare from "@alchemy.run/cloudflare-runtime/rolldown";
@@ -382,7 +396,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
       }),
     },
     {
-      name: "tsc --noEmit over all 8 entries",
+      name: `tsc --noEmit over all ${String(SUBPATHS.length)} entries`,
       gates: false,
       check: Effect.gen(function* () {
         const { ok, output } = yield* inProject(bin("tsc"), ["--noEmit", "-p", "tsconfig.json"]);
@@ -413,7 +427,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
       }),
     },
     {
-      name: "workerd serves /backend and /website",
+      name: "workerd serves /backend, /website and /test/e2e/backend",
       gates: false,
       check: Effect.gen(function* () {
         yield* succeeded(yield* inProject("node", ["bundle-worker.mjs"]));

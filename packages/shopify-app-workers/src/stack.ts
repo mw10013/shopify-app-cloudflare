@@ -10,6 +10,7 @@ export { PartnerConfig } from "#internal/bindings.ts";
 export {
   type AppIdentity,
   type BindableWorker,
+  bindE2eSession,
   bindShopifyApp,
   deployedShopifyApp,
   fakeShopifyApp,

@@ -9,7 +9,7 @@ import * as Duration from "effect/Duration";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
-import type { AppInstallation } from "./app-installation-store.ts";
+import type { AppInstallation } from "./app-installation.ts";
 
 /**
  * How fresh the merchant path needs a stored token: exchange is cheap and a merchant is

@@ -6,11 +6,7 @@
 
 export * from "./contract.ts";
 export { AdminToken } from "#internal/admin-token.ts";
-export type {
-  AppInstallationRedacted,
-  AppInstallationRedactedPage,
-  RedactedPageInput,
-} from "#internal/app-installation-store.ts";
+export type { RedactedPageInput } from "#internal/app-installation-store.ts";
 export { AppSubscription, PlanCatalog, PlanStatus } from "#internal/catalog.ts";
 export { type PlanRevalidation, ShopifyHooks, type ShopifyHooksShape } from "#internal/hooks.ts";
 export {

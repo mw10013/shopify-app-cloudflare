@@ -14,10 +14,12 @@ import * as Schema from "effect/Schema";
 import * as SchemaGetter from "effect/SchemaGetter";
 import * as Struct from "effect/Struct";
 
-import { ShopDomain, ShopGid } from "./domain.ts";
-
-/** An instant as an `AppInstallation` column stores it: epoch milliseconds, null when unset. */
-const StoredInstant = Schema.NullOr(Schema.DateTimeUtcFromMillis);
+import {
+  AppInstallation,
+  AppInstallationRedacted,
+  type AppInstallationRedactedPage,
+} from "./app-installation.ts";
+import { ShopDomain } from "./domain.ts";
 
 /** A SQLite boolean: the 1 or 0 a comparison such as `accessToken is not null` answers. */
 const SqliteBoolean = Schema.Number.pipe(
@@ -26,44 +28,6 @@ const SqliteBoolean = Schema.Number.pipe(
     encode: SchemaGetter.transform((b) => (b ? 1 : 0)),
   }),
 );
-
-/**
- * An `AppInstallation` row: the app installed on one shop, from the first token exchange until
- * uninstall, with every column the package's migrations create. Apps add no column here; their
- * per-shop data lives in their own tables, which cascade from this one. A row with a column a
- * later migration added still decodes: the struct ignores a property it does not name, so the
- * previous package version keeps reading the table after an expand.
- */
-export const AppInstallation = Schema.Struct({
-  shop: ShopDomain,
-  shopGid: ShopGid,
-  scope: Schema.NullOr(Schema.String),
-  accessToken: Schema.NullOr(Schema.String),
-  accessTokenExpiresAt: StoredInstant,
-  refreshToken: Schema.NullOr(Schema.String),
-  refreshTokenExpiresAt: StoredInstant,
-  /**
-   * The cached plan handle. A plain string, not `PlanHandle`: every row decodes on the merchant
-   * path, so a stored handle outside the catalog must read as a cache miss (`PlanCatalog.parse`),
-   * never as a row that fails to decode. Null with a null deadline is never fetched; null under
-   * a future deadline is a verified absence of any app subscription.
-   */
-  planHandle: Schema.NullOr(Schema.String),
-  /** The instant the cached handle stops being fresh. */
-  planHandleExpiresAt: StoredInstant,
-  /**
-   * The app subscription's boundary, cached beside the handle so a cache hit answers when it
-   * expires without a second Partner call. Meaningful only while `planHandleExpiresAt` is ahead.
-   */
-  planBoundaryAt: StoredInstant,
-  /**
-   * When the row was inserted: the shop's first token exchange, or its first after an uninstall
-   * deleted the row. An exchange on an existing row leaves it. Null on a row inserted before the
-   * column existed.
-   */
-  installedAt: StoredInstant,
-});
-export type AppInstallation = typeof AppInstallation.Type;
 
 /**
  * An `AppInstallation` as a token exchange writes it: everything but the plan columns, so an
@@ -103,25 +67,14 @@ export const AppInstallationPlan = Schema.Struct(
 export type AppInstallationPlan = typeof AppInstallationPlan.Type;
 
 /**
- * An `AppInstallation` with its tokens replaced by whether each is present. The redacted reads
- * project the tokens away in SQL, so a token never leaves D1 on this path.
+ * {@link AppInstallationRedacted} as the redacted reads select it: each `has…Token` is the 1 or 0
+ * of `… is not null`, so a token never leaves D1 on this path.
  */
-export const AppInstallationRedacted = Schema.Struct({
-  ...Struct.omit(AppInstallation.fields, ["accessToken", "refreshToken"]),
+const RedactedRow = Schema.Struct({
+  ...AppInstallationRedacted.fields,
   hasAccessToken: SqliteBoolean,
   hasRefreshToken: SqliteBoolean,
 });
-export type AppInstallationRedacted = typeof AppInstallationRedacted.Type;
-
-/** A keyset page of {@link AppInstallationRedacted} rows on `shop`. */
-export interface AppInstallationRedactedPage {
-  readonly appInstallations: readonly AppInstallationRedacted[];
-  readonly limit: number;
-  readonly startCursor: ShopDomain | null;
-  readonly endCursor: ShopDomain | null;
-  readonly hasPreviousPage: boolean;
-  readonly hasNextPage: boolean;
-}
 
 /** What `getRedactedPage` reads: a keyset page on `shop`, either way. */
 export interface RedactedPageInput {
@@ -141,7 +94,7 @@ const decodeShops = Schema.decodeUnknownEffect(Schema.Array(Schema.Struct({ shop
 /** Rows of the table. A row that does not decode is a broken invariant, so it dies. */
 const decodeRows = Schema.decodeUnknownEffect(Schema.Array(AppInstallation));
 
-const decodeRedactedRows = Schema.decodeUnknownEffect(Schema.Array(AppInstallationRedacted));
+const decodeRedactedRows = Schema.decodeUnknownEffect(Schema.Array(RedactedRow));
 
 /**
  * Cuts a read of `limit + 1` rows, in the read's own order, into a page: the extra row only says
