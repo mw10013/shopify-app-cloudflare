@@ -35,6 +35,12 @@ const decodeSource = Schema.decodeUnknownSync(Source);
 const JsonObject = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown));
 const decodeJsonObject = Schema.decodeUnknownEffect(JsonObject);
 
+/** The source `package.json`, which {@link entriesOf} and {@link builtManifest} read. */
+export const readSource = Effect.fnUntraced(function* () {
+  const fs = yield* FileSystem.FileSystem;
+  return yield* decodeJsonObject(yield* fs.readFileString(path.join(PACKAGE, "package.json")));
+});
+
 const built = (target: string, extension: ".d.mts" | ".mjs") =>
   `./dist/${target.replace(/^\.\/src\//u, "").replace(/\.ts$/u, extension)}`;
 
@@ -84,14 +90,13 @@ export const builtManifest = (
 
 /**
  * Builds the package into `outDirectory`, replacing what was there. `vp pack` runs in the package,
- * so Rolldown reads its `package.json` and leaves its dependencies and peers external.
+ * so Rolldown reads its `package.json` and leaves its dependencies and peers external. It emits no
+ * source maps: a map's `sources` would name `src/`, which a release does not hold, and the
+ * unbundled modules already mirror their sources one to one.
  */
 export const build = Effect.fn("Build.build")(function* (outDirectory: string = OUTPUT) {
   const fs = yield* FileSystem.FileSystem;
-  const source = yield* decodeJsonObject(
-    yield* fs.readFileString(path.join(PACKAGE, "package.json")),
-  );
-  const entries = entriesOf(source);
+  const entries = entriesOf(yield* readSource());
   yield* fs.remove(outDirectory, { recursive: true, force: true });
   yield* runCommand(path.join(PACKAGE, "node_modules/.bin/vp"), [
     "-C",
@@ -100,7 +105,6 @@ export const build = Effect.fn("Build.build")(function* (outDirectory: string = 
     ...entries,
     "--unbundle",
     "--dts",
-    "--sourcemap",
     "--root",
     "src",
     "--no-config",
