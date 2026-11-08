@@ -20,7 +20,7 @@ import { fileStage } from "./file-stage.ts";
 import Stack from "./stack.ts";
 
 /**
- * The test Backend over its bindings: `authenticateMerchant` called by the test Website over
+ * The test Backend over its bindings: `authenticateMerchant` and `appHome` called by the test Website over
  * `BACKEND`, a signed webhook through the Website's `/webhooks/*` forward, and the daily cron
  * through workerd's scheduled trigger. Each case starts from the door's `Reset`.
  */
@@ -111,6 +111,34 @@ test(
       idToken: yield* mintIdToken({ shop: SHOP, apiSecret: "another-secret" }),
     });
     assert.deepStrictEqual(outcome, { _tag: "Threw", value: { _tag: "InvalidIdTokenError" } });
+  }),
+);
+
+test(
+  "appHome over BACKEND: after a first install, the shop, the catalog's first plan and the install instant",
+  Effect.gen(function* () {
+    const { websiteUrl } = yield* fresh;
+    const before = DateTime.nowUnsafe();
+    yield* call(websiteUrl, "authenticateMerchant", {
+      idToken: yield* mintIdToken({ shop: SHOP }),
+    });
+    const outcome = yield* call(websiteUrl, "appHome", {
+      idToken: yield* mintIdToken({ shop: SHOP }),
+    });
+    assert.strictEqual(outcome._tag, "Returned");
+    const value = (
+      outcome as {
+        readonly value: {
+          readonly shop: string;
+          readonly planHandle: string;
+          readonly installedAt: string;
+        };
+      }
+    ).value;
+    assert.strictEqual(value.shop, SHOP);
+    assert.strictEqual(value.planHandle, "testbed-basic");
+    const installedAt = Schema.decodeUnknownSync(Schema.DateTimeUtcFromString)(value.installedAt);
+    assert.isTrue(DateTime.isGreaterThanOrEqualTo(installedAt, before));
   }),
 );
 

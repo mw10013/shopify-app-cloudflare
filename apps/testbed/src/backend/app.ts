@@ -14,8 +14,8 @@ import {
 } from "@mw10013/shopify-app-workers/backend";
 import * as Effect from "effect/Effect";
 
-/** One plan. Its handle must also exist in the Partner Dashboard before a merchant can pay. */
-export const catalog = PlanCatalog.make({ "testbed-basic": {} });
+/** Two plans. Each handle must also exist in the Partner Dashboard before a merchant can pay. */
+export const catalog = PlanCatalog.make({ "testbed-basic": {}, "testbed-pro": {} });
 
 /** `shop/update`: logged only, to exercise the extra-topic seam end to end. */
 const shopUpdate: TopicHandler = Effect.fn("Testbed.shopUpdate")(function* ({

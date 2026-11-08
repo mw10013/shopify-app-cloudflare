@@ -27,7 +27,9 @@ import Backend from "#backend/worker.ts";
  * collision fail instead of silently moving ports.
  *
  * `SHOPIFY_API_KEY` goes into the App Home's page, so it is public: the stage's app's, the same key
- * the Backend binds ({@link shopifyAppFor}).
+ * the Backend binds ({@link shopifyAppFor}). `SHOPIFY_APP_URL` is the URL the Shopify admin loads
+ * the app at, which the ID token bounce reloads: Shopify CLI's tunnel under `shopify app dev`,
+ * the Website's own URL otherwise.
  */
 export class Website extends Cloudflare.Website.Vite<Website>()(
   "Website",
@@ -35,13 +37,16 @@ export class Website extends Cloudflare.Website.Vite<Website>()(
     const dev = (yield* Alchemy.ALCHEMY_DEV)
       ? { port: yield* Config.Port("WEBSITE_PORT"), strictPort: true }
       : undefined;
+    const app = yield* shopifyAppFor("");
     return {
       name: workerNameOf("testbed", yield* Alchemy.Stage, "website"),
       compatibility: { date: "2026-07-01", flags: ["nodejs_compat"] },
       dev,
       env: {
         BACKEND: Backend,
-        SHOPIFY_API_KEY: yield* shopifyApiKey,
+        SHOPIFY_API_KEY: app.apiKey,
+        SHOPIFY_APP_URL:
+          typeof app.appUrl === "string" && app.appUrl !== "" ? app.appUrl : Cloudflare.Worker.URL,
       },
     };
   }).pipe(Effect.orDie),
@@ -79,9 +84,6 @@ const shopifyAppFor = (appUrl: ShopifyAppBinding["appUrl"]) =>
       Match.exhaustive,
     );
   });
-
-/** The stage's app's API key, which does not depend on where the app is served. */
-const shopifyApiKey = Effect.map(shopifyAppFor(""), (app) => app.apiKey);
 
 /**
  * The Partner credentials this stage binds: from `.env` on `dev` and `e2e`, and none while the

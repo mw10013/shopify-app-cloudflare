@@ -99,7 +99,10 @@ describe("expectMigrationsSynced", () => {
 
   it("fails on a missing copy with the cp that fixes it", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "swa-migrations-"));
-    assert.include(failure(dir), `cp ${path.join(PACKAGE_MIGRATIONS_DIR, NAME)} ${dir}/`);
+    const shipped = readdirSync(PACKAGE_MIGRATIONS_DIR)
+      .toSorted()
+      .map((name) => path.join(PACKAGE_MIGRATIONS_DIR, name));
+    assert.include(failure(dir), `cp ${shipped.join(" ")} ${dir}/`);
   });
 
   it("fails on a package-named migration the package does not ship", () => {
