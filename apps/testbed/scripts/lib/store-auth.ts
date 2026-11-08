@@ -17,6 +17,7 @@ import {
   ensureAgentChrome,
 } from "@mw10013/devkit/shopify/agent-chrome";
 import { StoreFor } from "@mw10013/devkit/shopify/worktree";
+import { storeAuthMissing } from "@mw10013/shopify-app-workers/test/e2e";
 import * as Array from "effect/Array";
 import * as Console from "effect/Console";
 import * as Effect from "effect/Effect";
@@ -25,7 +26,6 @@ import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
-import * as SchemaTransformation from "effect/SchemaTransformation";
 import { chromium } from "playwright";
 
 export class StoreAuthError extends Schema.TaggedError<StoreAuthError>()("StoreAuthError", {
@@ -38,12 +38,6 @@ export class StoreAuthError extends Schema.TaggedError<StoreAuthError>()("StoreA
  * one; `read_products` is the narrowest that lets the e2e suite read the store.
  */
 export const STORE_SCOPES = ["read_products"] as const;
-
-/** Shopify's `write_X` includes `read_X`, and the CLI lists only the scopes it was asked for. */
-export const missingScopes = (granted: readonly string[]): string[] =>
-  STORE_SCOPES.filter(
-    (scope) => !granted.includes(scope) && !granted.includes(scope.replace(/^read_/u, "write_")),
-  );
 
 const domainOf = (store: string) => `${store}.myshopify.com`;
 
@@ -59,54 +53,12 @@ const requireTestStore = (store: string) =>
     ),
   );
 
-/**
- * The CLI prints progress events, one JSON object per line, then the result as one pretty-printed
- * object over several lines, so the result is the last object, not the last line.
- */
-export const resultText = (stdout: string): string => {
-  const lines = stdout.split("\n").filter((line) => line !== "");
-  const last = lines.at(-1) ?? "";
-  if (last !== "}" && last !== "]") return last;
-  const start = lines.lastIndexOf(last === "}" ? "{" : "[");
-  return lines.slice(Math.max(start, 0)).join("\n");
-};
-
-const AuthList = Schema.String.pipe(
-  Schema.decodeTo(
-    Schema.String,
-    SchemaTransformation.transform({ decode: resultText, encode: (text) => text }),
-  ),
-  Schema.decodeTo(
-    Schema.fromJsonString(
-      Schema.Struct({
-        sessions: Schema.Array(
-          Schema.Struct({ store: Schema.String, scopes: Schema.Array(Schema.String) }),
-        ),
-      }),
-    ),
-  ),
-);
-
-const hasStoreAuth = Effect.fn("StoreAuth.hasStoreAuth")(function* (domain: string) {
-  const stdout = yield* runCommand("shopify", [
-    "store",
-    "auth",
-    "list",
-    "--json",
-    "--no-input",
-  ]).pipe(Effect.mapError((error) => new StoreAuthError({ message: error.message, cause: error })));
-  const { sessions } = yield* Schema.decodeUnknownEffect(AuthList)(stdout).pipe(
-    Effect.mapError(
-      (error) =>
-        new StoreAuthError({
-          message: `shopify store auth list printed a result that is not the expected shape: ${error.message}`,
-          cause: error,
-        }),
-    ),
+/** Whether `domain`'s store auth has every one of {@link STORE_SCOPES}. */
+const hasStoreAuth = (domain: string) =>
+  storeAuthMissing(domain, STORE_SCOPES).pipe(
+    Effect.map((missing) => missing.length === 0),
+    Effect.mapError((error) => new StoreAuthError({ message: error.message, cause: error })),
   );
-  const session = sessions.find(({ store }) => store === domain);
-  return session !== undefined && missingScopes(session.scopes).length === 0;
-});
 
 /** A store that already granted every scope redirects with no button to press. */
 const approveInAgentChrome = (url: string) =>

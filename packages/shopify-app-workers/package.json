@@ -17,16 +17,19 @@
     "./website": "./src/website.ts",
     "./client": "./src/client.ts",
     "./test": "./src/test.ts",
-    "./test/node": "./src/test-node.ts"
+    "./test/node": "./src/test-node.ts",
+    "./test/e2e": "./src/test-e2e.ts"
   },
   "dependencies": {
     "@shopify/shopify-api": "15.0.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261026.1",
+    "@effect/platform-node": "4.1.2",
     "@effect/vitest": "4.1.2",
     "@mw10013/devkit": "catalog:",
     "@types/node": "catalog:",
+    "playwright": "1.64.1",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:",
@@ -34,7 +37,21 @@
   },
   "peerDependencies": {
     "@alchemy.run/cloudflare": "catalog:",
+    "@effect/platform-node": "4.1.2",
+    "@mw10013/devkit": "catalog:",
     "alchemy": "catalog:",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "playwright": "1.64.1"
+  },
+  "peerDependenciesMeta": {
+    "@effect/platform-node": {
+      "optional": true
+    },
+    "@mw10013/devkit": {
+      "optional": true
+    },
+    "playwright": {
+      "optional": true
+    }
   }
 }
