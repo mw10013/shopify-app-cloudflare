@@ -69,6 +69,11 @@ export interface MerchantGateShape {
     AuthenticateMerchantFailure
   >;
   /**
+   * The ID token's verified shop, with no read: a socket gate refuses a token for another shop
+   * before {@link merchantStanding} reads that shop's row or plan.
+   */
+  readonly verifiedShop: (idToken: string) => Effect.Effect<ShopDomain, InvalidIdTokenError>;
+  /**
    * The socket gate's read: the same verification and plan read with every outcome as data or a
    * typed failure the gate maps to a close code: no row is `AppNotInstalledError`, and an
    * unsubscribed shop is its `status`, with no href.
@@ -136,6 +141,10 @@ const make = Effect.gen(function* () {
     return { shop: row.shop, handle: status.handle, installedAt: row.installedAt };
   });
 
+  const verifiedShop = Effect.fn("MerchantGate.verifiedShop")(function* (idToken: string) {
+    return (yield* client.decodeIdToken(idToken)).shop;
+  });
+
   const merchantStanding = Effect.fn("MerchantGate.merchantStanding")(function* (idToken: string) {
     const row = yield* installedRow(idToken);
     return {
@@ -153,6 +162,7 @@ const make = Effect.gen(function* () {
   return {
     authenticateMerchant,
     subscribedShop,
+    verifiedShop,
     merchantStanding,
     expectPlanChange,
   } satisfies MerchantGateShape;
