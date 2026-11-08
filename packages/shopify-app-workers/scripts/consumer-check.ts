@@ -249,9 +249,8 @@ const succeeded = (result: { readonly ok: boolean; readonly output: string }) =>
 /**
  * Packs this checkout as a release ships it: `vp run build`'s `dist/`, the migrations,
  * `LICENSE`, the package's README when it has one, and {@link builtManifest}, in a tree under
- * `directory`. The build goes to the package's own `dist/`, as a release builds it: a build into
- * another directory points each source map's `sources` at this checkout by a path relative to
- * that directory. Returns the tarball's `file:` spec.
+ * `directory`, so the tarball holds the same files as the release's tree. Returns the tarball's
+ * `file:` spec.
  */
 const packRelease = Effect.fn("ConsumerCheck.packRelease")(function* (
   directory: string,
@@ -267,7 +266,7 @@ const packRelease = Effect.fn("ConsumerCheck.packRelease")(function* (
     yield* fs.copyFile(path.join(PACKAGE, "README.md"), path.join(tree, "README.md"));
   yield* fs.writeFileString(
     path.join(tree, "package.json"),
-    JSON.stringify(builtManifest(source, LOCAL_VERSION), undefined, 2),
+    `${JSON.stringify(builtManifest(source, LOCAL_VERSION), undefined, 2)}\n`,
   );
   yield* succeeded(yield* run(tree, env, "pnpm", ["pack", "--pack-destination", directory]));
   const tarball = (yield* fs.readDirectory(directory)).find((file) => file.endsWith(".tgz"));
@@ -386,9 +385,11 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
       name: "tsc --noEmit over all 8 entries",
       gates: false,
       check: Effect.gen(function* () {
-        const { output } = yield* inProject(bin("tsc"), ["--noEmit", "-p", "tsconfig.json"]);
+        const { ok, output } = yield* inProject(bin("tsc"), ["--noEmit", "-p", "tsconfig.json"]);
         const { ours, others } = packageErrors(output);
         if (ours.length > 0) return yield* new CheckFailedError({ message: ours.join("\n") });
+        // A failed run with no diagnostic at all is tsc crashing, not third-party errors.
+        if (!ok && others === 0) return yield* new CheckFailedError({ message: output });
         return `no error in entries.ts or ${NAME}'s declarations (strict, skipLibCheck false); ${String(others)} in third-party declarations`;
       }),
     },
