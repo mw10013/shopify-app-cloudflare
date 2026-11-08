@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vp -C apps/testbed run dev",
-    "check:pin": "devkit check-pin"
+    "check:pin": "devkit check-pin",
+    "release": "vp -C packages/shopify-app-workers run release"
   },
   "devDependencies": {
     "@mw10013/devkit": "catalog:",

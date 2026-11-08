@@ -24,7 +24,8 @@
     "./test/e2e": "./src/test-e2e.ts"
   },
   "scripts": {
-    "build": "vpx scripts/build.ts"
+    "build": "vpx scripts/build.ts",
+    "release": "vpx scripts/release.ts"
   },
   "dependencies": {
     "@shopify/shopify-api": "15.0.1"
