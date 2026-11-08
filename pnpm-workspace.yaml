@@ -4,7 +4,7 @@ packages:
 saveExact: true
 catalog:
   "@alchemy.run/cloudflare": 2.0.0-beta.85
-  "@mw10013/devkit": github:mw10013/tools#devkit-v0.1.0
+  "@mw10013/devkit": github:mw10013/tools#devkit-v0.1.1
   "@types/node": 26.6.4
   alchemy: 2.0.0-beta.85
   effect: 4.1.2
