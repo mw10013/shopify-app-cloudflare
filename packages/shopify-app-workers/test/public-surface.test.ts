@@ -1,0 +1,48 @@
+import { assert, describe, it } from "@effect/vitest";
+import * as Backend from "@mw10013/shopify-app-workers/backend";
+
+import { reachedPackages } from "./reach.ts";
+
+/** Names that would hand an app the library, a transport, a token or the grantor. */
+const INTERNAL = new Set([
+  "ShopifyClient",
+  "ShopifyMerchant",
+  "ShopGrantor",
+  "ShopGrantorLive",
+  "ShopGrantors",
+  "makeGrantor",
+  "AppInstallationStore",
+  "AdminUnauthorizedError",
+  "WebhookRejectedError",
+  "unavailable",
+  "crossDefects",
+  "GrantorProbe",
+]);
+
+describe("/backend", () => {
+  it("exports tier 1 and none of its internals", () => {
+    const exported = Object.keys(Backend);
+    for (const name of ["Shopify", "ShopifyAccess", "AppInstallations", "AdminToken"])
+      assert.include(exported, name);
+    assert.deepStrictEqual(
+      exported.filter((name) => INTERNAL.has(name)),
+      [],
+    );
+  });
+});
+
+describe("/test", () => {
+  it("reaches no test runner and no node:sqlite, so a test Backend in workerd can bundle it", () => {
+    const reached = reachedPackages("test.ts");
+    assert.include(reached, "@shopify/shopify-api/runtime");
+    assert.deepStrictEqual(
+      reached.filter(
+        (specifier) =>
+          specifier === "node:sqlite" ||
+          specifier.includes("vitest") ||
+          specifier.startsWith("#test/node"),
+      ),
+      [],
+    );
+  });
+});
