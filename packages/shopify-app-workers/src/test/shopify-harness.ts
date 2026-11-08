@@ -12,13 +12,12 @@ import type * as Option from "effect/Option";
 
 import type { AdminToken } from "#internal/admin-token.ts";
 import type { AppInstallation } from "#internal/app-installation-store.ts";
-import type {
-  InvalidIdTokenError,
-  ShopifyAccessFailure,
-  ShopifyUnavailableError,
-} from "#internal/contract.ts";
+import type { AuthenticateMerchantFailure, ShopifyAccessFailure } from "#internal/contract.ts";
 import type { ShopDomain, ShopGid } from "#internal/domain.ts";
+import type { ShopifyHooksShape } from "#internal/hooks.ts";
+import type { MerchantGateShape } from "#internal/merchant-gate.ts";
 import type { EnsureSessionFailure } from "#internal/shopify.ts";
+import type { SubscriptionPlanShape } from "#internal/subscription-plan.ts";
 
 /** A stored installation as a case seeds it: the grant columns, each unset one null. */
 export interface SeedInstallation {
@@ -29,6 +28,10 @@ export interface SeedInstallation {
   readonly accessTokenExpiresAt?: DateTime.Utc | null | undefined;
   readonly refreshToken?: string | null | undefined;
   readonly refreshTokenExpiresAt?: DateTime.Utc | null | undefined;
+  /** The plan cache, as a revalidation wrote it; unset, the plan was never fetched. */
+  readonly planHandle?: string | null | undefined;
+  readonly planHandleExpiresAt?: DateTime.Utc | null | undefined;
+  readonly planBoundaryAt?: DateTime.Utc | null | undefined;
   /**
    * Whether the fake's ledger knows the seeded refresh token as one Shopify issued (by default
    * it does); `false` seeds the repair state, a token Shopify has retired.
@@ -51,6 +54,23 @@ export interface HeldWrite {
   readonly release: Effect.Effect<void>;
 }
 
+/** A hook a case can break: its next call dies. */
+export type HookName = keyof ShopifyHooksShape;
+
+/** One line a harness logged: its level (`Info`, `Warn`, …) and message. */
+export interface HarnessLogLine {
+  readonly level: string;
+  readonly message: string;
+}
+
+/** A webhook delivery a case sends, signed as Shopify signs one unless `signed` is false. */
+export interface HarnessDelivery {
+  readonly topic: string;
+  readonly shop: ShopDomain;
+  readonly payload: unknown;
+  readonly signed?: boolean | undefined;
+}
+
 export interface ShopifyHarnessShape {
   readonly can: ReadonlySet<HarnessCapability>;
   /** Stores `row` as an exchange would, and by default tells the fake its refresh token. */
@@ -61,13 +81,25 @@ export interface ShopifyHarnessShape {
   readonly expireAccessToken: (shop: ShopDomain) => Effect.Effect<void>;
   /** `app/uninstalled`'s grantor step: the epoch moves on and the row goes. */
   readonly uninstall: (shop: ShopDomain) => Effect.Effect<void>;
-  /** The merchant path. */
+  /** The merchant path, through `MerchantGate.authenticateMerchant`: its shop and id. */
   readonly authenticateMerchant: (
     idToken: string,
   ) => Effect.Effect<
     { readonly shop: ShopDomain; readonly shopGid: ShopGid },
-    InvalidIdTokenError | ShopifyUnavailableError
+    AuthenticateMerchantFailure
   >;
+  /** `MerchantGate`, every method. */
+  readonly gate: MerchantGateShape;
+  /** `SubscriptionPlan`. */
+  readonly plans: SubscriptionPlanShape;
+  /** POSTs a delivery to `Webhooks.serve`; answers its status. */
+  readonly deliver: (delivery: HarnessDelivery) => Effect.Effect<number>;
+  /** Every hook call since the harness was built, as `<hook>:<shop>`, oldest first. */
+  readonly hookCalls: Effect.Effect<readonly string[]>;
+  /** Makes `hook`'s next call die. */
+  readonly breakHook: (hook: HookName) => Effect.Effect<void>;
+  /** Every line logged since the harness was built, Debug included, oldest first. */
+  readonly logs: Effect.Effect<readonly HarnessLogLine[]>;
   /** `Shopify.ensureSession`. */
   readonly ensureSession: (shop: ShopDomain) => Effect.Effect<AdminToken, EnsureSessionFailure>;
   /** `Shopify.adminGraphql`, its `data` decoded as `{ shop: { id } }`. */

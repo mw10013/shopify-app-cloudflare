@@ -30,7 +30,14 @@ export interface PlanRevalidation {
 
 /**
  * Every hook is an `Effect<void>`: a hook's failure is a defect, and what a defect does is the
- * package's policy for that hook, not the hook's type.
+ * package's policy for that hook, not the hook's type. Only `afterUninstall` fails its caller:
+ *
+ * | Hook                   | A defect                                                          |
+ * | ---------------------- | ----------------------------------------------------------------- |
+ * | `beforeUninstall`      | logged at Warning and swallowed: the uninstall goes on            |
+ * | `afterUninstall`       | fails the webhook (500), so Shopify redelivers the whole uninstall |
+ * | `beforePlanChange`     | logged at Warning and swallowed: the deadline is already shortened |
+ * | `afterPlanRevalidated` | logged at Warning and swallowed: the plan answer is right anyway  |
  */
 export interface ShopifyHooksShape {
   /** On `app/uninstalled`, before the `AppInstallation` row goes. */
@@ -50,6 +57,20 @@ const noop: ShopifyHooksShape = {
   beforePlanChange: () => Effect.void,
   afterPlanRevalidated: () => Effect.void,
 };
+
+/** A hook whose policy is best-effort: a defect is logged at Warning, with `shop`, and swallowed. */
+export const bestEffort = (
+  hook: Exclude<keyof ShopifyHooksShape, "afterUninstall">,
+  shop: ShopDomain,
+  run: Effect.Effect<void>,
+) =>
+  run.pipe(
+    Effect.catchCause((cause) =>
+      Effect.logWarning(`ShopifyHooks.${hook}: shop=${shop} status=failed`, cause).pipe(
+        Effect.annotateLogs({ shop, hook, status: "failed" }),
+      ),
+    ),
+  );
 
 /** The app's hooks. An app with none provides {@link ShopifyHooks.layerNoop}. */
 export class ShopifyHooks extends Context.Service<ShopifyHooks, ShopifyHooksShape>()(

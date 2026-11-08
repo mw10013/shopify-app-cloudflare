@@ -22,6 +22,7 @@ import * as TestClock from "effect/testing/TestClock";
 import { ShopDomain, ShopGid } from "#internal/domain.ts";
 
 import { mintIdToken } from "./id-token.ts";
+import type { PartnerFake } from "./partner-fake.ts";
 import {
   FAKE_SCOPE,
   FAKE_SHOP_GID,
@@ -45,7 +46,7 @@ export interface RequiredBehavior {
   readonly needs: readonly HarnessCapability[];
   /** The case's budget in milliseconds, when retries or a deadline make it slow. */
   readonly timeout?: number;
-  readonly run: Effect.Effect<void, unknown, ShopifyHarness | ShopifyFake>;
+  readonly run: Effect.Effect<void, unknown, ShopifyHarness | ShopifyFake | PartnerFake>;
 }
 
 /** The shop every case runs against. */
@@ -57,7 +58,10 @@ export const BEHAVIOR_SHOP_GID = Schema.decodeUnknownSync(ShopGid)("gid://shopif
 const SHOP = BEHAVIOR_SHOP;
 
 /** An installation whose access token expired a second before `now`; its refresh token has 30 days. */
-const rowAt = (now: DateTime.Utc, over: Partial<SeedInstallation> = {}): SeedInstallation => ({
+export const rowAt = (
+  now: DateTime.Utc,
+  over: Partial<SeedInstallation> = {},
+): SeedInstallation => ({
   shop: SHOP,
   shopGid: BEHAVIOR_SHOP_GID,
   scope: "read_orders",
@@ -69,7 +73,7 @@ const rowAt = (now: DateTime.Utc, over: Partial<SeedInstallation> = {}): SeedIns
 });
 
 /** Seeds {@link rowAt} at the current instant. */
-const seedAt = (over: Partial<SeedInstallation> = {}) =>
+export const seedAt = (over: Partial<SeedInstallation> = {}) =>
   Effect.gen(function* () {
     const harness = yield* ShopifyHarness;
     yield* harness.seed(rowAt(yield* DateTime.now, over));
@@ -87,8 +91,8 @@ const authenticate = authenticateWith();
 const QUERY = "query ShopGid { shop { id } }";
 const adminGraphql = Effect.flatMap(ShopifyHarness, (harness) => harness.adminGraphql(SHOP, QUERY));
 
-const stored = Effect.flatMap(ShopifyHarness, (harness) => harness.stored(SHOP));
-const storedRow = Effect.map(stored, (row) => {
+export const stored = Effect.flatMap(ShopifyHarness, (harness) => harness.stored(SHOP));
+export const storedRow = Effect.map(stored, (row) => {
   assert.ok(Option.isSome(row), "the shop has a row");
   return row.value;
 });
@@ -117,10 +121,10 @@ const verdict = (error: unknown) =>
       ? String(error._tag)
       : "unknown";
 
-const failureOf = <R>(effect: Effect.Effect<unknown, unknown, R>) =>
+export const failureOf = <R>(effect: Effect.Effect<unknown, unknown, R>) =>
   Effect.map(Effect.flip(effect), verdict);
 
-const assertDefect = <R>(effect: Effect.Effect<unknown, unknown, R>) =>
+export const assertDefect = <R>(effect: Effect.Effect<unknown, unknown, R>) =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(effect);
     assert.ok(Exit.isFailure(exit) && Cause.hasDies(exit.cause), "expected a defect");
@@ -174,7 +178,7 @@ const gated = <A, B, E1, E2, R1, R2>(
 const clock: readonly HarnessCapability[] = ["clock"];
 const interleave: readonly HarnessCapability[] = ["interleave"];
 
-const behavior = (
+export const behavior = (
   id: string,
   name: string,
   run: RequiredBehavior["run"],
@@ -576,7 +580,7 @@ const merchantPath: readonly RequiredBehavior[] = [
   ),
   behavior(
     "33",
-    "an uninstall while a first install's write is on the wire waits for it: no row afterwards",
+    "an uninstall while a first install's write is on the wire waits for it: no row afterwards, and the gate answers ShopifyUnavailableError",
     Effect.gen(function* () {
       const harness = yield* ShopifyHarness;
       const held = yield* harness.holdWrite;
@@ -593,7 +597,7 @@ const merchantPath: readonly RequiredBehavior[] = [
       yield* Effect.sleep("100 millis");
       assert.equal(uninstalled, false, "the uninstall waits for the write");
       yield* held.release;
-      assert.deepEqual(yield* Fiber.join(merchant), { shop: SHOP, shopGid: FAKE_SHOP_GID });
+      assert.equal(yield* failureOf(Fiber.join(merchant)), "ShopifyUnavailableError");
       yield* Fiber.join(uninstalling);
       assert.ok(Option.isNone(yield* stored));
     }),
@@ -1055,7 +1059,8 @@ const admin: readonly RequiredBehavior[] = [
 
 /**
  * Every authentication case: `ensureSession` (9–14, 17, 18, 20–24, 26, 27, 49), the merchant
- * path (28, 29, 31–38, 50), abandoned grant attempts (51) and `adminGraphql` (39–45). Webhooks (46–48) arrive with `Webhooks`.
+ * path through the merchant gate (28, 29, 31–38, 50), abandoned grant attempts (51) and
+ * `adminGraphql` (39–45). Webhooks (46–48) are in `APP_BEHAVIORS`.
  */
 export const AUTH_BEHAVIORS: readonly RequiredBehavior[] = [
   ...ensureWithoutGrant,

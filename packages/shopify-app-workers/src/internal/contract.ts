@@ -8,7 +8,7 @@
 
 import * as Schema from "effect/Schema";
 
-import { ShopDomain } from "./domain.ts";
+import { ShopDomain, ShopGid } from "./domain.ts";
 
 /**
  * The ID token failed a check of the merchant path's verification, or the exchange answered
@@ -140,3 +140,22 @@ export const AuthenticateMerchantFailure = Schema.Union([
   ShopifyUnavailableError,
 ]);
 export type AuthenticateMerchantFailure = typeof AuthenticateMerchantFailure.Type;
+
+/** What the App Home guard sends the Backend: the ID token, and whether the billing redirect brought it. */
+export const AuthenticateMerchantInput = Schema.Struct({
+  idToken: Schema.NonEmptyString,
+  /** The billing redirect's `plan_handle` was present: the plan is re-read, not resolved. */
+  billingRedirect: Schema.optional(Schema.Boolean),
+});
+export type AuthenticateMerchantInput = typeof AuthenticateMerchantInput.Type;
+
+/**
+ * The App Home guard's answer: the merchant's shop and the Manage plan page. It names no plan,
+ * so the browser never learns the shop's tier.
+ */
+export const MerchantAuthenticated = Schema.Struct({
+  shop: ShopDomain,
+  shopGid: ShopGid,
+  managePlanUrl: Schema.String,
+});
+export type MerchantAuthenticated = typeof MerchantAuthenticated.Type;

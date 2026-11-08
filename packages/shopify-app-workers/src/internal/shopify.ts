@@ -66,7 +66,7 @@ export interface ShopifyShape {
 }
 
 /** What the merchant path answers. */
-export interface MerchantAuthentication {
+export interface AuthenticateMerchantAnswer {
   readonly shop: ShopDomain;
   readonly shopGid: ShopGid;
   /**
@@ -86,7 +86,7 @@ export interface ShopifyMerchantShape {
    */
   readonly authenticateMerchant: (
     idToken: string,
-  ) => Effect.Effect<MerchantAuthentication, InvalidIdTokenError | ShopifyUnavailableError>;
+  ) => Effect.Effect<AuthenticateMerchantAnswer, InvalidIdTokenError | ShopifyUnavailableError>;
 }
 
 const make = Effect.gen(function* () {
@@ -104,9 +104,9 @@ const make = Effect.gen(function* () {
       Option.isSome(stored) &&
       Option.isSome(freshToken(stored.value, now, MERCHANT_ACCESS_TOKEN_BUFFER))
     )
-      return { shop, shopGid: stored.value.shopGid, stored } satisfies MerchantAuthentication;
+      return { shop, shopGid: stored.value.shopGid, stored } satisfies AuthenticateMerchantAnswer;
     const shopGid = yield* grantors.exchange(shop, idToken, sub ?? null);
-    return { shop, shopGid, stored } satisfies MerchantAuthentication;
+    return { shop, shopGid, stored } satisfies AuthenticateMerchantAnswer;
   });
 
   /** `ensureSession`, passing over `rejected`, the token an Admin API call got 401 with. */
