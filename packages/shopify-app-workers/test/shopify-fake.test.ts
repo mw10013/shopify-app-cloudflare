@@ -2,8 +2,14 @@ import { assert, describe, it } from "@effect/vitest";
 import { abstractFetch } from "@shopify/shopify-api/runtime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as TestClock from "effect/testing/TestClock";
 
-import { REFRESH_GRANT, ShopifyFake, TOKEN_EXCHANGE_GRANT } from "#test/shopify-fake.ts";
+import {
+  FAKE_REFRESH_TOKEN_EXPIRES_IN,
+  REFRESH_GRANT,
+  ShopifyFake,
+  TOKEN_EXCHANGE_GRANT,
+} from "#test/shopify-fake.ts";
 
 import { SHOP } from "./fixtures.ts";
 
@@ -60,6 +66,32 @@ describe("ShopifyFake's ledger", () => {
       yield* refreshed(again);
       assert.isFalse(yield* fake.accepts(SHOP, "shprt_seeded"), "its successor was used");
       assert.strictEqual((yield* refresh("shprt_seeded")).status, 401);
+    }).pipe(Effect.provide(ShopifyFake.layer)),
+  );
+
+  it.effect("rule 3: a presented refresh token is retired 30 days after its first use", () =>
+    Effect.gen(function* () {
+      const fake = yield* ShopifyFake;
+      yield* fake.recognize(SHOP, "shprt_seeded");
+      yield* refreshed("shprt_seeded");
+      yield* TestClock.adjust("29 days");
+      yield* refreshed("shprt_seeded");
+      yield* TestClock.adjust("1 day");
+      assert.isFalse(yield* fake.accepts(SHOP, "shprt_seeded"));
+      assert.strictEqual((yield* refresh("shprt_seeded")).status, 401);
+    }).pipe(Effect.provide(ShopifyFake.layer)),
+  );
+
+  it.effect("rule 3: a refresh token is retired at its original expiry, even unused", () =>
+    Effect.gen(function* () {
+      const fake = yield* ShopifyFake;
+      const { body } = yield* exchange;
+      const issued = String(body.refresh_token);
+      yield* TestClock.adjust(FAKE_REFRESH_TOKEN_EXPIRES_IN * 1000 - 1);
+      assert.isTrue(yield* fake.accepts(SHOP, issued));
+      yield* TestClock.adjust(1);
+      assert.isFalse(yield* fake.accepts(SHOP, issued));
+      assert.strictEqual((yield* refresh(issued)).status, 401);
     }).pipe(Effect.provide(ShopifyFake.layer)),
   );
 

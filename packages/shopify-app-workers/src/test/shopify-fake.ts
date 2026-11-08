@@ -7,6 +7,7 @@
  */
 
 import { abstractFetch, setAbstractFetchFunc } from "@shopify/shopify-api/runtime";
+import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -99,39 +100,59 @@ const routeOf = (pathname: string): Option.Option<ShopifyFakeRoute> =>
 
 const unscripted = (reason: string) => Response.json({ error: reason }, { status: 599 });
 
+/** Rule 3's limit on a presented refresh token: usable for 30 days after its first use. */
+const FIRST_USE_GRACE_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** A usable refresh token's limits: its original expiry, and when it was first presented. */
+interface RefreshTokenLife {
+  readonly expiresAt: number;
+  firstUsedAt?: number;
+}
+
 /**
- * One shop's tokens as Shopify keeps them. An exchange issues a pair and retires every other
- * refresh token (rule 2). A refresh with a usable token issues a pair; the presented token stays
- * usable until its successor is presented, which retires it (rule 3). Anything else is retired.
+ * One shop's tokens as Shopify keeps them, on the clock `now`. An exchange issues a pair and
+ * retires every other refresh token (rule 2). A refresh with a usable token issues a pair; the
+ * presented token stays usable until the earliest of its successor being presented, an exchange,
+ * 30 days after its first use, or its original expiry (rule 3). Anything else is retired.
  */
-const makeLedger = () => {
+const makeLedger = (now: () => number) => {
   let issued = 0;
-  const usable = new Set<string>();
+  const usable = new Map<string, RefreshTokenLife>();
   const predecessor = new Map<string, string>();
+  const isUsable = (refreshToken: string) => {
+    const life = usable.get(refreshToken);
+    if (life === undefined) return false;
+    const deadline = Math.min(
+      life.expiresAt,
+      life.firstUsedAt === undefined ? Infinity : life.firstUsedAt + FIRST_USE_GRACE_MS,
+    );
+    return now() < deadline;
+  };
   /** The shop's next pair: `shpat_<n>` and `shprt_<n>`, counted per shop. */
   const pair = () => {
     issued += 1;
-    return { access: `shpat_${String(issued)}`, refresh: `shprt_${String(issued)}` };
+    const refresh = `shprt_${String(issued)}`;
+    usable.set(refresh, { expiresAt: now() + FAKE_REFRESH_TOKEN_EXPIRES_IN * 1000 });
+    return { access: `shpat_${String(issued)}`, refresh };
   };
   return {
-    accepts: (refreshToken: string | null) => refreshToken !== null && usable.has(refreshToken),
-    /** A refresh token Shopify issued before the fake started: a seeded row's. */
+    accepts: (refreshToken: string | null) => refreshToken !== null && isUsable(refreshToken),
+    /** A refresh token Shopify issued before the fake started: a seeded row's, issued now. */
     recognize: (refreshToken: string) => {
-      usable.add(refreshToken);
+      usable.set(refreshToken, { expiresAt: now() + FAKE_REFRESH_TOKEN_EXPIRES_IN * 1000 });
     },
     exchange: () => {
-      const next = pair();
       usable.clear();
-      usable.add(next.refresh);
-      return next;
+      return pair();
     },
     /** The next pair for `presented`, or none when Shopify has retired it. */
     refresh: (presented: string) => {
-      if (!usable.has(presented)) return undefined;
+      const life = usable.get(presented);
+      if (life === undefined || !isUsable(presented)) return undefined;
+      life.firstUsedAt ??= now();
       const before = predecessor.get(presented);
       if (before !== undefined) usable.delete(before);
       const next = pair();
-      usable.add(next.refresh);
       predecessor.set(next.refresh, presented);
       return next;
     },
@@ -149,11 +170,12 @@ export const grantBody = (over: Record<string, unknown> = {}) => ({
 });
 
 const make = Effect.gen(function* () {
+  const clock = yield* Clock.Clock;
   const ledgers = new Map<ShopDomain, ReturnType<typeof makeLedger>>();
   const ledgerOf = (shop: ShopDomain) => {
     const existing = ledgers.get(shop);
     if (existing !== undefined) return existing;
-    const ledger = makeLedger();
+    const ledger = makeLedger(() => clock.currentTimeMillisUnsafe());
     ledgers.set(shop, ledger);
     return ledger;
   };
