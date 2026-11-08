@@ -49,6 +49,32 @@ A production stage, to rehearse production deploys and migrations without custom
 
    The integ suite deploys `test/integ/stack.ts` locally: a test Backend that is the production body and tier 1 with `ShopifyTestDoor` in front, and a test Website bound to it. Every required behavior runs inside the test Backend against the real `ShopGrantor` Durable Object and the real D1; the cases that need the test clock or a held store write run only in process. Binding-level cases call `authenticateMerchant` over `BACKEND`, deliver signed webhooks through the Website's `/webhooks/*` forward, and trigger the daily cron through workerd's `/cdn-cgi/handler/scheduled`.
 3. Run the end-to-end suite in the testbed against real Shopify, including uninstall and reinstall. Check: the suite passes.
+
+   The suite, run on 2026-11-08 in `apps/testbed`; the check has passed:
+
+   ```sh
+   vp run e2e:start    # leases a pool store, starts the e2e server and its tunnel
+   vp run test:e2e     # the package's e2e spec pack, on the agent Chrome
+   vp run e2e:stop
+   ```
+
+   Results: 4 passed in 2.3 min, then 4 passed in 2.1 min on a second run in a row, on `mw10013-pool-15`. Before them, the package's unit suite 239 passed, the testbed's unit suite 125 passed, and the integ suite 98 passed and 5 skipped, the same in-process-only cases as step 2.
+
+   The pack is `@mw10013/shopify-app-workers/test/e2e`; an app supplies an `E2eApp` and registers `e2eProjects(app, root)`. It runs on one worker, because every spec shares the leased store, in three projects, each after the one before:
+
+   1. `shopify admin auth` exports the agent Chrome's Shopify login on every run. A lapsed login fails here; sign in to the agent Chrome and run again.
+   2. The lifecycle spec installs the app, picks Testbed Basic, switches to Testbed Pro, uninstalls from the admin and waits for the e2e status route to show the installation gone, then reinstalls and picks Testbed Basic again. It is a project of its own because uninstalling ends the CLI's dev preview, so the spec restarts the server (`vpx scripts/e2e.ts reinstall`).
+   3. The other specs:
+      - The smoke opens App Home in the leased store's admin and checks the shop and plan it shows against the e2e status route.
+      - The webhooks spec sends `shop/update`, `customers/data_request`, `customers/redact` and `shop/redact` with `shopify app webhook trigger` through the tunnel. The CLI only says a remote delivery was enqueued, so the e2e Backend records each answer it gives, and the spec requires exactly one delivery per trigger, matched by a marker in the address, answered 200: the HMAC passed and the topic reached its handler. The bad-signature case is in the integ suite (N26).
+
+   What real Shopify showed, which the fakes did not:
+
+   - Uninstalling ends the CLI's dev preview, so App Home stops loading from the tunnel until `app dev` runs again.
+   - A cancelled subscription survives uninstall until its period ends.
+   - The CLI sends `app/uninstalled` on a checkout's first `app dev`, so `e2e:start` waits for that delivery before it reports ready.
+
+   Every click, wait and failure snapshot checks first that the page is on the checkout's leased store, because the agent Chrome holds other agents' tabs. Traces are off; `E2E_TRACE=1` turns them on with a warning, since each holds a live admin login.
 4. Cut `v0.1.0` as a tag on a commit that holds only the built package. Check: a throwaway project installs it with `--frozen-lockfile` and no token.
 5. Deploy the testbed's staging through Workers Builds. Check: the build installs and deploys, and the staging app works in a pool store.
 
