@@ -4,7 +4,8 @@ import type { OxlintOverride } from "vite-plus/lint";
 
 /**
  * Keeps `files` from importing the `forbidden` runtime directories under the testbed's `src/`,
- * which would put one Worker's code in another's bundle. An override replaces the base
+ * which would put one Worker's code in another's bundle, and the package's test support, which
+ * would put `ShopifyTestDoor` and the fakes in a production Worker. An override replaces the base
  * `no-restricted-imports` options, so it carries {@link baseRestrictions} again.
  */
 const runtimeBoundary = (
@@ -22,6 +23,10 @@ const runtimeBoundary = (
         patterns: [
           ...baseRestrictions.patterns,
           { group: forbidden.map((dir) => `#${dir}/**`), message, ...options },
+          {
+            group: ["@mw10013/shopify-app-workers/test", "@mw10013/shopify-app-workers/test/**"],
+            message: "Test support stays in test/; a production Worker never carries it.",
+          },
         ],
       },
     ],

@@ -1,50 +1,63 @@
 /**
  * `ShopifyHarness`: what a required-behavior case drives. One interface, so the same cases run
- * in process (`/test/node`'s `inProcessHarness`) and, later, against a test Backend in workerd.
+ * in process (`/test/node`'s `inProcessHarness`) and inside a test Backend in workerd
+ * (`ShopifyTestDoor`).
  *
  * @module
  */
 
 import * as Context from "effect/Context";
-import type * as DateTime from "effect/DateTime";
 import type * as Effect from "effect/Effect";
 import type * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 
 import type { AdminToken } from "#internal/admin-token.ts";
 import type { AppInstallation } from "#internal/app-installation-store.ts";
 import type { AuthenticateMerchantFailure, ShopifyAccessFailure } from "#internal/contract.ts";
-import type { ShopDomain, ShopGid } from "#internal/domain.ts";
+import { ShopDomain, ShopGid } from "#internal/domain.ts";
 import type { ShopifyHooksShape } from "#internal/hooks.ts";
 import type { MerchantGateShape } from "#internal/merchant-gate.ts";
 import type { EnsureSessionFailure } from "#internal/shopify.ts";
 import type { SubscriptionPlanShape } from "#internal/subscription-plan.ts";
 
-/** A stored installation as a case seeds it: the grant columns, each unset one null. */
-export interface SeedInstallation {
-  readonly shop: ShopDomain;
-  readonly shopGid: ShopGid;
-  readonly scope?: string | null | undefined;
-  readonly accessToken?: string | null | undefined;
-  readonly accessTokenExpiresAt?: DateTime.Utc | null | undefined;
-  readonly refreshToken?: string | null | undefined;
-  readonly refreshTokenExpiresAt?: DateTime.Utc | null | undefined;
+const Instant = Schema.optional(Schema.NullOr(Schema.DateTimeUtcFromMillis));
+
+/**
+ * A stored installation as a case seeds it: the grant columns, each unset one null. A schema,
+ * so a test seeds a test Backend's database through `ShopifyTestDoor`.
+ */
+export const SeedInstallation = Schema.Struct({
+  shop: ShopDomain,
+  shopGid: ShopGid,
+  scope: Schema.optional(Schema.NullOr(Schema.String)),
+  accessToken: Schema.optional(Schema.NullOr(Schema.String)),
+  accessTokenExpiresAt: Instant,
+  refreshToken: Schema.optional(Schema.NullOr(Schema.String)),
+  refreshTokenExpiresAt: Instant,
   /** The plan cache, as a revalidation wrote it; unset, the plan was never fetched. */
-  readonly planHandle?: string | null | undefined;
-  readonly planHandleExpiresAt?: DateTime.Utc | null | undefined;
-  readonly planBoundaryAt?: DateTime.Utc | null | undefined;
+  planHandle: Schema.optional(Schema.NullOr(Schema.String)),
+  planHandleExpiresAt: Instant,
+  planBoundaryAt: Instant,
   /**
    * Whether the fake's ledger knows the seeded refresh token as one Shopify issued (by default
    * it does); `false` seeds the repair state, a token Shopify has retired.
    */
-  readonly recognized?: boolean | undefined;
-}
+  recognized: Schema.optional(Schema.Boolean),
+});
+export type SeedInstallation = typeof SeedInstallation.Type;
 
-/** What a case needs that only an in-process harness can give it. */
+/**
+ * What a case needs that not every harness can give it. A harness in a test Backend runs the
+ * case in the isolate the grantor Durable Object runs in, so a fake's intercept reaches the
+ * object's grant, but neither the test clock nor the object's store does.
+ */
 export type HarnessCapability =
-  /** `TestClock` drives time. */
+  /** `TestClock` drives time, the grantor's included. */
   | "clock"
-  /** The case gates a call mid-flight: an intercept, a held write, an interrupted caller. */
-  | "interleave";
+  /** The case gates a call mid-flight through the fake's intercept, or interrupts its caller. */
+  | "interleave"
+  /** The case holds the grantor's store write ({@link ShopifyHarnessShape.holdWrite}). */
+  | "holdWrite";
 
 /** A hold on the next grant write, from {@link ShopifyHarnessShape.holdWrite}. */
 export interface HeldWrite {
@@ -107,7 +120,7 @@ export interface ShopifyHarnessShape {
     shop: ShopDomain,
     query: string,
   ) => Effect.Effect<{ readonly shop: { readonly id: string } }, ShopifyAccessFailure>;
-  /** In-process only: holds the next grant write (`upsert` or `updateTokens`) until released. */
+  /** With `holdWrite` only: holds the next grant write (`upsert` or `updateTokens`) until released. */
   readonly holdWrite: Effect.Effect<HeldWrite>;
 }
 

@@ -85,6 +85,11 @@ const make = (defaultHandle: PlanHandle) =>
         }),
       /** Every shop GID asked about since the layer was built, oldest first. */
       asked: Effect.sync((): readonly ShopGid[] => [...asked]),
+      /** Forgets every script and question, as a fresh fake would. */
+      reset: Effect.sync(() => {
+        answers.clear();
+        asked.length = 0;
+      }),
       service: PartnerApi.of({ activeSubscription, planSelectionUrl: fakePlanSelectionUrl }),
     };
   });

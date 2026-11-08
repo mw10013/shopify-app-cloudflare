@@ -288,6 +288,17 @@ const make = Effect.gen(function* () {
      */
     accepts: (shop: ShopDomain, refreshToken: string | null) =>
       Effect.sync(() => ledgerOf(shop).accepts(refreshToken)),
+    /**
+     * Forgets every script, call, intercept and issued token, as a fresh fake would: a test
+     * Backend keeps one fake for its isolate's life and resets it between cases.
+     */
+    reset: Effect.sync(() => {
+      queues.token.length = 0;
+      queues.graphql.length = 0;
+      calls.length = 0;
+      intercept = undefined;
+      ledgers.clear();
+    }),
   };
 });
 

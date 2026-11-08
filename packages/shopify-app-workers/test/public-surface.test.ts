@@ -62,6 +62,19 @@ describe("/backend", () => {
 });
 
 describe("/test", () => {
+  it("exports the door a test Backend mounts", async () => {
+    const exported = Object.keys(await import("@mw10013/shopify-app-workers/test"));
+    for (const name of [
+      "ShopifyTestDoor",
+      "ShopifyTestDoorRpcs",
+      "SHOPIFY_TEST_DOOR_PATH",
+      "SHOPIFY_TEST_DOOR_CAN",
+      "BehaviorOutcome",
+      "SeedInstallation",
+    ])
+      assert.include(exported, name);
+  });
+
   it("reaches no test runner and no node:sqlite, so a test Backend in workerd can bundle it", () => {
     const reached = reachedPackages("test.ts");
     assert.include(reached, "@shopify/shopify-api/runtime");

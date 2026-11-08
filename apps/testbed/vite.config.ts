@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+
 import cloudflare from "@alchemy.run/cloudflare-runtime/vite";
 import { app } from "@mw10013/devkit/core/app";
 import { testRunDirectory } from "@mw10013/devkit/core/test-runs";
@@ -10,6 +12,12 @@ import * as SchemaTransformation from "effect/SchemaTransformation";
 import { defineConfig } from "vite-plus";
 
 const { root } = app(import.meta.dirname);
+
+/** This checkout's stage of `environment`, as `scripts/stage.ts` prints it. */
+const stageOf = (environment: "test") =>
+  Schema.decodeUnknownSync(Schema.Trim)(
+    execFileSync("vpx", ["scripts/stage.ts", environment], { cwd: root, encoding: "utf8" }),
+  );
 
 /**
  * Vite's dependency cache, one per server: the dev and e2e servers run in one checkout at once,
@@ -96,7 +104,33 @@ export default defineConfig(({ command, mode, isPreview }) => {
             ],
           }
         : {}),
-      include: ["test/unit/**/*.test.ts"],
+      projects: [
+        { test: { name: "unit", include: ["test/unit/**/*.test.ts"] } },
+        {
+          // Deploys the test Backend in workerd through @alchemy.run/test. Files run in parallel,
+          // each on its own stage (`fileStage` in test/integ/), one workerd each. ALCHEMY_DEV is
+          // read by the Worker's init at plan, so the test process must set it. ALCHEMY_TEST_STAGE
+          // is the checkout's `test` stage, which each file's stage extends; it is spawned only
+          // under test, so `vp build` and `vp run dev` do not run the script.
+          test: {
+            name: "integ",
+            globalSetup: ["@mw10013/devkit/cloudflare/integ-setup"],
+            include: ["test/integ/**/*.test.ts"],
+            env:
+              mode === "test"
+                ? { ALCHEMY_DEV: "1", ALCHEMY_TEST_STAGE: stageOf("test") }
+                : { ALCHEMY_DEV: "1" },
+            // @alchemy.run/test/Vitest registers its sidecar cleanup after the file's afterAll
+            // hooks and expects them to run in that order; Vitest's default runs them in reverse,
+            // so `destroy` would wait on a sidecar already closed.
+            sequence: { hooks: "list" },
+            testTimeout: 30_000,
+            hookTimeout: 120_000,
+            fileParallelism: true,
+            pool: "forks",
+          },
+        },
+      ],
     },
   };
 });

@@ -17,6 +17,7 @@ import { ShopifyAccess } from "#internal/shopify-access.ts";
 import { ShopifyApp, type ShopifyAppDefinition } from "#internal/shopify-app.ts";
 import { ShopifyClient } from "#internal/shopify-client.ts";
 import { FAKE_SHOPIFY_CREDENTIALS } from "#test/fake-app.ts";
+import { seedInstallation } from "#test/harness-support.ts";
 import { PartnerFake } from "#test/partner-fake.ts";
 import { ShopifyFake } from "#test/shopify-fake.ts";
 import type { SeedInstallation } from "#test/shopify-harness.ts";
@@ -32,36 +33,6 @@ export const d1Store = (options: D1TestOptions) =>
     // call's `Scope`.
     Effect.map(D1Test, ({ database }) => AppInstallationStore.layerD1(Effect.succeed(database))),
   ).pipe(Layer.provideMerge(D1Test.layer(options)));
-
-/**
- * Stores `row` as an exchange would and, unless `recognized` is false, tells the fake its refresh
- * token, so the fake's ledger answers a refresh with it as Shopify would.
- */
-export const seedInstallation = (
-  installations: AppInstallationStore["Service"],
-  fake: ShopifyFake["Service"],
-  row: SeedInstallation,
-) =>
-  Effect.gen(function* () {
-    yield* installations.upsert({
-      shop: row.shop,
-      shopGid: row.shopGid,
-      scope: row.scope ?? null,
-      accessToken: row.accessToken ?? null,
-      accessTokenExpiresAt: row.accessTokenExpiresAt ?? null,
-      refreshToken: row.refreshToken ?? null,
-      refreshTokenExpiresAt: row.refreshTokenExpiresAt ?? null,
-    });
-    if (row.planHandleExpiresAt !== undefined && row.planHandleExpiresAt !== null)
-      yield* installations.updatePlan({
-        shop: row.shop,
-        planHandle: row.planHandle ?? null,
-        planHandleExpiresAt: row.planHandleExpiresAt,
-        planBoundaryAt: row.planBoundaryAt ?? null,
-      });
-    if (row.recognized !== false && row.refreshToken !== null && row.refreshToken !== undefined)
-      yield* fake.recognize(row.shop, row.refreshToken);
-  });
 
 /**
  * Both tiers over `app`, `hooks` and `store`, with the grantors in memory, the fake app's

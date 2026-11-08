@@ -10,7 +10,6 @@ import assert from "node:assert/strict";
 
 import * as Cause from "effect/Cause";
 import * as DateTime from "effect/DateTime";
-import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
@@ -136,15 +135,24 @@ const callsReach = (count: number) =>
     while ((yield* calls).length < count) yield* Effect.sleep("10 millis");
   });
 
-/** A gate an intercepted call waits on before the fake answers it. */
-const makeGate = Effect.map(
-  // oxlint-disable-next-line typescript/no-invalid-void-type -- a gate that opens with no value
-  Deferred.make<void>(),
-  (gate) => ({
-    wait: () => Effect.runPromise(Deferred.await(gate)),
-    open: Deferred.succeed(gate, undefined),
-  }),
-);
+/**
+ * A gate an intercepted call waits on before the fake answers it. A plain promise, not a
+ * `Deferred`: in a test Backend the intercepted call runs in the grantor Durable Object's
+ * request, and a `Deferred` resumes its waiter from the request that completes it, which workerd
+ * refuses across requests; a promise's continuation runs in the request that awaits it.
+ */
+const makeGate = Effect.sync(() => {
+  let open: () => void = () => undefined;
+  const opened = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return {
+    wait: () => opened,
+    open: Effect.sync(() => {
+      open();
+    }),
+  };
+});
 
 /**
  * Runs `first` and, once its first call is in, `joiner`, with every token call held at a gate
@@ -203,7 +211,6 @@ const ensureWithoutGrant: readonly RequiredBehavior[] = [
       assert.equal((yield* ensure).accessToken, "shpat_old");
       assert.equal((yield* calls).length, 0);
     }),
-    { needs: clock },
   ),
   behavior(
     "10",
@@ -211,7 +218,6 @@ const ensureWithoutGrant: readonly RequiredBehavior[] = [
     Effect.gen(function* () {
       assert.equal(yield* failureOf(ensure), "AppNotInstalledError");
     }),
-    { needs: clock },
   ),
   ...(
     [
@@ -227,7 +233,6 @@ const ensureWithoutGrant: readonly RequiredBehavior[] = [
         assert.equal(yield* failureOf(ensure), "missing");
         assert.equal((yield* calls).length, 0);
       }),
-      { needs: clock },
     ),
   ),
   behavior(
@@ -601,7 +606,7 @@ const merchantPath: readonly RequiredBehavior[] = [
       yield* Fiber.join(uninstalling);
       assert.ok(Option.isNone(yield* stored));
     }),
-    { needs: interleave },
+    { needs: ["interleave", "holdWrite"] },
   ),
   behavior(
     "34",
@@ -714,8 +719,11 @@ const lateTokenCall = (options: {
 }) =>
   Effect.gen(function* () {
     const fake = yield* ShopifyFake;
-    // oxlint-disable-next-line typescript/no-invalid-void-type -- a signal that carries no value
-    const settled = yield* Deferred.make<void>();
+    // A promise, as in `makeGate`: the late call settles in the grantor's request.
+    let settle: () => void = () => undefined;
+    const settled = new Promise<void>((resolve) => {
+      settle = resolve;
+    });
     const sentAt: number[] = [];
     let settledAt = Infinity;
     const reply = options.reply ?? ((answer) => answer());
@@ -728,11 +736,11 @@ const lateTokenCall = (options: {
         .then(() => reply(answer))
         .finally(() => {
           settledAt = performance.now();
-          Effect.runSync(Deferred.succeed(settled, undefined));
+          settle();
         });
     });
     return {
-      settled: Deferred.await(settled),
+      settled: Effect.promise(() => settled),
       sentAt: () => [...sentAt],
       settledAt: () => settledAt,
     };

@@ -35,6 +35,19 @@ A production stage, to rehearse production deploys and migrations without custom
    5. Revert the edit, then `vp run dev:stop`.
 
    The receipt line (`Webhooks.handle: shop=… topic=…`) is Debug, which the dev stage does not print, so the check uses the unknown-topic line, an Error. A delivery of `shop/update` logs `Testbed.shopUpdate: shop=… status=received`.
+
+   The suites against the Shopify fakes, run on 2026-11-08; both halves of the check have passed:
+
+   ```sh
+   vp check                                        # at the root
+   vp -C packages/shopify-app-workers test run     # the package's unit suite
+   vp -C apps/testbed run test:unit                # the testbed's unit suite, in process
+   vp -C apps/testbed run test:integ               # the testbed's integ suite, in workerd
+   ```
+
+   Results: the package's unit suite 219 passed; the testbed's unit suite 95 passed; the integ suite 88 passed and 5 skipped, the cases that need `clock` (4: 12×2, N15, N18) or `holdWrite` (1).
+
+   The integ suite deploys `test/integ/stack.ts` locally: a test Backend that is the production body and tier 1 with `ShopifyTestDoor` in front, and a test Website bound to it. Every required behavior runs inside the test Backend against the real `ShopGrantor` Durable Object and the real D1; the cases that need the test clock or a held store write run only in process. Binding-level cases call `authenticateMerchant` over `BACKEND`, deliver signed webhooks through the Website's `/webhooks/*` forward, and trigger the daily cron through workerd's `/cdn-cgi/handler/scheduled`.
 3. Run the end-to-end suite in the testbed against real Shopify, including uninstall and reinstall. Check: the suite passes.
 4. Cut `v0.1.0` as a tag on a commit that holds only the built package. Check: a throwaway project installs it with `--frozen-lockfile` and no token.
 5. Deploy the testbed's staging through Workers Builds. Check: the build installs and deploys, and the staging app works in a pool store.

@@ -17,8 +17,9 @@ import { ShopifyAccess } from "#internal/shopify-access.ts";
 import { ShopifyApp } from "#internal/shopify-app.ts";
 import { ShopifyClient } from "#internal/shopify-client.ts";
 import { FAKE_APP_HANDLE, FAKE_SHOPIFY_CREDENTIALS } from "#test/fake-app.ts";
+import { seedInstallation } from "#test/harness-support.ts";
 import { mintIdToken } from "#test/id-token.ts";
-import { d1Store, seedInstallation } from "#test/node/shopify-app-test.ts";
+import { d1Store } from "#test/node/shopify-app-test.ts";
 import { ShopifyFake } from "#test/shopify-fake.ts";
 
 import { SHOP, SHOP_GID } from "./fixtures.ts";
