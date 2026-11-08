@@ -20,6 +20,7 @@ import { defineConfig } from "playwright/test";
 import { catalog } from "#backend/app.ts";
 import { E2E_SESSION_FILE, E2E_TOKEN_HEADER, E2eSessionJson } from "#e2e/session.ts";
 import { E2E_STATUS_PATH } from "#e2e/status.ts";
+import { E2E_WEBHOOKS_PATH } from "#e2e/webhooks.ts";
 import { STORE_SCOPES } from "#scripts/lib/store-auth.ts";
 
 const devkitApp = app(import.meta.dirname);
@@ -69,6 +70,8 @@ const testbed: E2eApp = {
   plans: PLANS,
   server: { port: server.port, tunnel },
   status: { path: E2E_STATUS_PATH, headers: { [E2E_TOKEN_HEADER]: session.token } },
+  // shop/update only logs, so Shopify's sample of it is safe to deliver.
+  webhooks: { config: appToml, topics: ["shop/update"], record: E2E_WEBHOOKS_PATH },
   restart: { command: ["vpx", "scripts/e2e.ts", "reinstall"], cwd: root },
   storeScopes: STORE_SCOPES,
 };

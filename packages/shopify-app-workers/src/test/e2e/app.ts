@@ -52,6 +52,20 @@ export const E2eApp = Schema.Struct({
     headers: Schema.Record(Schema.String, Schema.String),
   }),
   /**
+   * The webhooks the webhook spec has Shopify deliver to the server's tunnel with `shopify app
+   * webhook trigger`: the compliance topics, and `topics`, the app's own topics that are safe to
+   * deliver for Shopify's sample shop, `shop.myshopify.com`. `config` is the absolute path of the
+   * app's linked `shopify.app.toml`, whose subscriptions give each topic's path and whose
+   * `[webhooks] api_version` the version; the CLI runs in its directory. `record` is the e2e
+   * webhook record on the server's local port, answering `GET <record>` with an
+   * `E2eWebhookDeliveries` when sent the status route's `headers`.
+   */
+  webhooks: Schema.Struct({
+    config: Schema.NonEmptyString,
+    topics: Schema.Array(Schema.NonEmptyString),
+    record: Schema.String.check(Schema.isStartingWith("/")),
+  }),
+  /**
    * Restarts the e2e server on the same store, keeping its data and its status route's headers:
    * `command` run in `cwd`, printing the new {@link E2eServer} as JSON on its last line of stdout.
    * An uninstall ends the Shopify CLI's dev preview on the store (the CLI logs "The dev preview has
@@ -89,6 +103,10 @@ export const statusUrl = (app: E2eApp, shop: string) => {
   url.searchParams.set("shop", shop);
   return url;
 };
+
+/** The e2e webhook record's URL, on the server's local port. */
+export const webhookRecordUrl = (app: E2eApp) =>
+  new URL(app.webhooks.record, `http://localhost:${String(app.server.port)}`);
 
 /** The pack's spec and setup files. */
 export const E2E_SPECS_DIR = import.meta.dirname;

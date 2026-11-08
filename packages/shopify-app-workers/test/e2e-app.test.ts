@@ -21,6 +21,7 @@ const app: E2eApp = {
   plans: [{ handle: "basic", name: "Basic" }],
   server: { port: 8787, tunnel: "https://e2e.example.com" },
   status: { path: "/status", headers: {} },
+  webhooks: { config: "/app/shopify.app.toml", topics: [], record: "/webhooks-record" },
   restart: { command: ["true"], cwd: "/app" },
   storeScopes: [],
 };

@@ -26,16 +26,17 @@ import {
   type TestInfo,
 } from "playwright/test";
 
-import { E2eShopStatus } from "#internal/e2e-status.ts";
+import { E2eShopStatus, E2eWebhookDeliveries } from "#internal/e2e-status.ts";
 
 import { onLeasedStore, planSelectionUrl, requireLeasedStore, screenError } from "./admin.ts";
-import { appBaseUrl, E2eApp, type E2eOptions, statusUrl } from "./app.ts";
+import { appBaseUrl, E2eApp, type E2eOptions, statusUrl, webhookRecordUrl } from "./app.ts";
 
 /** Reads the app's e2e status route for one shop. */
 export type ShopStatusRead = (shop: string) => Promise<E2eShopStatus>;
 
 const decodeApp = Schema.decodeUnknownSync(E2eApp);
 const decodeStatus = Schema.decodeUnknownPromise(E2eShopStatus);
+const decodeDeliveries = Schema.decodeUnknownPromise(E2eWebhookDeliveries);
 
 /** Reads `app`'s e2e status route for `shop`. */
 export const readShopStatus = async (app: E2eApp, shop: string): Promise<E2eShopStatus> => {
@@ -47,6 +48,17 @@ export const readShopStatus = async (app: E2eApp, shop: string): Promise<E2eShop
   if (!response.ok)
     throw new Error(`GET ${url.pathname}?shop=${shop}: HTTP ${String(response.status)}`);
   return decodeStatus(await response.json());
+};
+
+/** Reads `app`'s e2e webhook record: the requests its Backend answered under `/webhooks/`. */
+export const readWebhookDeliveries = async (app: E2eApp): Promise<E2eWebhookDeliveries> => {
+  const url = webhookRecordUrl(app);
+  const response = await fetch(url, {
+    headers: app.status.headers,
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!response.ok) throw new Error(`GET ${url.pathname}: HTTP ${String(response.status)}`);
+  return decodeDeliveries(await response.json());
 };
 
 /** The browser runs on this machine, so the app's tunnel is answered from its local port. */

@@ -12,7 +12,8 @@ import type { PlanCatalog } from "./catalog.ts";
 import { MerchantGate } from "./merchant-gate.ts";
 import { PartnerApi, type PartnerApiOptions } from "./partner-api.ts";
 import { SubscriptionPlan } from "./subscription-plan.ts";
-import { BUILT_IN_TOPICS, type ExtraTopics, Webhooks } from "./webhooks.ts";
+import { BUILT_IN_TOPICS } from "./webhook-topics.ts";
+import { type ExtraTopics, Webhooks } from "./webhooks.ts";
 
 /**
  * The app as the package sees it, built once at module scope and imported by the Backend and its

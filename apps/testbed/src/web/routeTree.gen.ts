@@ -15,6 +15,7 @@ import { Route as AuthExitIframeRouteImport } from './routes/auth.exit-iframe'
 import { Route as AuthSessionTokenRouteImport } from './routes/auth.session-token'
 import { Route as WebhooksSplatRouteImport } from './routes/webhooks.$'
 import { Route as ApiE2eStatusRouteImport } from './routes/api.e2e.status'
+import { Route as ApiE2eWebhooksRouteImport } from './routes/api.e2e.webhooks'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,11 @@ const ApiE2eStatusRoute = ApiE2eStatusRouteImport.update({
   path: '/api/e2e/status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiE2eWebhooksRoute = ApiE2eWebhooksRouteImport.update({
+  id: '/api/e2e/webhooks',
+  path: '/api/e2e/webhooks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/auth/session-token': typeof AuthSessionTokenRoute
   '/webhooks/$': typeof WebhooksSplatRoute
   '/api/e2e/status': typeof ApiE2eStatusRoute
+  '/api/e2e/webhooks': typeof ApiE2eWebhooksRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/auth/session-token': typeof AuthSessionTokenRoute
   '/webhooks/$': typeof WebhooksSplatRoute
   '/api/e2e/status': typeof ApiE2eStatusRoute
+  '/api/e2e/webhooks': typeof ApiE2eWebhooksRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +79,7 @@ export interface FileRoutesById {
   '/auth/session-token': typeof AuthSessionTokenRoute
   '/webhooks/$': typeof WebhooksSplatRoute
   '/api/e2e/status': typeof ApiE2eStatusRoute
+  '/api/e2e/webhooks': typeof ApiE2eWebhooksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +90,7 @@ export interface FileRouteTypes {
     | '/auth/session-token'
     | '/webhooks/$'
     | '/api/e2e/status'
+    | '/api/e2e/webhooks'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,6 +99,7 @@ export interface FileRouteTypes {
     | '/auth/session-token'
     | '/webhooks/$'
     | '/api/e2e/status'
+    | '/api/e2e/webhooks'
   id:
     | '__root__'
     | '/'
@@ -97,6 +108,7 @@ export interface FileRouteTypes {
     | '/auth/session-token'
     | '/webhooks/$'
     | '/api/e2e/status'
+    | '/api/e2e/webhooks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -106,6 +118,7 @@ export interface RootRouteChildren {
   AuthSessionTokenRoute: typeof AuthSessionTokenRoute
   WebhooksSplatRoute: typeof WebhooksSplatRoute
   ApiE2eStatusRoute: typeof ApiE2eStatusRoute
+  ApiE2eWebhooksRoute: typeof ApiE2eWebhooksRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -152,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiE2eStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/e2e/webhooks': {
+      id: '/api/e2e/webhooks'
+      path: '/api/e2e/webhooks'
+      fullPath: '/api/e2e/webhooks'
+      preLoaderRoute: typeof ApiE2eWebhooksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -162,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthSessionTokenRoute: AuthSessionTokenRoute,
   WebhooksSplatRoute: WebhooksSplatRoute,
   ApiE2eStatusRoute: ApiE2eStatusRoute,
+  ApiE2eWebhooksRoute: ApiE2eWebhooksRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

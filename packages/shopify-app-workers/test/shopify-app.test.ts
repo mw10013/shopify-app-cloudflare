@@ -8,7 +8,8 @@ import * as Effect from "effect/Effect";
 import { PlanCatalog } from "#internal/catalog.ts";
 import { ShopifyApp } from "#internal/shopify-app.ts";
 import type { ExtraTopics } from "#internal/webhooks.ts";
-import { expectTomlMatches, readWebhooks } from "#test/node/toml.ts";
+import { expectTomlMatches } from "#test/node/toml.ts";
+import { readWebhooks } from "#test/toml-webhooks.ts";
 
 const catalog = PlanCatalog.make({ "test-basic": {} });
 const app = ShopifyApp.define({ catalog, topics: { "orders/create": () => Effect.void } });

@@ -14,11 +14,13 @@ import {
 
 import { e2eAccessConfig } from "./session.ts";
 import { E2E_STATUS_PATH, e2eStatus } from "./status.ts";
+import { E2E_WEBHOOKS_PATH, e2eWebhooks } from "./webhooks.ts";
 
 /**
  * The Backend as the `e2e` stage deploys it in place of `Backend`: the production body and
- * services, with the e2e status route ({@link E2E_STATUS_PATH}) in front of its `fetch`, gated by
- * the session the stack binds ({@link e2eAccessConfig}). Only
+ * services, with the e2e status route ({@link E2E_STATUS_PATH}) and webhook record
+ * ({@link E2E_WEBHOOKS_PATH}) in front of its `fetch`, gated by the session the stack binds
+ * ({@link e2eAccessConfig}); each `/webhooks/*` answer is recorded on its way out. Only
  * `alchemy.run.ts` imports it, and only for `e2e`, so the Backend every other stage deploys never
  * carries the route; lint keeps `src/backend` and `src/web` from importing `src/e2e`.
  */
@@ -34,13 +36,18 @@ export default class E2eBackend extends Cloudflare.Worker<E2eBackend>()(
   },
   provideBackend(
     Effect.gen(function* () {
-      const status = yield* e2eStatus(yield* e2eAccessConfig);
+      const access = yield* e2eAccessConfig;
+      const status = yield* e2eStatus(access);
+      const webhooks = yield* e2eWebhooks(access);
       const base = yield* backendBody;
       const fetch = Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
         const { pathname } = new URL(request.url, "http://backend");
         if (pathname === E2E_STATUS_PATH) return yield* status;
-        return yield* base.fetch;
+        if (pathname === E2E_WEBHOOKS_PATH) return yield* webhooks.route(request);
+        const response = yield* base.fetch;
+        if (pathname.startsWith("/webhooks/")) yield* webhooks.record(request, response);
+        return response;
       });
       // Spread first, so the methods stay beside the new `fetch`.
       return { ...base, fetch };
