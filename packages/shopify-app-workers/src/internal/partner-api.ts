@@ -204,9 +204,12 @@ const make = Effect.fnUntraced(function* (config: PartnerConfig) {
       return yield* Effect.die(
         new Error(`Partner API errors: ${errors.map((each) => each.message).join("; ")}`),
       );
-    const subscription = data?.activeSubscription;
-    if (subscription === undefined || subscription === null)
-      return Option.none<PartnerSubscription>();
+    // Only an explicit `activeSubscription: null` is a verified absence: an answer without `data`
+    // would otherwise cache Unsubscribed for a paying merchant.
+    if (data === undefined)
+      return yield* Effect.die(new Error("Partner API answered with neither data nor errors"));
+    const subscription = data.activeSubscription;
+    if (subscription === null) return Option.none<PartnerSubscription>();
     return Option.some<PartnerSubscription>({
       handles: subscription.items.flatMap(({ handle }) =>
         handle === null || handle === "" ? [] : [handle],

@@ -140,18 +140,23 @@ describe("PartnerApi.activeSubscription", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.effect("GraphQL errors, and an answer that does not decode, are defects", () =>
-    Effect.gen(function* () {
-      for (const reply of [
-        () => Response.json({ errors: [{ message: "Field 'x' doesn't exist" }] }),
-        () => Response.json({ data: { activeSubscription: { items: "none" } } }),
-      ]) {
-        const exit = yield* Effect.exit(
-          activeSubscription.pipe(Effect.provide(partnerOver([reply]).layer)),
-        );
-        assert.isTrue(Exit.isFailure(exit) && Cause.hasDies(exit.cause));
-      }
-    }),
+  it.effect(
+    "GraphQL errors, an answer without data, and one that does not decode, are defects, never None",
+    () =>
+      Effect.gen(function* () {
+        for (const reply of [
+          () => Response.json({ errors: [{ message: "Field 'x' doesn't exist" }] }),
+          () => Response.json({ data: { activeSubscription: { items: "none" } } }),
+          () => Response.json({}),
+          () => Response.json({ errors: [] }),
+          () => Response.json({ data: {} }),
+        ]) {
+          const exit = yield* Effect.exit(
+            activeSubscription.pipe(Effect.provide(partnerOver([reply]).layer)),
+          );
+          assert.isTrue(Exit.isFailure(exit) && Cause.hasDies(exit.cause));
+        }
+      }),
   );
 });
 

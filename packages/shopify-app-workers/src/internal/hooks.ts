@@ -6,6 +6,7 @@
  * @module
  */
 
+import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -58,7 +59,10 @@ const noop: ShopifyHooksShape = {
   afterPlanRevalidated: () => Effect.void,
 };
 
-/** A hook whose policy is best-effort: a defect is logged at Warning, with `shop`, and swallowed. */
+/**
+ * A hook whose policy is best-effort: a failure or defect is logged at Warning, with `shop`, and
+ * swallowed. An interruption is not a hook's failure, so it propagates.
+ */
 export const bestEffort = (
   hook: Exclude<keyof ShopifyHooksShape, "afterUninstall">,
   shop: ShopDomain,
@@ -66,9 +70,11 @@ export const bestEffort = (
 ) =>
   run.pipe(
     Effect.catchCause((cause) =>
-      Effect.logWarning(`ShopifyHooks.${hook}: shop=${shop} status=failed`, cause).pipe(
-        Effect.annotateLogs({ shop, hook, status: "failed" }),
-      ),
+      Cause.hasInterrupts(cause)
+        ? Effect.failCause(cause)
+        : Effect.logWarning(`ShopifyHooks.${hook}: shop=${shop} status=failed`, cause).pipe(
+            Effect.annotateLogs({ shop, hook, status: "failed" }),
+          ),
     ),
   );
 
