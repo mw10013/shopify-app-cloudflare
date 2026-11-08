@@ -25,7 +25,9 @@
     "browser": "vpx --env-file=.env scripts/browser.ts",
     "test:unit": "vp test run --project unit",
     "test:integ": "vp test run --project integ",
-    "test:e2e": "vp exec playwright test"
+    "test:e2e": "vp exec playwright test",
+    "deploy:staging": "alchemy deploy --stage staging --yes",
+    "stage": "devkit-stage"
   },
   "dependencies": {
     "@alchemy.run/cloudflare": "catalog:",

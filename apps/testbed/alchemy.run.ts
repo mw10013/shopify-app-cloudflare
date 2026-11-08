@@ -1,6 +1,7 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import {
   deployedSecrets,
+  requireStageEnv,
   stageProviders,
   stageState,
 } from "@mw10013/devkit/cloudflare/deployed-stack";
@@ -28,6 +29,8 @@ import {
   e2eSessionEnv,
   E2eSessionJson,
 } from "#e2e/session.ts";
+
+import StageEnv from "./stacks/stage-env.ts";
 
 /** The Backend Worker this stage deploys ({@link backendWorkerFor}). */
 const backendWorker = Effect.map(Effect.flatMap(Alchemy.Stage, environmentOf), backendWorkerFor);
@@ -130,6 +133,7 @@ export default Alchemy.Stack(
   "testbed",
   { providers: stageProviders, state: stageState, secrets: deployedSecrets },
   Effect.gen(function* () {
+    yield* requireStageEnv(StageEnv);
     const website = yield* Website;
     const BackendWorker = yield* backendWorker;
     const backend = yield* BackendWorker;
