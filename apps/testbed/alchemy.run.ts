@@ -20,6 +20,15 @@ import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 
 import Backend from "#backend/worker.ts";
+import E2eBackend from "#e2e/worker.ts";
+
+/**
+ * The Backend Worker a stage deploys: {@link E2eBackend} on `e2e`, which adds the e2e status
+ * route, and {@link Backend} on every other stage, so none of them can serve that route.
+ */
+const backendWorker = Effect.map(Effect.flatMap(Alchemy.Stage, environmentOf), (environment) =>
+  environment === "e2e" ? E2eBackend : Backend,
+);
 
 /**
  * The TanStack Start app. `alchemy dev` serves it on `WEBSITE_PORT`, which `dev:alchemy` sets to
@@ -43,7 +52,7 @@ export class Website extends Cloudflare.Website.Vite<Website>()(
       compatibility: { date: "2026-07-01", flags: ["nodejs_compat"] },
       dev,
       env: {
-        BACKEND: Backend,
+        BACKEND: yield* backendWorker,
         SHOPIFY_API_KEY: app.apiKey,
         SHOPIFY_APP_URL:
           typeof app.appUrl === "string" && app.appUrl !== "" ? app.appUrl : Cloudflare.Worker.URL,
@@ -106,7 +115,8 @@ export default Alchemy.Stack(
   { providers: stageProviders, state: stageState, secrets: deployedSecrets },
   Effect.gen(function* () {
     const website = yield* Website;
-    const backend = yield* Backend;
+    const BackendWorker = yield* backendWorker;
+    const backend = yield* BackendWorker;
     yield* bindShopifyApp(backend, {
       app: yield* shopifyAppFor(website.url),
       partner: yield* partnerFor,

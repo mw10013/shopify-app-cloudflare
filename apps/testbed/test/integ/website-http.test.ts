@@ -237,3 +237,16 @@ test(
     assert.include(body, SHOP);
   }),
 );
+
+test(
+  "the e2e status route is absent outside e2e: the production Backend answers 404, an installed shop included",
+  Effect.gen(function* () {
+    const { backendUrl, websiteUrl } = yield* fresh;
+    yield* seedWithPartner(backendUrl, { _tag: "None" });
+    const url = new URL("/api/e2e/status", websiteUrl);
+    url.searchParams.set("shop", SHOP);
+    const response = yield* get(url);
+    assert.strictEqual(response.status, 404);
+    assert.notInclude(yield* Effect.promise(() => response.text()), SHOP);
+  }),
+);
