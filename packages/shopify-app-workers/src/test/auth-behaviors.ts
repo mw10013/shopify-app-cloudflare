@@ -23,6 +23,7 @@ import { ShopDomain, ShopGid } from "#internal/domain.ts";
 
 import { mintIdToken } from "./id-token.ts";
 import {
+  FAKE_SCOPE,
   FAKE_SHOP_GID,
   grantBody,
   REFRESH_GRANT,
@@ -355,7 +356,7 @@ const ensureRefreshing: readonly RequiredBehavior[] = [
       assert.equal((yield* ensure).accessToken, "shpat_1");
       assert.equal((yield* calls).length, 2);
     }),
-    { timeout: 10_000 },
+    { timeout: 12_000 },
   ),
   behavior(
     "21",
@@ -697,6 +698,201 @@ const merchantPath: readonly RequiredBehavior[] = [
   ),
 ];
 
+/**
+ * Answers the token call numbered `index` among every call `delayMs` late, past
+ * `GRANT_ATTEMPT_DEADLINE`, with `reply`, given what the fake would answer then; every other
+ * call as the fake would. Records when each token call arrived and when the late one settled.
+ */
+const lateTokenCall = (options: {
+  readonly index: number;
+  readonly delayMs: number;
+  readonly reply?: (answer: () => Promise<Response>) => Promise<Response>;
+}) =>
+  Effect.gen(function* () {
+    const fake = yield* ShopifyFake;
+    // oxlint-disable-next-line typescript/no-invalid-void-type -- a signal that carries no value
+    const settled = yield* Deferred.make<void>();
+    const sentAt: number[] = [];
+    let settledAt = Infinity;
+    const reply = options.reply ?? ((answer) => answer());
+    yield* fake.intercept((call, attempt, answer) => {
+      if (call.route === "token") sentAt.push(performance.now());
+      if (attempt !== options.index) return answer();
+      return new Promise((resolve) => {
+        setTimeout(resolve, options.delayMs);
+      })
+        .then(() => reply(answer))
+        .finally(() => {
+          settledAt = performance.now();
+          Effect.runSync(Deferred.succeed(settled, undefined));
+        });
+    });
+    return {
+      settled: Deferred.await(settled),
+      sentAt: () => [...sentAt],
+      settledAt: () => settledAt,
+    };
+  });
+
+/** Past `GRANT_ATTEMPT_DEADLINE` (5 s) but within it and `GRANT_SETTLE_LIMIT` (3 s) after. */
+const LATE_MS = 6000;
+
+/**
+ * An attempt abandoned at its deadline may still complete at Shopify: case 51. The library cannot
+ * cancel it, so the next request waits for it, up to `GRANT_SETTLE_LIMIT`.
+ */
+const abandonedAttempts: readonly RequiredBehavior[] = [
+  behavior(
+    "51",
+    "an exchange attempt past its deadline that then succeeds: its pair is adopted, with no second exchange",
+    Effect.gen(function* () {
+      yield* seedAt();
+      const late = yield* lateTokenCall({ index: 0, delayMs: LATE_MS });
+      yield* authenticate;
+      yield* late.settled;
+      assert.deepEqual(grantsOf(yield* calls), [TOKEN_EXCHANGE_GRANT]);
+      assert.equal((yield* storedRow).accessToken, "shpat_1");
+      yield* assertInvariant;
+    }),
+    { needs: interleave, timeout: 15_000 },
+  ),
+  behavior(
+    "51",
+    "a refresh attempt past its deadline that then succeeds: its pair is adopted, with no second refresh",
+    Effect.gen(function* () {
+      yield* seedAt();
+      const late = yield* lateTokenCall({ index: 0, delayMs: LATE_MS });
+      assert.equal((yield* ensure).accessToken, "shpat_1");
+      yield* late.settled;
+      assert.deepEqual(grantsOf(yield* calls), [REFRESH_GRANT]);
+      assert.equal((yield* storedRow).refreshToken, "shprt_1");
+      yield* assertInvariant;
+    }),
+    { needs: interleave, timeout: 15_000 },
+  ),
+  behavior(
+    "51",
+    "an abandoned attempt that never settles: the retry is sent once GRANT_SETTLE_LIMIT passes, and the grant ends in bounded time",
+    Effect.gen(function* () {
+      yield* seedAt();
+      yield* lateTokenCall({
+        index: 0,
+        delayMs: 0,
+        reply: () =>
+          new Promise<never>(() => {
+            // Never settles.
+          }),
+      });
+      const begun = performance.now();
+      assert.equal((yield* ensure).accessToken, "shpat_1");
+      const elapsed = performance.now() - begun;
+      assert.deepEqual(grantsOf(yield* calls), [REFRESH_GRANT, REFRESH_GRANT]);
+      assert.ok(elapsed >= 8000, `the retry waited out the limit (${String(elapsed)} ms)`);
+      assert.ok(elapsed < 10_000, `the wait is bounded (${String(elapsed)} ms)`);
+      yield* assertInvariant;
+    }),
+    { needs: interleave, timeout: 15_000 },
+  ),
+  behavior(
+    "51",
+    "an abandoned attempt that fails: the retry is sent once it has settled",
+    Effect.gen(function* () {
+      yield* seedAt();
+      const late = yield* lateTokenCall({
+        index: 0,
+        delayMs: LATE_MS,
+        reply: () => Promise.resolve(Response.json({ error: "down" }, { status: 503 })),
+      });
+      assert.equal((yield* ensure).accessToken, "shpat_1");
+      const sentAt = late.sentAt();
+      assert.equal(sentAt.length, 2);
+      assert.ok((sentAt[1] ?? 0) >= late.settledAt(), "the retry follows the abandoned attempt");
+      yield* assertInvariant;
+    }),
+    { needs: interleave, timeout: 15_000 },
+  ),
+  behavior(
+    "51",
+    "a grant arriving while an earlier grant's last attempt is unsettled: it waits and adopts that attempt's pair; no request overlaps it",
+    Effect.gen(function* () {
+      yield* seedAt();
+      yield* (yield* ShopifyFake).script(
+        Array.from({ length: 2 }, () => ({
+          route: "token" as const,
+          status: 503,
+          body: { error: "down" },
+        })),
+      );
+      const late = yield* lateTokenCall({ index: 2, delayMs: 7000 });
+      assert.equal(yield* failureOf(ensure), "ShopifyUnavailableError");
+      assert.equal(late.settledAt(), Infinity, "the abandoned attempt is still unsettled");
+      assert.equal((yield* ensure).accessToken, "shpat_1");
+      assert.deepEqual(grantsOf(yield* calls), [REFRESH_GRANT, REFRESH_GRANT, REFRESH_GRANT]);
+      assert.equal((yield* storedRow).refreshToken, "shprt_1");
+      yield* assertInvariant;
+    }),
+    { needs: interleave, timeout: 20_000 },
+  ),
+  behavior(
+    "51",
+    "a first install whose last exchange outlived its retries: the merchant's next exchange adopts its pair, fetches shopGid and writes the row, with no second exchange",
+    Effect.gen(function* () {
+      yield* (yield* ShopifyFake).script(
+        Array.from({ length: 2 }, () => ({
+          route: "token" as const,
+          status: 503,
+          body: { error: "down" },
+        })),
+      );
+      const late = yield* lateTokenCall({ index: 2, delayMs: 7000 });
+      assert.equal(yield* failureOf(authenticate), "ShopifyUnavailableError");
+      assert.equal(late.settledAt(), Infinity, "the abandoned exchange is still unsettled");
+      assert.deepEqual(yield* authenticate, { shop: SHOP, shopGid: FAKE_SHOP_GID });
+      assert.deepEqual(grantsOf(yield* calls), [
+        TOKEN_EXCHANGE_GRANT,
+        TOKEN_EXCHANGE_GRANT,
+        TOKEN_EXCHANGE_GRANT,
+        "graphql",
+      ]);
+      const row = yield* storedRow;
+      assert.equal(row.accessToken, "shpat_1");
+      assert.equal(row.shopGid, FAKE_SHOP_GID);
+      assert.equal(row.scope, FAKE_SCOPE);
+      yield* assertInvariant;
+    }),
+    { needs: interleave, timeout: 20_000 },
+  ),
+  behavior(
+    "51",
+    "an adopted exchange whose scope differs from the stored one: its scope is written with its pair",
+    Effect.gen(function* () {
+      yield* seedAt();
+      yield* (yield* ShopifyFake).script(
+        Array.from({ length: 2 }, () => ({
+          route: "token" as const,
+          status: 503,
+          body: { error: "down" },
+        })),
+      );
+      const late = yield* lateTokenCall({ index: 2, delayMs: 7000 });
+      assert.equal(yield* failureOf(authenticate), "ShopifyUnavailableError");
+      assert.equal(late.settledAt(), Infinity, "the abandoned exchange is still unsettled");
+      assert.notEqual(FAKE_SCOPE, "read_orders");
+      yield* authenticate;
+      assert.deepEqual(grantsOf(yield* calls), [
+        TOKEN_EXCHANGE_GRANT,
+        TOKEN_EXCHANGE_GRANT,
+        TOKEN_EXCHANGE_GRANT,
+      ]);
+      const row = yield* storedRow;
+      assert.equal(row.accessToken, "shpat_1");
+      assert.equal(row.scope, FAKE_SCOPE);
+      yield* assertInvariant;
+    }),
+    { needs: interleave, timeout: 20_000 },
+  ),
+];
+
 /** A stored token with an hour left: an Admin call needs no grant first. */
 const seedFresh = Effect.gen(function* () {
   yield* seedAt({
@@ -859,12 +1055,13 @@ const admin: readonly RequiredBehavior[] = [
 
 /**
  * Every authentication case: `ensureSession` (9–14, 17, 18, 20–24, 26, 27, 49), the merchant
- * path (28, 29, 31–38, 50) and `adminGraphql` (39–45). Webhooks (46–48) arrive with `Webhooks`.
+ * path (28, 29, 31–38, 50), abandoned grant attempts (51) and `adminGraphql` (39–45). Webhooks (46–48) arrive with `Webhooks`.
  */
 export const AUTH_BEHAVIORS: readonly RequiredBehavior[] = [
   ...ensureWithoutGrant,
   ...ensureRefreshing,
   ...ensureInFlight,
   ...merchantPath,
+  ...abandonedAttempts,
   ...admin,
 ];
