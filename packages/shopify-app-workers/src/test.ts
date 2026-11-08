@@ -12,6 +12,8 @@ export {
   BEHAVIOR_SHOP_GID,
   type RequiredBehavior,
 } from "./test/auth-behaviors.ts";
+export { APP_BEHAVIORS } from "./test/app-behaviors.ts";
+export { BEHAVIOR_CATALOG, BEHAVIOR_PROBE_TOPIC, behaviorApp } from "./test/behavior-app.ts";
 export {
   FAKE_SHOPIFY_API_KEY,
   FAKE_SHOPIFY_API_SECRET,
@@ -34,8 +36,18 @@ export {
   TOKEN_EXCHANGE_GRANT,
 } from "./test/shopify-fake.ts";
 export {
+  currentMonth,
+  FAKE_APP_HANDLE,
+  fakePlanSelectionUrl,
+  PartnerAnswer,
+  PartnerFake,
+} from "./test/partner-fake.ts";
+export {
   type HarnessCapability,
+  type HarnessDelivery,
+  type HarnessLogLine,
   type HeldWrite,
+  type HookName,
   type SeedInstallation,
   ShopifyHarness,
   type ShopifyHarnessShape,

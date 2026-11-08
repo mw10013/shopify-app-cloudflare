@@ -17,12 +17,36 @@ const INTERNAL = new Set([
   "unavailable",
   "crossDefects",
   "GrantorProbe",
+  "isAlchemyRuntime",
+  "bestEffort",
+  "cachedStatus",
+  "planHandleExpiresAt",
+  "planSelectionHref",
+  "PARTNER_RETRIES",
+  "STALE_PLAN_CONCURRENCY",
+  "layerHttpClient",
 ]);
 
 describe("/backend", () => {
-  it("exports tier 1 and none of its internals", () => {
+  it("exports both tiers and none of their internals", () => {
     const exported = Object.keys(Backend);
-    for (const name of ["Shopify", "ShopifyAccess", "AppInstallations", "AdminToken"])
+    for (const name of [
+      "Shopify",
+      "ShopifyAccess",
+      "AppInstallations",
+      "AdminToken",
+      "ShopifyApp",
+      "SubscriptionPlan",
+      "MerchantGate",
+      "Webhooks",
+      "PartnerApi",
+      "PartnerConfig",
+      "BUILT_IN_TOPICS",
+      "MalformedWebhookError",
+      "decodePayload",
+      "MerchantAuthenticated",
+      "AuthenticateMerchantInput",
+    ])
       assert.include(exported, name);
     assert.deepStrictEqual(
       exported.filter((name) => INTERNAL.has(name)),

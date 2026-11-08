@@ -64,7 +64,12 @@ export interface ValidatedWebhook {
 }
 
 /** The spans whose lines name a Shopify outage. */
-export type ShopifySpan = "Shopify.adminGraphql" | "ShopGrantor.exchange" | "ShopGrantor.ensure";
+export type ShopifySpan =
+  | "Shopify.adminGraphql"
+  | "ShopGrantor.exchange"
+  | "ShopGrantor.ensure"
+  | "PartnerApi.activeSubscription"
+  | "MerchantGate.authenticateMerchant";
 
 /** The app's credentials, as Shopify CLI or a deployed stage binds them. Scopes are the app configuration's. */
 export interface ShopifyCredentials {
@@ -318,7 +323,7 @@ const make = (credentials: ShopifyCredentials) =>
  * Whether this code runs in a Worker Alchemy built: its bundler folds the global to `true`. The
  * same check as devkit's `isAlchemyRuntime`, which the package does not depend on at run time.
  */
-const isAlchemyRuntime = () =>
+export const isAlchemyRuntime = () =>
   // oxlint-disable-next-line no-underscore-dangle -- the global's name is Alchemy's
   (globalThis as { readonly __ALCHEMY_RUNTIME__?: unknown }).__ALCHEMY_RUNTIME__ === true;
 
