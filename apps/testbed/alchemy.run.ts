@@ -7,6 +7,7 @@ import {
 } from "@mw10013/devkit/cloudflare/deployed-stack";
 import { environmentOf, workerNameOf } from "@mw10013/devkit/cloudflare/stage";
 import {
+  bindE2eSession,
   bindShopifyApp,
   deployedShopifyApp,
   fakeShopifyApp,
@@ -17,18 +18,10 @@ import {
 import * as Alchemy from "alchemy";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
-import * as FileSystem from "effect/FileSystem";
 import * as Match from "effect/Match";
 import * as Option from "effect/Option";
-import * as Schema from "effect/Schema";
 
 import { backendWorkerFor } from "#e2e/backend-worker.ts";
-import {
-  E2E_SESSION_BINDING,
-  E2E_SESSION_FILE,
-  e2eSessionEnv,
-  E2eSessionJson,
-} from "#e2e/session.ts";
 
 import StageEnv from "./stacks/stage-env.ts";
 
@@ -115,20 +108,6 @@ const partnerFor = Effect.gen(function* () {
   );
 });
 
-/**
- * The e2e session `vp run e2e:start` wrote, on `e2e` only, and none on every other stage or when
- * the file is absent (a bare `alchemy destroy`), when the status route answers every request 401.
- */
-const e2eSessionFor = Effect.gen(function* () {
-  if ((yield* environmentOf(yield* Alchemy.Stage)) !== "e2e") return Option.none();
-  const fs = yield* FileSystem.FileSystem;
-  const file = new URL(E2E_SESSION_FILE, import.meta.url);
-  if (!(yield* fs.exists(file.pathname))) return Option.none();
-  return Option.some(
-    yield* Schema.decodeEffect(E2eSessionJson)(yield* fs.readFileString(file.pathname)),
-  );
-});
-
 export default Alchemy.Stack(
   "testbed",
   { providers: stageProviders, state: stageState, secrets: deployedSecrets },
@@ -141,9 +120,9 @@ export default Alchemy.Stack(
       app: yield* shopifyAppFor(website.url),
       partner: yield* partnerFor,
     });
-    const session = yield* e2eSessionFor;
-    if (Option.isSome(session))
-      yield* backend.bind(E2E_SESSION_BINDING, { env: e2eSessionEnv(session.value) });
+    // The session `vp run e2e:start` wrote, which gates the e2e routes only `e2e` serves.
+    if ((yield* environmentOf(yield* Alchemy.Stage)) === "e2e")
+      yield* bindE2eSession(backend, new URL(".", import.meta.url));
     return { websiteUrl: website.url.as<string>() };
   }).pipe(Effect.orDie),
 );

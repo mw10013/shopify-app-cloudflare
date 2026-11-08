@@ -204,6 +204,7 @@ describe("the built package", () => {
       ["./website", "website.ts"],
       ["./client", "client.ts"],
       ["./stack", "stack.ts"],
+      ["./test/e2e/backend", "test-e2e-backend.ts"],
     ] as const) {
       const baseline = NODE_ONLY.filter((name) => reachedPackages(entry).includes(name));
       assert.deepStrictEqual(

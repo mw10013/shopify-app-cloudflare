@@ -21,7 +21,9 @@
     "./client": "./src/client.ts",
     "./test": "./src/test.ts",
     "./test/node": "./src/test-node.ts",
-    "./test/e2e": "./src/test-e2e.ts"
+    "./test/e2e": "./src/test-e2e.ts",
+    "./test/e2e/backend": "./src/test-e2e-backend.ts",
+    "./test/e2e/server": "./src/test-e2e-server.ts"
   },
   "scripts": {
     "build": "vpx scripts/build.ts",

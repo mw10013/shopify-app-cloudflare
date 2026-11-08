@@ -5,14 +5,15 @@ import type { OxlintOverride } from "vite-plus/lint";
 /**
  * Keeps `files` from importing the `forbidden` runtime directories under the testbed's `src/`,
  * which would put one Worker's code in another's bundle, and the package's test support, which
- * would put `ShopifyTestDoor` and the fakes in a production Worker. An override replaces the base
- * `no-restricted-imports` options, so it carries {@link baseRestrictions} again.
+ * would put `ShopifyTestDoor` and the fakes in a production Worker; `testEntries` are the test
+ * support entries `files` may still import. An override replaces the base `no-restricted-imports`
+ * options, so it carries {@link baseRestrictions} again.
  */
 const runtimeBoundary = (
   files: string,
   forbidden: readonly string[],
   message: string,
-  options: { allowTypeImports?: boolean } = {},
+  options: { allowTypeImports?: boolean; testEntries?: readonly string[] } = {},
 ): OxlintOverride => ({
   files: [files],
   rules: {
@@ -22,9 +23,21 @@ const runtimeBoundary = (
         ...baseRestrictions,
         patterns: [
           ...baseRestrictions.patterns,
-          { group: forbidden.map((dir) => `#${dir}/**`), message, ...options },
           {
-            group: ["@mw10013/shopify-app-workers/test", "@mw10013/shopify-app-workers/test/**"],
+            group: forbidden.map((dir) => `#${dir}/**`),
+            message,
+            ...(options.allowTypeImports === undefined
+              ? {}
+              : { allowTypeImports: options.allowTypeImports }),
+          },
+          {
+            group: [
+              "@mw10013/shopify-app-workers/test",
+              "@mw10013/shopify-app-workers/test/**",
+              ...(options.testEntries ?? []).map(
+                (entry) => `!@mw10013/shopify-app-workers/${entry}`,
+              ),
+            ],
             message: "Test support stays in test/; a production Worker never carries it.",
           },
         ],
@@ -154,6 +167,7 @@ const PACKAGE_NODE_ONLY = [
 ];
 const PACKAGE_E2E = [
   "packages/shopify-app-workers/src/test-e2e.ts",
+  "packages/shopify-app-workers/src/test-e2e-server.ts",
   "packages/shopify-app-workers/src/test/e2e/**",
 ];
 const NODE_SQLITE = {
@@ -241,6 +255,8 @@ export default defineConfig({
         "apps/testbed/src/e2e/**",
         ["web"],
         "The e2e stage's Backend never imports the Website.",
+        // The e2e stage's Backend is the one Worker that serves the pack's e2e routes.
+        { testEntries: ["test/e2e/backend"] },
       ),
       packageBoundary(
         // Only `/test/node` runs under Node alone; every other entry can reach a workerd bundle.
