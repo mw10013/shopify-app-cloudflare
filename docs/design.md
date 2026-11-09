@@ -14,7 +14,7 @@ The package holds everything an embedded app on this stack needs and no app shou
 - The Website side: App Bridge, `shopifyMerchant` and its refusals, hydration and Polaris quirks.
 - Test support: the Shopify fakes, the required-behavior suites and an end-to-end spec pack that each app runs in its own wiring.
 
-An app supplies its config and secrets, its plan catalog, lifecycle hooks (before and after uninstall, plan changed), its tables that cascade from `AppInstallation`, its extra webhook topics and its own shop actor class. Whether the app's shop actor composes layers from the package or extends a class from it is still open; it gets a design pass with competing sketches when that layer is extracted.
+An app supplies its config and secrets, its plan catalog, lifecycle hooks (before and after uninstall, plan changed), its tables that cascade from `AppInstallation`, its extra webhook topics and its own shop actor class. How the app's shop actor takes the package's machinery is in [The shop actor](#the-shop-actor).
 
 The work starts with authentication, billing and webhooks, then the shop actor machinery and client, then the Website side.
 
@@ -51,12 +51,73 @@ The package is developed in `apps/testbed`, a minimal embedded app with its own 
 
 The testbed can exercise paths that product apps cannot run lightly: uninstall and reinstall, token expiry, plan changes and bad HMACs. Its staging stage proves the deploy path through Workers Builds before any app takes a release. New apps start from it.
 
+## The shop actor
+
+Each app has one Durable Object per shop, its shop actor. A merchant's browser holds one WebSocket to it and calls its procedures over Effect RPC. When a write lands, the actor pushes a notice naming the stale data, and every open tab reads it again. motio, bang and baton each wrote this machinery themselves, and on 2026-11-08 their copies of the socket transport differed by 23 lines in baton and 110 in bang.
+
+The package owns what every app writes the same way:
+
+- The socket transport. It covers who is calling, the socket a write came in on, and what happens to a request when its socket closes.
+- The Backend's upgrade path. It reads the shop from the URL, runs the merchant gate, and forwards the socket to the actor. A refusal becomes a close code.
+- The actor's lifecycle. It refuses a shop that is not installed, runs the app's migrations on first activation, closes every socket with `CONNECTION_CLOSE_UNINSTALLED` and deletes storage and the alarm on uninstall, and closes sockets with `CONNECTION_CLOSE_REVOKED` when the plan changes.
+- Notices. A tab refreshes each key at most once every 3 seconds and holds keys while hidden. The tab that made the write gets its notice at once.
+- The browser client, without React. It covers connection state, retry by close code, and notices that refresh what is on screen.
+
+The app owns its procedures, its tables, its reactivity keys, its alarm and its pages.
+
+### The app declares the class, the package builds its body
+
+The app writes its own class and hands the package what differs:
+
+```ts
+export class ShopActor extends Cloudflare.DurableObject<ShopActor, ShopActorShape>()("ShopActor") {}
+
+export const ShopActorLive = ShopActor.make(
+  ShopActorKit.make({
+    rpcs: MotioRpcs,
+    migrations,
+    build: ({ shop, sql, notify }) =>
+      Effect.gen(function* () {
+        const scan = yield* Scan.make({ shop, sql, notify });
+        return { handlers: motioHandlers(scan), alarm: scan.tick };
+      }),
+  }),
+);
+```
+
+The other way is a base class the app extends, overriding `handlers` and `alarm`. That way fails on two counts. Alchemy's `Cloudflare.DurableObject` builds the class from an Effect, so a base class would have to wrap Alchemy's own factory. And the grantor already composes this way, so the package would mix two styles for one kind of thing.
+
+The class name stays `ShopActor` in every app. A Durable Object class rename or delete blocks a Workers rollback, so moving an app onto the kit must show no class created or deleted in `alchemy plan`.
+
+### Roles
+
+motio and bang have one role: the merchant, someone holding a Shopify ID token for the shop. baton adds members and displaces an older socket when the same member connects twice. The kit takes the role as a type parameter, with merchant as the default, and takes displacement as an optional hook. baton can then join without a breaking change. Neither motio nor bang writes anything for roles.
+
+### Close codes are a contract
+
+The Website and the Backend deploy separately, so for a while a browser can run a different version than the actor. The close codes are therefore fixed. A new release can add a code, but never renumbers or removes one.
+
+| Code | Name | Browser does |
+|---|---|---|
+| 1013 | `TRY_AGAIN` | retries |
+| 3401 | `REVOKED` | reconnects through the gate, which reads the new plan |
+| 4401 | `UNAUTHENTICATED` | stops |
+| 4402 | `PAYMENT_REQUIRED` | goes to plan selection |
+| 4403 | `FORBIDDEN` | stops |
+| 4404 | `NOT_A_MEMBER` | stops (baton only) |
+| 4409 | `DISPLACED` | stops; another tab took the socket (baton only) |
+| 4410 | `UNINSTALLED` | stops; the actor and its data are gone |
+
+### Live reads go through route loaders
+
+A page reads its data in its TanStack route loader, and a notice for one of its keys makes the router load it again. motio and baton do this (`live-route.ts`). bang reads through atom queries instead. Route loaders win because the page's first render already has its data from server rendering, and the Website side of the package (step 8, part B) is built on the router anyway.
+
 ## Production rules
 
 These rules hold for every release, because each app's production upgrades on its own schedule and must be able to roll back:
 
 - Migrations are forward only and expand before they contract. A Workers rollback does not revert D1, so the previous app version must still work against the new schema. A release removes a column only after every app's production runs a release that no longer reads it.
-- The grantor Durable Object's class name never changes. A Durable Object class change blocks a Workers rollback.
+- The grantor's and the shop actor's Durable Object class names never change. A Durable Object class change blocks a Workers rollback.
 - During a gradual deploy only one version of a Durable Object runs, so the grantor accepts calls from the old and the new Worker version.
 - The package pins the Admin API version, and a check holds each app's `[webhooks] api_version` equal to it.
 
