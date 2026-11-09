@@ -173,6 +173,7 @@ const PACKAGE_DEV = [
   "packages/shopify-app-workers/src/dev/**",
   "packages/shopify-app-workers/src/test-e2e.ts",
   "packages/shopify-app-workers/src/test-e2e-server.ts",
+  "packages/shopify-app-workers/src/test-e2e-config.ts",
   "packages/shopify-app-workers/src/test/e2e/**",
 ];
 const NODE_SQLITE = {

@@ -1,8 +1,9 @@
 import { execFileSync } from "node:child_process";
 
 import cloudflare from "@alchemy.run/cloudflare-runtime/vite";
+import { integProject } from "@mw10013/rigging/cloudflare/test";
 import { app } from "@mw10013/rigging/core/app";
-import { testRunDirectory } from "@mw10013/rigging/core/test-runs";
+import { TEST_RESULTS_GLOB, testRun, unitProject } from "@mw10013/rigging/core/test";
 import { webEnvironmentSync } from "@mw10013/shopify-app-workers/dev/web";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
@@ -87,52 +88,19 @@ export default defineConfig(({ command, mode, isPreview }) => {
           ],
     cacheDir: command === "serve" ? viteCacheDir() : undefined,
     // No port: `alchemy dev` picks Vite's own behind its public proxy, which serves the lease's.
-    // Test runs write HTML reports and traces into `.test-results/`; watched, each write would
-    // full-reload every open app page, mid-test.
     server:
       command === "serve"
-        ? { allowedHosts: allowedHosts(), watch: { ignored: ["**/.test-results/**"] } }
+        ? { allowedHosts: allowedHosts(), watch: { ignored: [TEST_RESULTS_GLOB] } }
         : undefined,
     test: {
+      ...testRun(root),
       passWithNoTests: true,
-      ...(mode === "test"
-        ? {
-            reporters: [
-              "default",
-              ["json", { outputFile: `${testRunDirectory("test", [], root)}/results.json` }],
-            ],
-          }
-        : {}),
       projects: [
-        { test: { name: "unit", include: ["test/unit/**/*.test.ts"] } },
-        {
-          // Deploys the test Backend in workerd through @alchemy.run/test. Files run in parallel,
-          // each on its own stage (`fileStage` in test/integ/), one workerd each. ALCHEMY_DEV is
-          // read by the Worker's init at plan, so the test process must set it. ALCHEMY_TEST_STAGE
-          // is the checkout's `test` stage, which each file's stage extends; it is spawned only
-          // under test, so `vp build` and `vp run dev` do not run the script.
-          test: {
-            name: "integ",
-            // `build-website.ts` builds the Website that `website-http.test.ts` serves.
-            globalSetup: [
-              "@mw10013/rigging/cloudflare/integ-setup",
-              "./test/integ/build-website.ts",
-            ],
-            include: ["test/integ/**/*.test.ts"],
-            env:
-              mode === "test"
-                ? { ALCHEMY_DEV: "1", ALCHEMY_TEST_STAGE: stageOf("test") }
-                : { ALCHEMY_DEV: "1" },
-            // @alchemy.run/test/Vitest registers its sidecar cleanup after the file's afterAll
-            // hooks and expects them to run in that order; Vitest's default runs them in reverse,
-            // so `destroy` would wait on a sidecar already closed.
-            sequence: { hooks: "list" },
-            testTimeout: 30_000,
-            hookTimeout: 120_000,
-            fileParallelism: true,
-            pool: "forks",
-          },
-        },
+        unitProject(),
+        // `build-website.ts` builds the Website that `website-http.test.ts` serves.
+        integProject(() => stageOf("test"), {
+          globalSetup: ["@mw10013/rigging/cloudflare/integ-setup", "./test/integ/build-website.ts"],
+        }),
       ],
     },
   };

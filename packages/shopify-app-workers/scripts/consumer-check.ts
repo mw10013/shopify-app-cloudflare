@@ -42,6 +42,7 @@ const SUBPATHS = [
   "test/e2e",
   "test/e2e/backend",
   "test/e2e/server",
+  "test/e2e/config",
   "dev/agent-chrome",
   "dev/app-handle",
   "dev/berth",
@@ -61,6 +62,7 @@ const NODE_REQUIRED: readonly string[] = [
   "test/node",
   "test/e2e",
   "test/e2e/server",
+  "test/e2e/config",
   ...SUBPATHS.filter((subpath) => subpath.startsWith("dev/")),
 ];
 

@@ -1,8 +1,7 @@
-import { spawnSync } from "node:child_process";
 import { Resolver } from "node:dns/promises";
 import path from "node:path";
 
-import { type App, app } from "@mw10013/rigging/core/app";
+import { app } from "@mw10013/rigging/core/app";
 /**
  * This checkout's dev and e2e servers. rigging server runs each (`docs/server.md` in rigging): one
  * Shopify CLI `app dev` per environment, detached, logged to `.rigging/servers/<environment>/log/current`. The
@@ -295,27 +294,6 @@ export const runningServer = Effect.fn("Server.runningServer")(function* (
     Effect.mapError(() => notRunning(environment)),
   );
 });
-
-/**
- * For configs that cannot run an effect (Playwright's). A config passes
- * `app(import.meta.dirname)`, so the status is the config's app's even when another directory
- * loads the config.
- */
-export const runningServerSync = (
-  environment: WebEnvironment,
-  { root }: App = app(),
-): RunningServer => {
-  const args = ["status", environment];
-  const run = spawnSync(riggingBin(), ["server", ...args], {
-    cwd: root,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "inherit"],
-  });
-  if (run.error !== undefined)
-    throw new Error("rigging server did not run: install @mw10013/rigging in this app");
-  const status = Result.getOrThrowWith(serverOutput(args, run.stdout), (e) => new Error(e.message));
-  return Option.getOrThrowWith(runningOf(status), () => new Error(notRunning(environment).message));
-};
 
 /**
  * The app's one config. The e2e lease names another file, which a start writes as a fresh copy of

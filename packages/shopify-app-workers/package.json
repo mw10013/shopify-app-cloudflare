@@ -1,6 +1,6 @@
 {
   "name": "@mw10013/shopify-app-workers",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -31,6 +31,7 @@
     "./test/e2e": "./src/test-e2e.ts",
     "./test/e2e/backend": "./src/test-e2e-backend.ts",
     "./test/e2e/server": "./src/test-e2e-server.ts",
+    "./test/e2e/config": "./src/test-e2e-config.ts",
     "./dev/agent-chrome": "./src/dev/agent-chrome.ts",
     "./dev/app-handle": "./src/dev/app-handle.ts",
     "./dev/berth": "./src/dev/berth.ts",
@@ -75,7 +76,7 @@
     "@effect/atom-react": "^4.1.2",
     "@effect/platform-node": "^4.1.2",
     "@effect/sql-sqlite-do": "^4.1.2",
-    "@mw10013/rigging": ">=0.2.2 <1",
+    "@mw10013/rigging": ">=0.4.0 <1",
     "@tanstack/react-router": "^1.170.41",
     "alchemy": "2.0.0-beta.85",
     "effect": "^4.1.2",

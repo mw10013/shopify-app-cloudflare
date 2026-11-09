@@ -168,8 +168,8 @@ catalogs:
       specifier: 2.0.0-beta.85
       version: 2.0.0-beta.85
     '@mw10013/rigging':
-      specifier: 0.2.2
-      version: 0.2.2
+      specifier: 0.4.0
+      version: 0.4.0
     '@types/node':
       specifier: 26.6.4
       version: 26.6.4
@@ -205,7 +205,7 @@ importers:
     devDependencies:
       '@mw10013/rigging':
         specifier: 'catalog:'
-        version: 0.2.2(866a05535beb34b0b2ddaf7a21e4bc69)
+        version: 0.4.0(ae63ea15860081aa1708773a59610c75)
       '@tanstack/eslint-plugin-router':
         specifier: 1.162.0
         version: 1.162.0(eslint@10.14.0(jiti@2.7.0))(typescript@7.0.2)
@@ -244,7 +244,7 @@ importers:
         version: 4.1.2(effect@4.1.2)
       '@mw10013/rigging':
         specifier: 'catalog:'
-        version: 0.2.2(866a05535beb34b0b2ddaf7a21e4bc69)
+        version: 0.4.0(ae63ea15860081aa1708773a59610c75)
       '@mw10013/shopify-app-workers':
         specifier: workspace:*
         version: link:../../packages/shopify-app-workers
@@ -348,7 +348,7 @@ importers:
         version: 4.1.2(effect@4.1.2)(vitest@5.0.5)
       '@mw10013/rigging':
         specifier: 'catalog:'
-        version: 0.2.2(866a05535beb34b0b2ddaf7a21e4bc69)
+        version: 0.4.0(ae63ea15860081aa1708773a59610c75)
       '@shopify/polaris-types':
         specifier: 2.0.0
         version: 2.0.0
@@ -932,15 +932,15 @@ packages:
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
 
-  '@mw10013/rigging@0.2.2':
-    resolution: {integrity: sha512-gIYMo48HX63AuCc3OnS6CFgw0FIw/im6wuroQQTDYIdhJirdALUqlOkrPbnWGoGNIgSc2zDUbL+00jFgMM7w4w==}
+  '@mw10013/rigging@0.4.0':
+    resolution: {integrity: sha512-4swu+Jy5DOouF73bGcAgYZFF8+rDPlsX/P5xGZZ2itqICV4eCdPDdR+mUHRLn5Tx9siC4VwkbrPlfd+LKFTwHg==}
     hasBin: true
     peerDependencies:
       '@alchemy.run/cloudflare': 2.0.0-beta.85
       '@effect/platform-node': ^4.0.5
+      '@vitest/browser-playwright': ^5.0.5
       alchemy: 2.0.0-beta.85
       effect: ^4.0.5
-      playwright: ^1.64.1
       vite: '*'
       vite-plus: ^1.4.0
       vitest: 5.0.5
@@ -949,9 +949,9 @@ packages:
         optional: true
       '@effect/platform-node':
         optional: true
-      alchemy:
+      '@vitest/browser-playwright':
         optional: true
-      playwright:
+      alchemy:
         optional: true
       vite:
         optional: true
@@ -3600,7 +3600,7 @@ snapshots:
 
   '@keyv/serialize@1.1.1': {}
 
-  '@mw10013/rigging@0.2.2(866a05535beb34b0b2ddaf7a21e4bc69)':
+  '@mw10013/rigging@0.4.0(ae63ea15860081aa1708773a59610c75)':
     dependencies:
       effect: 4.1.2
       vite-plus: 1.4.0(@types/node@26.6.4)(@vitest/ui@5.0.5)(jiti@2.7.0)(playwright@1.64.1)(typescript@7.0.2)(yaml@2.9.1)
@@ -3608,7 +3608,6 @@ snapshots:
       '@alchemy.run/cloudflare': 2.0.0-beta.85(patch_hash=a6b705172c5db3b42c11875799094f8b0689a40260790fc9c257a008ff373dcc)(@effect/platform-bun@4.1.2(effect@4.1.2))(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.1))(@types/node@26.6.4)(@voidzero-dev/vite-plus-core@1.4.0(@types/node@26.6.4)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(alchemy@2.0.0-beta.85(@effect/platform-bun@4.1.2(effect@4.1.2))(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.1))(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.4.0(@types/node@26.6.4)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(effect@4.1.2)(ws@8.22.1))(effect@4.1.2)(typescript@7.0.2)
       '@effect/platform-node': 4.1.2(effect@4.1.2)(redis@6.3.1)
       alchemy: 2.0.0-beta.85(@effect/platform-bun@4.1.2(effect@4.1.2))(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.1))(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.4.0(@types/node@26.6.4)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(effect@4.1.2)(ws@8.22.1)
-      playwright: 1.64.1
       vite: '@voidzero-dev/vite-plus-core@1.4.0(@types/node@26.6.4)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1)'
       vitest: 5.0.5(@types/node@26.6.4)(@vitest/browser-preview@5.0.5)(@vitest/ui@5.0.5)(@voidzero-dev/vite-plus-core@1.4.0(@types/node@26.6.4)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))
 

@@ -1,58 +1,14 @@
-import { chmodSync, readFileSync } from "node:fs";
 import path from "node:path";
-import process from "node:process";
 
 import { app } from "@mw10013/rigging/core/app";
-import { testRunDirectory } from "@mw10013/rigging/core/test-runs";
-import { appHandle } from "@mw10013/shopify-app-workers/dev/app-handle";
-import { acquireSync } from "@mw10013/shopify-app-workers/dev/berth";
-import { runningServerSync } from "@mw10013/shopify-app-workers/dev/server";
-import {
-  E2E_PREFLIGHT,
-  type E2eApp,
-  type E2eOptions,
-  e2eProject,
-  e2eProjects,
-  e2eRoutes,
-} from "@mw10013/shopify-app-workers/test/e2e";
-import * as Option from "effect/Option";
+import { e2eProject } from "@mw10013/shopify-app-workers/test/e2e";
+import { shopifyE2eConfig } from "@mw10013/shopify-app-workers/test/e2e/config";
 import { defineConfig } from "playwright/test";
 
 import { catalog } from "#backend/app.ts";
 import { STORE_SCOPES } from "#scripts/lib/store-auth.ts";
 
-const checkout = app(import.meta.dirname);
-const { root } = checkout;
-const RESTART = "vp run e2e:stop && vp run e2e:start";
-
-/** This checkout's e2e store, from its berth lease. */
-const store = acquireSync("e2e", checkout).store;
-const server = runningServerSync("e2e", checkout);
-const tunnel = Option.getOrThrowWith(
-  server.url,
-  () => new Error(`the e2e server published no tunnel (no APP_URL): ${RESTART}`),
-);
-/** The e2e routes, with the token of the session the running server was started with. */
-const routes = e2eRoutes(root, store);
-
-const clientIdOf = (toml: string) =>
-  Option.getOrThrowWith(
-    Option.fromNullishOr(
-      /^client_id = "(?<id>[0-9a-f]{32})"$/mu.exec(readFileSync(toml, "utf8"))?.groups?.id,
-    ),
-    () => new Error(`${toml} has no client_id = "<32 hex>" line`),
-  );
-const appToml = path.join(root, "shopify.app.toml");
-const clientId = clientIdOf(appToml);
-/**
- * The toml the e2e server serves (`berth.json`), whose app's secret the Backend checks the HMAC
- * with: the webhook trigger signs for it. `e2e:start` writes it as a copy of `shopify.app.toml`.
- */
-const e2eToml = path.join(root, "shopify.app.e2e.toml");
-if (clientIdOf(e2eToml) !== clientId)
-  throw new Error(
-    `${e2eToml} names another app than ${appToml}, so Shopify would sign the e2e webhooks with another secret than the server checks: ${RESTART}`,
-  );
+const { root } = app(import.meta.dirname);
 
 /**
  * The catalog's plans, cheapest first, with their names on the Partner Dashboard, which head their
@@ -67,50 +23,22 @@ if (PLANS.map(({ handle }) => handle).join(",") !== catalog.handles.join(","))
     `playwright.config.ts names plans the catalog does not sell: ${catalog.handles.join(", ")}`,
   );
 
-const testbed: E2eApp = {
-  store,
-  appHandle: appHandle(appToml),
-  clientId,
+const { app: testbed, config } = shopifyE2eConfig({
+  root,
   plans: PLANS,
-  server: { port: server.port, tunnel },
-  status: routes.status,
   // shop/update only logs, so Shopify's sample of it is safe to deliver.
-  webhooks: { config: e2eToml, topics: ["shop/update"], record: routes.record },
-  restart: { command: ["vpx", "scripts/e2e.ts", "reinstall"], cwd: root },
+  webhookTopics: ["shop/update"],
   storeScopes: STORE_SCOPES,
-};
+});
 
 /**
- * This run's results, kept until 30 newer runs exist: `results.json`, `report/`
- * (`vp exec playwright show-report <dir>/report`) and `results/` (each failed test's trace).
+ * Runs the package's end-to-end spec pack and the testbed's own specs against this checkout's
+ * long-lived e2e server (`vp run e2e:start`, `scripts/e2e.ts`) in the agent Chrome.
  */
-const run = testRunDirectory("e2e", ["results/.last-run.json"], root);
-// Only this user reads a run's results and report: a failure's error context can name the store's
-// data, and an opted-in trace (`E2E_TRACE=1`) holds the Shopify admin login.
-chmodSync(run, 0o700);
-if (process.env.TEST_WORKER_INDEX === undefined) console.log(`e2e results: ${run}`);
-
-/**
- * Runs the package's end-to-end spec pack against this checkout's long-lived e2e server
- * (`vp run e2e:start`, `scripts/e2e.ts`) in the agent Chrome. Playwright does not start the
- * server: the config fails to load when it is not running, and the pack's preflight fails the
- * run in one line when the server, its tunnel, the store's store auth or the agent Chrome is not
- * ready.
- */
-export default defineConfig<object, E2eOptions>({
-  globalSetup: E2E_PREFLIGHT,
-  outputDir: `${run}/results`,
-  fullyParallel: false,
-  // Every spec drives the one leased store.
-  workers: 1,
-  forbidOnly: !!process.env.CI,
-  reporter: [
-    ["list"],
-    ["json", { outputFile: `${run}/results.json` }],
-    ["html", { outputFolder: `${run}/report`, open: "never" }],
-  ],
+export default defineConfig({
+  ...config,
   projects: [
-    ...e2eProjects(testbed, root),
+    ...config.projects,
     e2eProject(testbed, root, {
       name: "testbed",
       testDir: path.join(root, "test/e2e"),

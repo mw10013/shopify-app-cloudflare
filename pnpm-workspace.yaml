@@ -4,7 +4,7 @@ packages:
 saveExact: true
 catalog:
   "@alchemy.run/cloudflare": 2.0.0-beta.85
-  "@mw10013/rigging": 0.2.2
+  "@mw10013/rigging": 0.4.0
   "@types/node": 26.6.4
   alchemy: 2.0.0-beta.85
   effect: 4.1.2
@@ -28,4 +28,4 @@ peerDependencyRules:
 patchedDependencies:
   "@alchemy.run/cloudflare@2.0.0-beta.85": patches/@alchemy.run__cloudflare@2.0.0-beta.85.patch
 minimumReleaseAgeExclude:
-  - "@mw10013/rigging@0.2.2"
+  - "@mw10013/rigging@0.4.0"
