@@ -112,6 +112,32 @@ The Website and the Backend deploy separately, so for a while a browser can run 
 
 A page reads its data in its TanStack route loader, and a notice for one of its keys makes the router load it again. motio and baton do this (`live-route.ts`). bang reads through atom queries instead. Route loaders win because the page's first render already has its data from server rendering, and the Website side of the package (step 8, part B) is built on the router anyway.
 
+## The Website side
+
+The Website is each app's TanStack Start Worker: the embedded pages, the auth and webhook routes, and the browser half of the shop actor. motio and the testbed each hold their own copy of the pieces every embedded app needs. On 2026-11-09 the testbed's `shopify.ts` differed from motio's by 160 lines, `shopify-urls.ts` by 81 and `-app-guard.ts` by 89.
+
+The package takes the pieces every app writes the same way:
+
+- Shopify's URLs and headers. These are the embedded app URL, the ID token bounce, the exit-iframe destination, and the document headers (CSP `frame-ancestors`).
+- The App Bridge page and its client calls. The page loads App Bridge; the client calls are `mintIdToken`, `toast` and `showSaveBar`.
+- The merchant guard. A document request with a bearer skips the search checks; one without bounces to Shopify for an ID token; the billing return carries `plan_handle`. It is motio's `documentGuard`.
+- The Backend's refusals mapped to Website answers: 401 bounces, 402 goes to plan selection, 503 shows "Shopify isn't responding".
+- The live route reads. A route names its reactivity keys, a notice reloads its loader, a failed reread keeps the last answer, and a banner says so. `readLiveAnswer` reads the server once, then only the live part over the socket into the last answer. This is baton's `live-route.ts`, a superset of motio's.
+- `ShopSocket`, which opens the socket after hydration, and `SocketBanner`, which shows a lost connection. The banner is baton's: it shows a displaced socket with Reconnect, and a member's 4401 is not an expiry. The app passes its name for the banner's copy.
+- The cross-site check on the socket upgrade route.
+
+The app keeps its pages, its routes and its server functions.
+
+### Two entries: `/website` and `/website/react`
+
+`/website` has no React and no TanStack. It holds the URLs, headers, the App Bridge page, the refusal mapping, and the guard's decision as a plain function of the request's path, search and bearer. `/website/react` holds `ShopSocket`, `SocketBanner` and the live route helpers, which take the app's router. React, `@tanstack/react-router` and `@effect/atom-react` are optional peers of the package, needed only by `/website/react`. A Website that imports only `/website` needs none of them.
+
+### TanStack's server functions stay in the app
+
+TanStack Start's compiler rewrites `createServerFn`, `createMiddleware` and `createIsomorphicFn` calls in the app's source. It splits each into a server half and a client stub. The package ships built JavaScript under `node_modules`. Whether the compiler rewrites calls there is not tested; the design does not depend on it. Each app keeps thin wrappers around the package's plain functions. Each wrapper is a few lines: `authenticateApp`, `getShopifyApp`, `shopifyMerchant`, `embeddedIdToken`, `documentHasBearer`. The guard takes them as inputs, which motio's `AppGuardReads` already does.
+
+Route files stay in the app too, because TanStack's router builds its tree from the app's `routes/` directory. The package gives each route its handler, and the app's file is two lines: `auth.session-token`, `auth.exit-iframe`, `webhooks.$` and `api.actor.$key`.
+
 ## Production rules
 
 These rules hold for every release, because each app's production upgrades on its own schedule and must be able to roll back:
