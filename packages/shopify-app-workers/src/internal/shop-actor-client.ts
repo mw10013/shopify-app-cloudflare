@@ -198,8 +198,9 @@ export const shopActorProtocol =
 /**
  * Names the shop and credential the protocol connects with, and starts the socket state afresh:
  * with `merchantToken`, a merchant's socket carrying a Shopify ID token minted per connect;
- * without, a socket the gate names from the session cookie. The key is set last, since naming it
- * is what lets the protocol connect. Only the socket holder runs it, once per shop and credential,
+ * without, a socket the gate names from the session cookie. The key is cleared first and set
+ * last, since a named key is what lets the protocol connect, so no socket dials with one shop's
+ * key and another's credential. Only the socket holder runs it, once per shop and credential,
  * in the browser, before anything reads a socket atom.
  */
 export const nameSocket = (
@@ -207,6 +208,7 @@ export const nameSocket = (
   key: ShopDomain,
   merchantToken?: Effect.Effect<string>,
 ) => {
+  registry.set(shopKeyAtom, Option.none());
   registry.set(merchantTokenAtom, Option.fromUndefinedOr(merchantToken));
   registry.set(shopKeyAtom, Option.some(key));
   registry.set(socketStateAtom, "connecting");

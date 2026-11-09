@@ -81,7 +81,7 @@ describe("close outcome", () => {
   it.effect.each([
     { code: 1006, state: "lost", reasks: 0 },
     { code: CONNECTION_CLOSE_TRY_AGAIN, state: "lost", reasks: 0 },
-    { code: CONNECTION_CLOSE_REVOKED, state: "lost", reasks: 0 },
+    { code: CONNECTION_CLOSE_REVOKED, state: "lost", reasks: 1 },
     {
       code: CONNECTION_CLOSE_PAYMENT_REQUIRED,
       state: { stopped: CONNECTION_CLOSE_PAYMENT_REQUIRED },
@@ -157,6 +157,24 @@ describe("socket credential", () => {
     });
     assert.isTrue(url.pathname.endsWith(`/${shop}`));
     assert.strictEqual(url.searchParams.get("token"), "id-token");
+  });
+
+  it("naming another shop and credential never dials one shop with the other's credential", async () => {
+    const other = Schema.decodeUnknownSync(ShopDomain)("other-socket.myshopify.com");
+    const registry = AtomRegistry.make();
+    const unmount = registry.mount(Atom.runtime(shopActorProtocol({ allKeys: [] })));
+    nameSocket(registry, shop, Effect.succeed("id-token"));
+    await vi.waitFor(() => {
+      assert.lengthOf(dialed, 1);
+    });
+    nameSocket(registry, other);
+    await vi.waitFor(() => {
+      assert.isTrue(dialed.some((url) => url.includes(other)));
+    });
+    unmount();
+    registry.dispose();
+    for (const dial of dialed.map((url) => new URL(url)))
+      assert.strictEqual(dial.pathname.endsWith(`/${other}`), !dial.searchParams.has("token"));
   });
 });
 

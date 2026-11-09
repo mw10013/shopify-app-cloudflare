@@ -14,6 +14,7 @@ import * as Schedule from "effect/Schedule";
 import type * as Socket from "effect/socket/Socket";
 
 import type { ShopDomain } from "./domain.ts";
+import { CONNECTION_CLOSE_REVOKED } from "./shop-actor-contract.ts";
 
 /**
  * The shop whose actor this registry's client talks to; None until the socket holder names it
@@ -65,13 +66,14 @@ export const lostAtom = Atom.make((get) => {
  *
  * - `Retry`: every close outside 44xx, such as a revoke's 3401 after a plan change, the gate's
  *   1013 or a dropped connection. The reconnect goes back through the gate, which gives the
- *   current answer: after a lapse, 4402.
+ *   current answer: after a lapse, 4402. A 3401 also asks the router again (`reask`), since
+ *   the revoke means what the page was given, such as the plan, has changed.
  * - `Stop`: every 44xx, the gate's refusals (4402 a lapsed plan among them) and the actor's
  *   uninstall. Asking the socket again would get the same answer, so it stays closed and the
  *   page asks the router instead.
  */
 export type CloseOutcome =
-  | { readonly _tag: "Retry" }
+  | { readonly _tag: "Retry"; readonly reask: boolean }
   | { readonly _tag: "Stop"; readonly code: number };
 
 /** The 44xx closes: the gate's refusals, the actor's refusal of an unidentified socket, and its uninstall. */
@@ -82,7 +84,10 @@ const closeCode = (error: Socket.SocketError) =>
 
 export const closeOutcome = (error: Socket.SocketError): CloseOutcome =>
   Option.match(Option.filter(closeCode(error), isRefusal), {
-    onNone: (): CloseOutcome => ({ _tag: "Retry" }),
+    onNone: (): CloseOutcome => ({
+      _tag: "Retry",
+      reask: Option.contains(closeCode(error), CONNECTION_CLOSE_REVOKED),
+    }),
     onSome: (code): CloseOutcome => ({ _tag: "Stop", code }),
   });
 
@@ -105,8 +110,9 @@ export const applyCloseOutcome = (
   Effect.sync(() => {
     Match.value(outcome).pipe(
       Match.tagsExhaustive({
-        Retry: () => {
+        Retry: ({ reask }) => {
           registry.set(socketStateAtom, "lost");
+          if (reask) registry.update(reaskAtom, (n) => n + 1);
         },
         Stop: ({ code }) => {
           registry.set(socketStateAtom, { stopped: code });
