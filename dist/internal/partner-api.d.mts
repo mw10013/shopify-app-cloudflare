@@ -1,10 +1,10 @@
 import { ShopifyUnavailableError } from "./contract.mjs";
 import { ShopDomain, ShopGid } from "./domain.mjs";
 import { PartnerConfig } from "./bindings.mjs";
+import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import "effect/Duration";
 import * as Option from "effect/Option";
-import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import "effect/http/HttpClient";

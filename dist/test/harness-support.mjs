@@ -49,20 +49,24 @@ const expireAccessToken = (installations, shop) => Effect.gen(function* () {
 		refreshTokenExpiresAt: row.refreshTokenExpiresAt
 	});
 });
-/** Hooks that record each call, and die once on a hook a case broke; `reset` forgets both. */
-const recordingHooks = () => {
+/**
+* Hooks that record each call, and die once on a hook a case broke; `reset` forgets both. A call
+* not broken runs `app`'s hook, so an app's own hooks (its shop actors') still run under the
+* recording.
+*/
+const recordingHooks = (app = ShopifyHooks.noop) => {
 	const calls = [];
 	const broken = /* @__PURE__ */ new Set();
-	const run = (hook, call) => Effect.suspend(() => {
+	const run = (hook, call, then) => Effect.suspend(() => {
 		calls.push(call);
-		return broken.delete(hook) ? Effect.die(/* @__PURE__ */ new Error(`${hook}: broken by the case`)) : Effect.void;
+		return broken.delete(hook) ? Effect.die(/* @__PURE__ */ new Error(`${hook}: broken by the case`)) : then;
 	});
 	return {
 		layer: Layer.succeed(ShopifyHooks, {
-			beforeUninstall: (shop) => run("beforeUninstall", `beforeUninstall:${shop}`),
-			afterUninstall: (shop) => run("afterUninstall", `afterUninstall:${shop}`),
-			beforePlanChange: (shop) => run("beforePlanChange", `beforePlanChange:${shop}`),
-			afterPlanRevalidated: ({ shop, changed, next }) => run("afterPlanRevalidated", `afterPlanRevalidated:${shop}:changed=${String(changed)}:next=${next?.handle ?? "none"}`)
+			beforeUninstall: (shop) => run("beforeUninstall", `beforeUninstall:${shop}`, app.beforeUninstall(shop)),
+			afterUninstall: (shop) => run("afterUninstall", `afterUninstall:${shop}`, app.afterUninstall(shop)),
+			beforePlanChange: (shop) => run("beforePlanChange", `beforePlanChange:${shop}`, app.beforePlanChange(shop)),
+			afterPlanRevalidated: (revalidation) => run("afterPlanRevalidated", `afterPlanRevalidated:${revalidation.shop}:changed=${String(revalidation.changed)}:next=${revalidation.next?.handle ?? "none"}`, app.afterPlanRevalidated(revalidation))
 		}),
 		calls: Effect.sync(() => [...calls]),
 		breakHook: (hook) => Effect.sync(() => {

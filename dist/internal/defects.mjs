@@ -1,3 +1,4 @@
+import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 // src/internal/defects.ts
 /**
@@ -6,6 +7,13 @@ import * as Effect from "effect/Effect";
 *
 * @module
 */
+/**
+* Logs a defect at Error with `operation` and re-raises it, so the caller still sees it. A
+* boundary that hands a defect to someone else wraps its methods in this, because nothing else
+* logs one: Effect's `RpcServer` sends a procedure's defect to the client. Typed failures are
+* expected outcomes and pass unlogged.
+*/
+const logDefect = (operation, annotations = {}) => (effect) => effect.pipe(Effect.tapCauseIf(Cause.hasDies, (cause) => Effect.logError(`${operation}: defect`, cause).pipe(Effect.annotateLogs(annotations))));
 /**
 * `defect` as a plain `Error` chain: each link's `name`, `message`, string, number and boolean
 * fields, and `cause`. Workers RPC carries a thrown error's own properties and `cause` only while
@@ -38,4 +46,4 @@ const crossDefects = (methods) => Object.fromEntries(Object.entries(methods).map
 	if (!Effect.isEffect(result)) return result;
 	return result.pipe(Effect.catchDefect((defect) => Effect.die(crossableDefect(defect))));
 }]));
-export { crossDefects, crossableDefect };
+export { crossDefects, crossableDefect, logDefect };

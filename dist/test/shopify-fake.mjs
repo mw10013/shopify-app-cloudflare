@@ -1,7 +1,7 @@
 import { ShopDomain } from "../internal/domain.mjs";
 import * as Schema from "effect/Schema";
-import * as Option from "effect/Option";
 import * as Context from "effect/Context";
+import * as Option from "effect/Option";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import { abstractFetch, setAbstractFetchFunc } from "@shopify/shopify-api/runtime";

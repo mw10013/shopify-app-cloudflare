@@ -17,9 +17,9 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
+import * as Scope from "effect/Scope";
 import * as Rpc from "effect/rpc/Rpc";
 import * as RpcGroup from "effect/rpc/RpcGroup";
-import * as Scope from "effect/Scope";
 /** Where a test Backend serves the door: an Effect RPC endpoint, NDJSON. */
 export declare const SHOPIFY_TEST_DOOR_PATH = "/api/test/shopify";
 /**
@@ -116,9 +116,11 @@ declare class DoorHooks extends DoorHooks_base {}
 /**
  * Tier 2 as a test Backend provides it in place of `ShopifyApp.layerConfig(app)` and the app's
  * hooks: over `app` with the probe topic added, as `inProcessHarness` builds it, the
- * {@link PartnerFake} answering the catalog's first handle, and hooks that record each call.
+ * {@link PartnerFake} answering the catalog's first handle, and hooks that record each call and
+ * then run `appHooks`, the app's own (none by default): an app with shop actors passes the hooks
+ * that destroy and revoke them, so the door's uninstall and plan changes reach its actors.
  */
-declare const shopifyApp: (app: ShopifyAppDefinition) => Layer.Layer<DoorHooks | MerchantGate | PartnerApi | PartnerFake | ShopifyHooks | SubscriptionPlan | Webhooks, never, AppInstallationStore | ShopGrantors | Shopify | ShopifyClient | ShopifyMerchant>;
+declare const shopifyApp: <E = never, R = never>(app: ShopifyAppDefinition, appHooks?: Layer.Layer<ShopifyHooks, E, R>) => Layer.Layer<DoorHooks | MerchantGate | PartnerApi | PartnerFake | ShopifyHooks | SubscriptionPlan | Webhooks, E, AppInstallationStore | ShopGrantors | Shopify | ShopifyClient | ShopifyMerchant | Exclude<R, PartnerApi | PartnerFake>>;
 export interface ShopifyTestDoorShape {
   /** The door's RPC endpoint, for the test Backend's `fetch` at {@link SHOPIFY_TEST_DOOR_PATH}. */
   readonly serve: Effect.Effect<HttpServerResponse.HttpServerResponse, never, HttpServerRequest.HttpServerRequest | Scope.Scope>;

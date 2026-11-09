@@ -4,8 +4,8 @@ import { ShopifyClient, unavailable } from "./shopify-client.mjs";
 import { PartnerApi } from "./partner-api.mjs";
 import { ShopifyMerchant } from "./shopify.mjs";
 import { SubscriptionPlan } from "./subscription-plan.mjs";
-import * as Option from "effect/Option";
 import * as Context from "effect/Context";
+import * as Option from "effect/Option";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 // src/internal/merchant-gate.ts

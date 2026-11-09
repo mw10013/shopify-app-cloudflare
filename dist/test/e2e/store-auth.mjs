@@ -3,6 +3,8 @@ import * as Option from "effect/Option";
 import * as Effect from "effect/Effect";
 import * as Schedule from "effect/Schedule";
 import * as Fiber from "effect/Fiber";
+import * as SchemaTransformation from "effect/SchemaTransformation";
+import * as Array from "effect/Array";
 import path from "node:path";
 import process from "node:process";
 import { StoreFor } from "@mw10013/devkit/shopify/worktree";
@@ -10,8 +12,6 @@ import * as Console from "effect/Console";
 import * as FileSystem from "effect/FileSystem";
 import { runCommand } from "@mw10013/devkit/core/command";
 import { AGENT_CDP, checkShopifyLogin, ensureAgentChrome } from "@mw10013/devkit/shopify/agent-chrome";
-import * as Array from "effect/Array";
-import * as SchemaTransformation from "effect/SchemaTransformation";
 import { chromium } from "playwright";
 // src/test/e2e/store-auth.ts
 /**

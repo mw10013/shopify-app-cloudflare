@@ -5,9 +5,9 @@ import * as Schema from "effect/Schema";
 import * as Duration from "effect/Duration";
 import * as Option from "effect/Option";
 import * as Effect from "effect/Effect";
+import * as Array from "effect/Array";
 import { tunnelReady } from "@mw10013/devkit/shopify/server";
 import { AGENT_CDP } from "@mw10013/devkit/shopify/agent-chrome";
-import * as Array from "effect/Array";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as Result from "effect/Result";
 // src/test/e2e/preflight.ts

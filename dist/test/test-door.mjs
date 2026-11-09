@@ -1,5 +1,6 @@
 import { ShopDomain, ShopGid } from "../internal/domain.mjs";
 import { AppInstallation } from "../internal/app-installation.mjs";
+import { ShopifyHooks } from "../internal/hooks.mjs";
 import { AppInstallationStore } from "../internal/app-installation-store.mjs";
 import { ShopGrantors } from "../internal/shop-grantor.mjs";
 import { Shopify } from "../internal/shopify.mjs";
@@ -14,16 +15,16 @@ import { behaviorApp } from "./behavior-app.mjs";
 import { SeedInstallation, ShopifyHarness } from "./shopify-harness.mjs";
 import { REQUIRED_BEHAVIORS } from "./required-behaviors.mjs";
 import * as Schema from "effect/Schema";
+import * as Context from "effect/Context";
 import * as Option from "effect/Option";
 import * as Cause from "effect/Cause";
-import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Exit from "effect/Exit";
+import * as RpcServer from "effect/rpc/RpcServer";
+import * as RpcSerialization from "effect/rpc/RpcSerialization";
 import * as Rpc from "effect/rpc/Rpc";
 import * as RpcGroup from "effect/rpc/RpcGroup";
-import * as RpcSerialization from "effect/rpc/RpcSerialization";
-import * as RpcServer from "effect/rpc/RpcServer";
 // src/test/test-door.ts
 /**
 * `ShopifyTestDoor`: what a test Backend in workerd mounts so an integ suite can drive the real
@@ -92,14 +93,16 @@ var DoorHooks = class extends Context.Service()("app/ShopifyTestDoorHooks") {};
 /**
 * Tier 2 as a test Backend provides it in place of `ShopifyApp.layerConfig(app)` and the app's
 * hooks: over `app` with the probe topic added, as `inProcessHarness` builds it, the
-* {@link PartnerFake} answering the catalog's first handle, and hooks that record each call.
+* {@link PartnerFake} answering the catalog's first handle, and hooks that record each call and
+* then run `appHooks`, the app's own (none by default): an app with shop actors passes the hooks
+* that destroy and revoke them, so the door's uninstall and plan changes reach its actors.
 */
-const shopifyApp = (app) => {
+const shopifyApp = (app, appHooks) => {
 	const definition = behaviorApp(app);
-	const hooks = Layer.unwrap(Effect.sync(() => {
-		const recorder = recordingHooks();
+	const hooks = Layer.unwrap(Effect.gen(function* () {
+		const recorder = recordingHooks(yield* ShopifyHooks);
 		return Layer.merge(recorder.layer, Layer.succeed(DoorHooks, recorder));
-	}));
+	})).pipe(Layer.provide(appHooks ?? ShopifyHooks.layerNoop));
 	return ShopifyApp.layerNoDeps(definition).pipe(Layer.provideMerge(hooks), Layer.provideMerge(PartnerFake.layer({ defaultHandle: definition.catalog.handles[0] })));
 };
 const make = Effect.gen(function* () {

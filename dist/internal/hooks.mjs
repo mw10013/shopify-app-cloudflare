@@ -1,5 +1,5 @@
-import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
+import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 // src/internal/hooks.ts

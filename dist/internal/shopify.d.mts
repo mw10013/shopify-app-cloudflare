@@ -6,8 +6,8 @@ import "./app-installation-store.mjs";
 import "./shopify-client.mjs";
 import "./shop-grantor.mjs";
 import * as Schema from "effect/Schema";
-import * as Option from "effect/Option";
 import * as Context from "effect/Context";
+import * as Option from "effect/Option";
 import * as Effect from "effect/Effect";
 import "effect/Layer";
 /** Every way `ensureSession` fails; anything else is a defect. */
