@@ -170,3 +170,16 @@ A production stage, to rehearse production deploys and migrations without custom
    - Staging deployed (build `9f54c510`) and `vp run stage check staging` passed.
 
    Production is not reset yet. It waits for the owner: the production toml moves to `api_version = "2026-10"` and the owner runs `shopify app deploy`, then production is reset and `.env.production` loses `SHOPIFY_API_KEY` and `SHOPIFY_APP_HANDLE`.
+10. Move baton onto the package. Check: baton's suites and the shared e2e spec pack pass, and its staging deploys and serves App Home.
+
+    Done on 2026-11-09; the check has passed. Baton is on `v0.4.0` (baton #87, #88, #89).
+
+    - The package first (#60, `v0.4.0`). Baton's members open the shop actor socket with a session cookie and no Shopify ID token. `nameSocket` takes the token as optional, and `ShopSocket` takes `credential="cookie"`. Review found two gaps, and both were fixed. Naming the socket again now clears the key first, so a socket never dials one shop with another's credential. A 3401 now reruns the route loaders, because baton revokes every socket on any plan change, including one that stays active. `consumer-check` on the tag passed all 8 steps.
+    - The Backend (baton #87). It runs on `ShopifyApp.define` with the catalog `baton-basic` and `baton-pro` and six order and refund topics. Baton's billing and usage behavior moved into `ShopifyHooks`. Members, Better Auth, the admin console, control and fixtures stay in baton. `AppInstallation` left `0001_init.sql` in place, and the cascading foreign keys from `Member` and `Team` stay. 6,439 lines net.
+    - The shop actor (baton #88). It is built with `ShopActorKit.make`. Its caller is a member or a merchant, and displacement (4409) and the expired-session check are kit socket hooks. The member gate is an `ActorGate`. The stub's `revoke(input)` became `revokeSockets`, because the kit owns `revoke()`. `alchemy plan` showed `ShopActor` and `ShopGrantor` noop. 815 lines net.
+    - The Website (baton #89). It is on `/website` and `/website/react`, and it runs the shared e2e pack. App Home's link section used to be headed by the raw shop domain and is now headed "Manage". 2,644 lines net, not counting `routeTree.gen.ts`.
+    - Tests on the final code: unit 857, browser 119 and integ 164 passed. The e2e pack and baton's own specs passed 91 of 91. One earlier run failed at the lifecycle's reinstall: the app's frame stayed empty and no request reached the app. Six lifecycle-only reruns passed, so it is filed against the pack (#61).
+    - The real-Shopify token-refresh spec is gone until the pack has an e2e route that ages a token. In process, the package's `REQUIRED_BEHAVIORS` cover refresh.
+    - Staging was reset from scratch (`vp run stage reset staging --confirm staging`). The push of #88 started no Workers Build, so `vp run stage up staging` built it. The push of #89 built on its own (build `7a5c255f`). On `mw10013-staging-shop-00`, App Home loaded with the socket connected, and the logs showed the exchange and no errors.
+
+    Production is not touched. When the owner is ready, it needs a reset, and `.env.production` loses `SHOPIFY_API_KEY` and `SHOPIFY_APP_HANDLE`.
