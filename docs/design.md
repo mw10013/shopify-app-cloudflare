@@ -122,8 +122,8 @@ The package takes the pieces every app writes the same way:
 - The App Bridge page and its client calls. The page loads App Bridge; the client calls are `mintIdToken`, `toast` and `showSaveBar`.
 - The merchant guard. A document request with a bearer skips the search checks; one without bounces to Shopify for an ID token; the billing return carries `plan_handle`. It is motio's `documentGuard`.
 - The Backend's refusals mapped to Website answers: 401 bounces, 402 goes to plan selection, 503 shows "Shopify isn't responding".
-- The live route reads. A route names its reactivity keys, a notice reloads its loader, a failed reread keeps the last answer, and a banner says so. It is motio's `live-route.ts`, the fuller of the two copies.
-- `ShopSocket`, which opens the socket after hydration, and `SocketBanner`, which shows a lost connection.
+- The live route reads. A route names its reactivity keys, a notice reloads its loader, a failed reread keeps the last answer, and a banner says so. `readLiveAnswer` reads the server once, then only the live part over the socket into the last answer. This is baton's `live-route.ts`, a superset of motio's.
+- `ShopSocket`, which opens the socket after hydration, and `SocketBanner`, which shows a lost connection. The banner is baton's: it shows a displaced socket with Reconnect, and a member's 4401 is not an expiry. The app passes its name for the banner's copy.
 - The cross-site check on the socket upgrade route.
 
 The app keeps its pages, its routes and its server functions.
