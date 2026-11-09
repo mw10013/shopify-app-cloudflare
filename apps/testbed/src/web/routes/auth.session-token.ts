@@ -1,15 +1,8 @@
+import { sessionTokenHandlers } from "@mw10013/shopify-app-workers/website";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { appBridgePage } from "#web/server/app-bridge-page.ts";
+import { env } from "#web/server/env.server.ts";
 
-/**
- * The ID token bounce: the App Bridge-only page. App Bridge reads `shopify-reload` from the URL
- * and reloads that page with a fresh `id_token`; without it, the Shopify admin re-embeds the app.
- */
 export const Route = createFileRoute("/auth/session-token")({
-  server: {
-    handlers: {
-      GET: ({ request }) => appBridgePage(new URL(request.url).searchParams.get("shop")),
-    },
-  },
+  server: { handlers: sessionTokenHandlers(env) },
 });

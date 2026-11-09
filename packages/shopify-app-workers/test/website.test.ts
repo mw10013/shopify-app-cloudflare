@@ -1,8 +1,14 @@
 import { assert, describe, it } from "@effect/vitest";
-import { isRedirect } from "@tanstack/react-router";
 import * as Option from "effect/Option";
 
-import { type AppGuardReads, documentGuard, navigationGuard } from "#web/routes/-app-guard.ts";
+import { InvalidIdTokenError, PlanUnsubscribedError } from "#internal/contract.ts";
+import {
+  type AppGuardReads,
+  type AuthenticateAppInput,
+  documentGuard,
+  readEmbeddedIdToken,
+  type RedirectOptions,
+} from "#internal/merchant-request.ts";
 import {
   appSearch,
   documentHeaders,
@@ -10,41 +16,59 @@ import {
   exitIframeDestination,
   idTokenBounce,
   inlineScriptString,
-} from "#web/server/shopify-urls.ts";
+} from "#internal/shopify-urls.ts";
 
 const APP_URL = "https://testbed.example.com";
 const API_KEY = "api-key";
 const SHOP = "guard-shop.myshopify.com";
 /** `admin.shopify.com/store/guard-shop`, unpadded, as Shopify sends `host`. */
 const HOST = btoa("admin.shopify.com/store/guard-shop").replaceAll("=", "");
-const CONTEXT = { shop: SHOP, apiKey: API_KEY, managePlanUrl: "https://manage" };
+const CONTEXT = { shop: SHOP, apiKey: API_KEY };
 
-type AuthenticateInput = Parameters<AppGuardReads["authenticateApp"]>[0];
+/** Stands in for TanStack's `redirect`: the options, thrown as they came. */
+class Redirected {
+  readonly options: RedirectOptions;
+  constructor(options: RedirectOptions) {
+    this.options = options;
+  }
+}
+const redirect = (options: RedirectOptions) => new Redirected(options);
 
 /** Reads that record each `authenticateApp` call; `bearer` is whether the document carried one. */
 const reads = (bearer = false) => {
-  const calls: AuthenticateInput[] = [];
-  const value: AppGuardReads = {
+  const calls: AuthenticateAppInput[] = [];
+  const value: AppGuardReads<typeof CONTEXT> = {
     getShopifyApp: () => Promise.resolve({ apiKey: API_KEY, appUrl: APP_URL }),
     authenticateApp: (input) => {
       calls.push(input);
       return Promise.resolve(CONTEXT);
     },
     documentHasBearer: () => bearer,
+    redirect,
   };
   return { calls, value };
 };
 
 const location = (searchStr: string) => ({ pathname: "/app", searchStr });
 
+/** What `run` threw; fails if it answered instead. */
+const thrown = (run: () => unknown) => {
+  try {
+    run();
+  } catch (error) {
+    return error;
+  }
+  return assert.fail("it answered");
+};
+
 /** The href of the redirect the guard threw; fails if it answered instead. */
 const redirectHref = async (run: Promise<unknown>) => {
-  const thrown = await run.then(
+  const error = await run.then(
     () => assert.fail("the guard answered"),
-    (error: unknown) => error,
+    (rejected: unknown) => rejected,
   );
-  assert.isTrue(isRedirect(thrown));
-  return isRedirect(thrown) ? (thrown.options.href ?? "") : "";
+  assert.instanceOf(error, Redirected);
+  return error instanceof Redirected ? error.options.href : "";
 };
 
 const launch = (extra = "") => `?embedded=1&host=${HOST}&shop=${SHOP}&id_token=the-token${extra}`;
@@ -98,11 +122,43 @@ describe("documentGuard", () => {
   });
 });
 
-describe("navigationGuard", () => {
-  it("asks with the bearer App Bridge adds, never as the billing redirect", async () => {
-    const { calls, value } = reads();
-    assert.deepStrictEqual(await navigationGuard(value)(), CONTEXT);
-    assert.deepStrictEqual(calls, [{ data: { billingRedirect: false } }]);
+describe("readEmbeddedIdToken", () => {
+  const request = (headers: Record<string, string>) =>
+    new Request(`${APP_URL}/app?shop=${SHOP}`, { headers });
+  const embedded = (headers: Record<string, string>, data?: unknown) =>
+    readEmbeddedIdToken({ request: request(headers), data, appUrl: APP_URL, redirect });
+  const bearer = { authorization: "Bearer the-token" };
+  const serverFn = { "x-tsr-serverFn": "true" };
+
+  it("takes the bearer before the data's id_token", () => {
+    assert.strictEqual(embedded(bearer, { idToken: "data-token" }).idToken, "the-token");
+    assert.strictEqual(embedded({}, { idToken: "data-token" }).idToken, "data-token");
+  });
+
+  it("a refused token: App Bridge's retry with a bearer, the ID token bounce for a document", () => {
+    const refused = new InvalidIdTokenError({});
+    const { rescueRefusal } = embedded({ ...bearer, ...serverFn });
+    const retry = thrown(() => rescueRefusal(refused));
+    assert.instanceOf(retry, Response);
+    assert.strictEqual(
+      retry instanceof Response ? retry.headers.get("X-Shopify-Retry-Invalid-Session-Request") : "",
+      "1",
+    );
+    const bounce = thrown(() => embedded({}, { idToken: "data-token" }).rescueRefusal(refused));
+    assert.deepStrictEqual(
+      bounce,
+      redirect({ href: idTokenBounce(APP_URL, "/app", `?shop=${SHOP}`) }),
+    );
+    const bare = thrown(() => embedded(serverFn));
+    assert.strictEqual(bare instanceof Response ? bare.status : 0, 401);
+  });
+
+  it("an unsubscribed shop goes to plan selection, reloading the document", () => {
+    const href = "/auth/exit-iframe?exitIframe=x";
+    assert.deepStrictEqual(
+      thrown(() => embedded(bearer).rescueRefusal(new PlanUnsubscribedError({ href }))),
+      redirect({ href, reloadDocument: true }),
+    );
   });
 });
 

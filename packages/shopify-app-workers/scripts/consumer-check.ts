@@ -38,6 +38,7 @@ const SUBPATHS = [
   "contract",
   "stack",
   "website",
+  "website/react",
   "client",
   "test",
   "test/node",
@@ -102,11 +103,15 @@ const consumerManifest = (spec: string) => ({
     "@alchemy.run/cloudflare": peer("@alchemy.run/cloudflare"),
     "@effect/platform-node": peer("@effect/platform-node"),
     playwright: peer("playwright"),
+    react: peer("react"),
+    "@tanstack/react-router": peer("@tanstack/react-router"),
+    "@effect/atom-react": peer("@effect/atom-react"),
     "@mw10013/devkit": DEVKIT,
   },
   devDependencies: {
     ...DEV_TOOLS,
     "@cloudflare/workers-types": exact("@cloudflare/workers-types", source.devDependencies),
+    "@types/react": exact("@types/react", source.devDependencies),
     "@alchemy.run/cloudflare-runtime": peer("@alchemy.run/cloudflare"),
   },
 });

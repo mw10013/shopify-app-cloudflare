@@ -47,7 +47,11 @@ const runtimeBoundary = (
 });
 
 /** The files that hold a component or a hook. */
-const WEB_FILES = ["apps/testbed/src/web/**", "apps/testbed/test/browser/**"];
+const WEB_FILES = [
+  "apps/testbed/src/web/**",
+  "apps/testbed/test/browser/**",
+  "packages/shopify-app-workers/src/**/*.tsx",
+];
 
 /**
  * The rules that read components and hooks: those the categories turn on under the `react` and
@@ -174,6 +178,11 @@ const NODE_SQLITE = {
   name: "node:sqlite",
   message: "node:sqlite is Node-only; it belongs behind /test/node.",
 };
+const TANSTACK_START = {
+  group: ["@tanstack/react-start", "@tanstack/react-start/**"],
+  message:
+    "TanStack Start's compiler rewrites createServerFn, createMiddleware and createIsomorphicFn only in the app's source; the app wraps the package's plain functions.",
+};
 const TEST_NODE_IMPORTS = {
   group: ["#test/node/**", "./test/node/**"],
   message: "src/test/node/ is Node-only; only /test/node imports it.",
@@ -268,7 +277,7 @@ export default defineConfig({
         ["packages/shopify-app-workers/src/**"],
         [...PACKAGE_NODE_ONLY, ...PACKAGE_E2E],
         [NODE_SQLITE],
-        [TEST_NODE_IMPORTS, E2E_IMPORTS],
+        [TEST_NODE_IMPORTS, E2E_IMPORTS, TANSTACK_START],
       ),
       packageBoundary(PACKAGE_NODE_ONLY, [], [], [E2E_IMPORTS]),
       packageBoundary(PACKAGE_E2E, [], [NODE_SQLITE], [TEST_NODE_IMPORTS]),
