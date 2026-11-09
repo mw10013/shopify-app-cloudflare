@@ -31,3 +31,24 @@ export {
   E2eWebhookDelivery,
 } from "#internal/e2e-status.ts";
 export { ID_MAX_LENGTH, PlanHandle, ShopDomain, ShopGid } from "#internal/domain.ts";
+export {
+  ACTOR_PATH,
+  type Caller,
+  CONNECTION_CLOSE_DISPLACED,
+  CONNECTION_CLOSE_FORBIDDEN,
+  CONNECTION_CLOSE_NOT_A_MEMBER,
+  CONNECTION_CLOSE_PAYMENT_REQUIRED,
+  CONNECTION_CLOSE_REVOKED,
+  CONNECTION_CLOSE_TRY_AGAIN,
+  CONNECTION_CLOSE_UNAUTHENTICATED,
+  CONNECTION_CLOSE_UNINSTALLED,
+  CONNECTION_HEADER,
+  ConnectionMiddleware,
+  CurrentCaller,
+  ForbiddenError,
+  MerchantCaller,
+  Notice,
+  NoticeFrame,
+  OwnNotice,
+  RequireMerchant,
+} from "#internal/shop-actor-contract.ts";
