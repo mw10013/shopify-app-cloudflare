@@ -64,14 +64,20 @@ const wsOrigin = () => {
 };
 /**
 * One hibernating WebSocket per browser, retried on `retryPolicy`. The gate names the socket on
-* its upgrade from the merchant's Shopify ID token on the URL, minted for each connect, so no call
-* carries a credential. Every close goes through `closeOutcome` to the page's atoms.
+* its upgrade, from the session cookie or, for a merchant, the Shopify ID token on the URL, minted
+* for each connect, so no call carries a credential. Every close goes through `closeOutcome` to
+* the page's atoms.
 */
 const browserProtocol = (input) => {
-	const url = Effect.map(input.merchantToken, (token) => {
-		const withToken = new URL(`${ACTOR_PATH}/${input.key}`, wsOrigin());
-		withToken.searchParams.set("token", token);
-		return withToken.toString();
+	const url = Effect.suspend(() => {
+		const base = new URL(`${ACTOR_PATH}/${input.key}`, wsOrigin());
+		return Option.match(input.merchantToken, {
+			onNone: () => Effect.succeed(base.toString()),
+			onSome: (mint) => Effect.map(mint, (token) => {
+				base.searchParams.set("token", token);
+				return base.toString();
+			})
+		});
 	});
 	const setState = (state) => Effect.sync(() => {
 		input.registry.set(socketStateAtom, state);
@@ -107,25 +113,29 @@ const unnamedShop = Layer.effect(RpcClient.Protocol, Effect.die(/* @__PURE__ */ 
 */
 const shopActorProtocol = (options) => (get) => {
 	get(reconnectAtom);
-	return Option.match(Option.all([get(shopKeyAtom), get(merchantTokenAtom)]), {
+	return Option.match(get(shopKeyAtom), {
 		onNone: () => unnamedShop,
-		onSome: ([key, merchantToken]) => browserProtocol({
+		onSome: (key) => browserProtocol({
 			registry: get.registry,
 			notices: get(noticeBus),
 			key,
-			merchantToken,
+			merchantToken: get(merchantTokenAtom),
 			allKeys: options.allKeys
 		})
 	});
 };
 /**
-* Names the shop and credential the protocol connects with, and starts the socket state afresh.
-* Only the socket holder runs it, once per shop and credential, in the browser, before anything
-* reads a socket atom.
+* Names the shop and credential the protocol connects with, and starts the socket state afresh:
+* with `merchantToken`, a merchant's socket carrying a Shopify ID token minted per connect;
+* without, a socket the gate names from the session cookie. The key is cleared first and set
+* last, since a named key is what lets the protocol connect, so no socket dials with one shop's
+* key and another's credential. Only the socket holder runs it, once per shop and credential,
+* in the browser, before anything reads a socket atom.
 */
 const nameSocket = (registry, key, merchantToken) => {
+	registry.set(shopKeyAtom, Option.none());
+	registry.set(merchantTokenAtom, Option.fromUndefinedOr(merchantToken));
 	registry.set(shopKeyAtom, Option.some(key));
-	registry.set(merchantTokenAtom, Option.some(merchantToken));
 	registry.set(socketStateAtom, "connecting");
 };
 /**

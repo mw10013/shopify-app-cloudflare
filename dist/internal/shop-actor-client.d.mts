@@ -41,11 +41,14 @@ export declare const shopActorProtocol: (options: {
   readonly allKeys: readonly string[];
 }) => (get: Atom.AtomContext) => Layer.Layer<RpcClient.Protocol, never, never>;
 /**
- * Names the shop and credential the protocol connects with, and starts the socket state afresh.
- * Only the socket holder runs it, once per shop and credential, in the browser, before anything
- * reads a socket atom.
+ * Names the shop and credential the protocol connects with, and starts the socket state afresh:
+ * with `merchantToken`, a merchant's socket carrying a Shopify ID token minted per connect;
+ * without, a socket the gate names from the session cookie. The key is cleared first and set
+ * last, since a named key is what lets the protocol connect, so no socket dials with one shop's
+ * key and another's credential. Only the socket holder runs it, once per shop and credential,
+ * in the browser, before anything reads a socket atom.
  */
-export declare const nameSocket: (registry: AtomRegistry.AtomRegistry, key: ShopDomain, merchantToken: Effect.Effect<string>) => void;
+export declare const nameSocket: (registry: AtomRegistry.AtomRegistry, key: ShopDomain, merchantToken?: Effect.Effect<string>) => void;
 /**
  * The default length of a notice key's window: the first notice for a key refreshes at once and
  * opens it; any more inside it cost one refresh when it ends, which opens the next. A burst of

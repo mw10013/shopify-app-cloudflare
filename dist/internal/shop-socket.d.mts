@@ -25,17 +25,24 @@ export declare function RereadFailedBanner({ appName, route }: {
   readonly appName: string;
   readonly route: string;
 }): import("react").JSX.Element | null;
+/**
+ * How the socket's upgrade is named: `merchant`, a Shopify ID token minted from App Bridge per
+ * connect; `cookie`, the session cookie the browser sends, for a team member outside the admin.
+ */
+export type SocketCredential = "merchant" | "cookie";
 interface SocketProps {
   readonly shop: ShopDomain;
   /** The app's `makeNoticesAtom(Client.runtime)`. */
   readonly notices: Atom.Atom<unknown>;
   readonly appName: string;
+  /** `merchant` unless given. */
+  readonly credential?: SocketCredential | undefined;
 }
 /**
- * The shop socket's holder: one socket per tab, held by the `/app` layout. It names the socket
- * once per shop, with an App Bridge ID token minted per connect, and keeps `notices` mounted for
- * as long as the layout is, which keeps the client's runtime and so the socket alive across the
- * pages under it; a page never names it. It renders {@link SocketBanner} above its children.
+ * The shop socket's holder: one socket per tab, held by the layout. It names the socket once per
+ * shop and {@link SocketCredential}, and keeps `notices` mounted for as long as the layout is,
+ * which keeps the client's runtime and so the socket alive across the pages under it; a page
+ * never names it. It renders {@link SocketBanner} above its children.
  * Before hydration it renders its children alone, so no socket is built on the server; the
  * children keep their place in the tree when it hydrates.
  *

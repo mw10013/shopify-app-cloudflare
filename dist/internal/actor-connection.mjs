@@ -1,3 +1,4 @@
+import { CONNECTION_CLOSE_REVOKED } from "./shop-actor-contract.mjs";
 import * as Duration from "effect/Duration";
 import * as Option from "effect/Option";
 import * as Effect from "effect/Effect";
@@ -19,7 +20,8 @@ import * as Atom from "effect/reactivity/Atom";
 const shopKeyAtom = Atom.make(Option.none()).pipe(Atom.keepAlive);
 /**
 * How the merchant's browser gets a Shopify ID token, run once per connect, so every reconnect
-* carries a token minted for it. None until the socket holder names the socket.
+* carries a token minted for it. None for a socket the gate names from the session cookie, and
+* until the socket holder names the socket.
 */
 const merchantTokenAtom = Atom.make(Option.none()).pipe(Atom.keepAlive);
 /** Bumped by each stop ({@link CloseOutcome}): the page asks the router again. */
@@ -44,7 +46,10 @@ const lostAtom = Atom.make((get) => {
 const isRefusal = (code) => code >= 4400 && code < 4500;
 const closeCode = (error) => error.reason._tag === "SocketCloseError" ? Option.some(error.reason.code) : Option.none();
 const closeOutcome = (error) => Option.match(Option.filter(closeCode(error), isRefusal), {
-	onNone: () => ({ _tag: "Retry" }),
+	onNone: () => ({
+		_tag: "Retry",
+		reask: Option.contains(closeCode(error), CONNECTION_CLOSE_REVOKED)
+	}),
 	onSome: (code) => ({
 		_tag: "Stop",
 		code
@@ -58,8 +63,9 @@ const closeOutcome = (error) => Option.match(Option.filter(closeCode(error), isR
 const retryPolicy = (onError) => Schedule.min([Schedule.exponential("250 millis"), Schedule.spaced("4 seconds")]).pipe(Schedule.setInputType(), Schedule.tap(({ input }) => onError(input)), Schedule.while(({ input }) => closeOutcome(input)._tag === "Retry"));
 const applyCloseOutcome = (registry, outcome) => Effect.sync(() => {
 	Match.value(outcome).pipe(Match.tagsExhaustive({
-		Retry: () => {
+		Retry: ({ reask }) => {
 			registry.set(socketStateAtom, "lost");
+			if (reask) registry.update(reaskAtom, (n) => n + 1);
 		},
 		Stop: ({ code }) => {
 			registry.set(socketStateAtom, { stopped: code });

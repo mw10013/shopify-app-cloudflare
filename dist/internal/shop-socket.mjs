@@ -121,20 +121,24 @@ function useReask() {
 * The holder once hydrated: names the socket once, keeps it open, shows its banner. Rendered
 * before the pages, its siblings, so the socket is named before any page reads an atom.
 */
-function LiveShopSocket({ shop, notices, appName }) {
+function LiveShopSocket({ shop, notices, appName, credential = "merchant" }) {
 	const registry = useContext(RegistryContext);
+	const merchant = credential === "merchant";
 	useState(() => {
-		nameSocket(registry, shop, mintIdToken);
+		nameSocket(registry, shop, merchant ? mintIdToken : void 0);
 	});
 	useAtomMount(notices);
 	useReask();
-	return /* @__PURE__ */ jsx(SocketBanner, { appName });
+	return /* @__PURE__ */ jsx(SocketBanner, {
+		appName,
+		merchant
+	});
 }
 /**
-* The shop socket's holder: one socket per tab, held by the `/app` layout. It names the socket
-* once per shop, with an App Bridge ID token minted per connect, and keeps `notices` mounted for
-* as long as the layout is, which keeps the client's runtime and so the socket alive across the
-* pages under it; a page never names it. It renders {@link SocketBanner} above its children.
+* The shop socket's holder: one socket per tab, held by the layout. It names the socket once per
+* shop and {@link SocketCredential}, and keeps `notices` mounted for as long as the layout is,
+* which keeps the client's runtime and so the socket alive across the pages under it; a page
+* never names it. It renders {@link SocketBanner} above its children.
 * Before hydration it renders its children alone, so no socket is built on the server; the
 * children keep their place in the tree when it hydrates.
 *
@@ -151,7 +155,8 @@ function ShopSocket(props) {
 	return /* @__PURE__ */ jsxs(Fragment, { children: [hydrated && /* @__PURE__ */ jsx(LiveShopSocket, {
 		shop: props.shop,
 		notices: props.notices,
-		appName: props.appName
-	}, props.shop), props.children] });
+		appName: props.appName,
+		credential: props.credential
+	}, `${props.shop} ${props.credential ?? "merchant"}`), props.children] });
 }
 export { RereadFailedBanner, ShopSocket, SocketBanner, bannerCopy };
