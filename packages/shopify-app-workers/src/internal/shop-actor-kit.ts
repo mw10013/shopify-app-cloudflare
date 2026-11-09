@@ -183,8 +183,8 @@ export interface ShopActorKitOptions<
    * the outer phase, where the Backend provides the services.
    */
   readonly build: (
-    context: ShopActorContext<C>,
-  ) => Effect.Effect<ShopActorBuild<Rpcs, C, Methods>, never, R>;
+    context: ShopActorContext<NoInfer<C>>,
+  ) => Effect.Effect<ShopActorBuild<Rpcs, NoInfer<C>, Methods>, never, R>;
 }
 
 /** The close reasons. A reason must stay under 123 bytes. */
@@ -282,7 +282,7 @@ const make = <
 >(
   options: ShopActorKitOptions<Rpcs, C, Methods, R>,
 ): Effect.Effect<
-  Effect.Effect<ShopActorShape<Methods>, never, ActivationServices>,
+  Effect.Effect<ShopActorShape<NoInfer<Methods>>, never, ActivationServices>,
   never,
   AppInstallations | Cloudflare.DurableObjectState | Exclude<R, ActivationServices>
 > =>

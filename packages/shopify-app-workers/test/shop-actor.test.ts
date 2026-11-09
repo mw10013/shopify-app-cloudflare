@@ -7,6 +7,7 @@ import {
   ShopActorKit,
   ShopActors,
   type ShopActorShape,
+  type SocketIdentity,
 } from "@mw10013/shopify-app-workers/backend";
 import { makeNoticesAtom, shopActorProtocol } from "@mw10013/shopify-app-workers/client";
 import {
@@ -156,6 +157,34 @@ const MemberShopActorLive = MemberShopActor.make(
       }),
   }),
 );
+
+// A caller type comes only from `caller`: a hook typed for members, without the schema, is refused.
+ShopActorKit.make({
+  rpcs: MemberRpcs,
+  migrations: Migrator.fromRecord({ "0001_init": Effect.void }),
+  build: () =>
+    // @ts-expect-error the kit would decode this socket as a merchant
+    Effect.succeed({
+      handlers: MemberRpcs.toLayer({ MemberGetId: () => Effect.succeed("") }),
+      sockets: {
+        tags: (identity: SocketIdentity<typeof MemberCaller.Type>) => [identity.caller.memberId],
+      },
+    }),
+});
+
+// A shape's methods must be built: one declared and never returned is refused.
+// @ts-expect-error `getThing` is declared but not built
+export const missingMethods: Effect.Effect<
+  Effect.Effect<ShopActorShape<{ readonly getThing: () => Effect.Effect<string> }>, never, unknown>,
+  never,
+  unknown
+> = ShopActorKit.make({
+  rpcs: MemberRpcs,
+  migrations: Migrator.fromRecord({ "0001_init": Effect.void }),
+  caller: MemberCaller,
+  build: () =>
+    Effect.succeed({ handlers: MemberRpcs.toLayer({ MemberGetId: () => Effect.succeed("") }) }),
+});
 
 class ShopActorClient extends AtomRpc.Service<ShopActorClient>()("app/ShopActorClient", {
   group: CounterRpcs,
