@@ -3,11 +3,10 @@ import { socketStateAtom } from "@mw10013/shopify-app-workers/client";
 import { ShopDomain, ShopifyUnavailableError } from "@mw10013/shopify-app-workers/contract";
 import {
   APP_BRIDGE_URL,
+  type AppGate,
   appGuard,
-  type AppGuardInput,
   appSearch,
   documentHeaders,
-  rememberHydratedAppGuard,
 } from "@mw10013/shopify-app-workers/website";
 import { RereadFailedBanner, ShopSocket } from "@mw10013/shopify-app-workers/website/react";
 import {
@@ -45,8 +44,12 @@ const documentIdToken = createIsomorphicFn()
  * The `/app` guard. Its type is written out because the route's own type would otherwise depend
  * on it through `redirect`, which reads the registered router.
  */
-const guard: (input: AppGuardInput) => Promise<Awaited<ReturnType<typeof authenticateApp>>> =
-  appGuard({ getShopifyApp, authenticateApp, documentHasBearer, redirect });
+const gate: AppGate<Awaited<ReturnType<typeof authenticateApp>>> = appGuard({
+  getShopifyApp,
+  authenticateApp,
+  documentHasBearer,
+  redirect,
+});
 
 /**
  * The embedded App Home, which the Shopify admin frames. `beforeLoad` is the merchant gate
@@ -57,7 +60,7 @@ const guard: (input: AppGuardInput) => Promise<Awaited<ReturnType<typeof authent
  */
 export const Route = createFileRoute("/app")({
   staticData: { live: [COUNT_KEY] },
-  beforeLoad: guard,
+  beforeLoad: gate.guard,
   loader: ({ location, context: { registry } }) => {
     const data = { idToken: documentIdToken(location.searchStr) };
     return readLiveAnswer(registry, {
@@ -89,7 +92,7 @@ function AppHome() {
   const registry = useContext(RegistryContext);
   // oxlint-disable-next-line react/hook-use-state -- a lazy initializer that runs once on the first render; there is no state
   useState(() => {
-    rememberHydratedAppGuard(registry, { shop, apiKey, managePlanUrl });
+    gate.rememberHydrated(registry, { shop, apiKey, managePlanUrl });
   });
   const { planHandle, installedAt, count } = Route.useLoaderData();
   const hydrated = useHydrated();

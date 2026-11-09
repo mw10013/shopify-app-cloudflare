@@ -163,30 +163,50 @@ export const documentGuard =
     return reads.authenticateApp({ data: { idToken: search.id_token, billingRedirect } });
   };
 
-const admitted = Atom.make((): { last: unknown } => ({ last: undefined })).pipe(Atom.keepAlive);
-
-/** Hydration runs no `beforeLoad`, so the browser's guard starts from the server's answer. */
-export const rememberHydratedAppGuard = (registry: AtomRegistry.AtomRegistry, answer: unknown) => {
-  registry.get(admitted).last ??= answer;
-};
+/** Bumped by {@link forgetAppGuard}; each guard's remembered answer is made anew after it. */
+const forgotten = Atom.make(0).pipe(Atom.keepAlive);
 
 /** A refused socket means the last answer may be stale, so the rerun that follows asks. */
 export const forgetAppGuard = (registry: AtomRegistry.AtomRegistry) => {
-  registry.get(admitted).last = undefined;
+  registry.update(forgotten, (n) => n + 1);
 };
+
+/** The `/app` guard, and how the page hands it the answer the document was rendered with. */
+export interface AppGate<A> {
+  readonly guard: (input: AppGuardInput) => Promise<A>;
+  /** Hydration runs no `beforeLoad`, so the browser's guard starts from the server's answer. */
+  readonly rememberHydrated: (registry: AtomRegistry.AtomRegistry, answer: A) => void;
+}
 
 /**
  * The `/app` guard. On the server it is {@link documentGuard}. In the browser the answer is the
  * document's: its shop and API key do not change while the document lives, so a navigation keeps
  * the last answer and asks, with the bearer App Bridge adds, only when it has none. A shop whose
  * plan lapsed meets plan selection at its next screen read through the Backend instead.
+ * `onServer` defaults to there being no `document`.
  */
-export const appGuard = <A>(reads: AppGuardReads<A>) => {
-  const document = documentGuard(reads);
-  return async (input: AppGuardInput): Promise<A> => {
-    if (globalThis.document === undefined) return document(input);
-    const memo = input.context.registry.get(admitted);
-    memo.last ??= await reads.authenticateApp({ data: { billingRedirect: false } });
-    return memo.last as A;
+export const appGuard = <A>(
+  reads: AppGuardReads<A>,
+  options: { readonly onServer?: boolean } = {},
+): AppGate<A> => {
+  const onServer = options.onServer ?? typeof document === "undefined";
+  const authenticateDocument = documentGuard(reads);
+  const admitted = Atom.make((get): { last: Option.Option<A> } => {
+    get(forgotten);
+    return { last: Option.none() };
+  }).pipe(Atom.keepAlive);
+  return {
+    guard: async (input) => {
+      if (onServer) return authenticateDocument(input);
+      const memo = input.context.registry.get(admitted);
+      if (Option.isSome(memo.last)) return memo.last.value;
+      const answer = await reads.authenticateApp({ data: { billingRedirect: false } });
+      memo.last = Option.some(answer);
+      return answer;
+    },
+    rememberHydrated: (registry, answer) => {
+      const memo = registry.get(admitted);
+      if (Option.isNone(memo.last)) memo.last = Option.some(answer);
+    },
   };
 };

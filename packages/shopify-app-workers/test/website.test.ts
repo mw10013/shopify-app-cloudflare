@@ -1,11 +1,15 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as Option from "effect/Option";
+import * as AtomRegistry from "effect/reactivity/AtomRegistry";
+import { onTestFinished } from "vite-plus/test";
 
 import { InvalidIdTokenError, PlanUnsubscribedError } from "#internal/contract.ts";
 import {
+  appGuard,
   type AppGuardReads,
   type AuthenticateAppInput,
   documentGuard,
+  forgetAppGuard,
   readEmbeddedIdToken,
   type RedirectOptions,
 } from "#internal/merchant-request.ts";
@@ -34,19 +38,31 @@ class Redirected {
 }
 const redirect = (options: RedirectOptions) => new Redirected(options);
 
-/** Reads that record each `authenticateApp` call; `bearer` is whether the document carried one. */
+/** Plan selection, where `authenticateApp` sends a shop with no app subscription. */
+const PLANS = "/auth/exit-iframe?exitIframe=plans";
+/** Typed as the app's `Redirect` answers it. */
+const toPlans: unknown = redirect({ href: PLANS, reloadDocument: true });
+
+/**
+ * Reads that record each `authenticateApp` call; `bearer` is whether the document carried one.
+ * Clearing `shop.subscribed` makes `authenticateApp` throw as it does for an unsubscribed shop.
+ */
 const reads = (bearer = false) => {
   const calls: AuthenticateAppInput[] = [];
+  const shop = { subscribed: true };
   const value: AppGuardReads<typeof CONTEXT> = {
     getShopifyApp: () => Promise.resolve({ apiKey: API_KEY, appUrl: APP_URL }),
     authenticateApp: (input) => {
       calls.push(input);
-      return Promise.resolve(CONTEXT);
+      return Promise.resolve().then(() => {
+        if (!shop.subscribed) throw toPlans;
+        return CONTEXT;
+      });
     },
     documentHasBearer: () => bearer,
     redirect,
   };
-  return { calls, value };
+  return { calls, shop, value };
 };
 
 const location = (searchStr: string) => ({ pathname: "/app", searchStr });
@@ -119,6 +135,67 @@ describe("documentGuard", () => {
     const href = await redirectHref(documentGuard(value)({ location: location(search) }));
     assert.strictEqual(href, idTokenBounce(APP_URL, "/app", search));
     assert.deepStrictEqual(calls, []);
+  });
+});
+
+describe("appGuard", () => {
+  const registry = () => {
+    const value = AtomRegistry.make();
+    onTestFinished(() => {
+      value.dispose();
+    });
+    return value;
+  };
+  const at = (registry: AtomRegistry.AtomRegistry, searchStr = "") => ({
+    location: location(searchStr),
+    context: { registry },
+  });
+
+  it("on the server authenticates the document, and an unsubscribed shop goes to plan selection", async () => {
+    const { calls, shop, value } = reads();
+    const { guard } = appGuard(value, { onServer: true });
+    const r = registry();
+    assert.deepStrictEqual(await guard(at(r, launch())), CONTEXT);
+    shop.subscribed = false;
+    const error = await guard(at(r, launch())).then(
+      () => assert.fail("the guard answered"),
+      (rejected: unknown) => rejected,
+    );
+    assert.deepStrictEqual(error, redirect({ href: PLANS, reloadDocument: true }));
+    assert.deepStrictEqual(calls, [
+      { data: { idToken: "the-token", billingRedirect: false } },
+      { data: { idToken: "the-token", billingRedirect: false } },
+    ]);
+  });
+
+  it("in the browser after hydration, a navigation makes no server call and keeps the document's answer", async () => {
+    const { calls, value } = reads();
+    const { guard, rememberHydrated } = appGuard(value, { onServer: false });
+    const r = registry();
+    rememberHydrated(r, CONTEXT);
+    for (const _ of [1, 2, 3]) assert.deepStrictEqual(await guard(at(r)), CONTEXT);
+    assert.deepStrictEqual(calls, []);
+  });
+
+  it("in the browser with no answer it asks once, and later navigations keep that answer", async () => {
+    const { calls, value } = reads();
+    const { guard } = appGuard(value, { onServer: false });
+    const r = registry();
+    assert.deepStrictEqual(await guard(at(r)), CONTEXT);
+    assert.deepStrictEqual(await guard(at(r)), CONTEXT);
+    assert.deepStrictEqual(calls, [{ data: { billingRedirect: false } }]);
+  });
+
+  it("a forgotten answer asks again, and an unsubscribed shop then goes to plan selection", async () => {
+    const { calls, shop, value } = reads();
+    const { guard, rememberHydrated } = appGuard(value, { onServer: false });
+    const r = registry();
+    rememberHydrated(r, CONTEXT);
+    shop.subscribed = false;
+    assert.deepStrictEqual(await guard(at(r)), CONTEXT);
+    forgetAppGuard(r);
+    assert.deepStrictEqual(await redirectHref(guard(at(r))), PLANS);
+    assert.deepStrictEqual(calls, [{ data: { billingRedirect: false } }]);
   });
 });
 

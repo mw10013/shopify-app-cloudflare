@@ -128,13 +128,19 @@ export const keepLastAnswer = async <A>(
  * `readLiveAnswer` is for a loader whose server answer holds more than its socket read: the first
  * read of a request, and every `fresh` one, goes through the server function, and later ones read
  * the live part over the socket into the last answer ({@link keepLastAnswer}).
+ *
+ * `onServer` defaults to there being no `document`.
  */
-export const makeLiveReads = <Self, Client, ER>(client: LiveClient<Self, Client, ER>) => {
+export const makeLiveReads = <Self, Client, ER>(
+  client: LiveClient<Self, Client, ER>,
+  options: { readonly onServer?: boolean } = {},
+) => {
+  const onServer = options.onServer ?? typeof document === "undefined";
   const readLive = async <A>(
     registry: AtomRegistry.AtomRegistry,
     read: LiveRead<Client, A>,
   ): Promise<A> => {
-    if (typeof document === "undefined") return read.server();
+    if (onServer) return read.server();
     if (registry.get(socketStateAtom) !== "open" || readsFromServer(registry))
       return readServer(read.server);
     const exit = await Effect.runPromiseExit(

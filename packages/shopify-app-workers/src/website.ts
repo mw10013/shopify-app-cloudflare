@@ -8,6 +8,7 @@
 
 export { mintIdToken, showSaveBar, toast } from "#internal/app-bridge.ts";
 export {
+  type AppGate,
   type AppGuardInput,
   type AppGuardReads,
   appGuard,
@@ -20,7 +21,6 @@ export {
   hasBearer,
   type Redirect,
   type RedirectOptions,
-  rememberHydratedAppGuard,
 } from "#internal/merchant-request.ts";
 export { rescue } from "#internal/rescue.ts";
 export {

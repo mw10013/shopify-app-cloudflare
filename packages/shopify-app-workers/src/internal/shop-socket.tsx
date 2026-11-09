@@ -10,7 +10,13 @@ import * as Option from "effect/Option";
 import type * as Atom from "effect/reactivity/Atom";
 import { type ReactNode, useContext, useEffect, useRef, useState } from "react";
 
-import { lostAtom, reaskAtom, reconnectAtom, socketStateAtom } from "./actor-connection.ts";
+import {
+  lostAtom,
+  reaskAtom,
+  reconnectAtom,
+  type SocketState,
+  socketStateAtom,
+} from "./actor-connection.ts";
 import { mintIdToken } from "./app-bridge.ts";
 import type { ShopDomain } from "./domain.ts";
 import { reloadFromServer, rereadFailedAtom } from "./live-route.ts";
@@ -22,17 +28,57 @@ import {
   CONNECTION_CLOSE_UNINSTALLED,
 } from "./shop-actor-contract.ts";
 
+/** What {@link SocketBanner} shows: its tone, its heading, and whether it offers Reconnect. */
+export interface BannerCopy {
+  readonly tone: "warning" | "critical";
+  readonly heading: string;
+  readonly reconnect: boolean;
+}
+
 /**
- * The copy for a stop that ended the socket for good: the uninstall, or a merchant's Shopify
- * token the gate no longer accepts. A member's 4401 is none: their session is the route's to
- * judge, and its guard sends them to sign-in when it is gone.
+ * The banner for the socket's state, if any. A stop that ended the socket for good, the uninstall
+ * or a merchant's Shopify token the gate no longer accepts, is critical, with no Reconnect. A
+ * member's 4401 is not: their session is the route's to judge, and its guard sends them to
+ * sign-in when it is gone. `lost` is the grace `lostAtom` waits out before the page says so.
  */
-const endedCopy = (appName: string, code: number, merchant: boolean): Option.Option<string> =>
-  code === CONNECTION_CLOSE_UNINSTALLED
-    ? Option.some(`${appName} was uninstalled from this store.`)
-    : merchant && code === CONNECTION_CLOSE_UNAUTHENTICATED
-      ? Option.some("Your Shopify session expired.")
-      : Option.none();
+export const bannerCopy = (
+  socket: SocketState,
+  options: { readonly appName: string; readonly merchant: boolean; readonly lost: boolean },
+): Option.Option<BannerCopy> => {
+  const { appName, merchant, lost } = options;
+  if (typeof socket === "object") {
+    if (socket.stopped === CONNECTION_CLOSE_DISPLACED)
+      return Option.some({
+        tone: "warning",
+        heading: "Signed in elsewhere. Reconnect to keep working here.",
+        reconnect: true,
+      });
+    if (socket.stopped === CONNECTION_CLOSE_UNINSTALLED)
+      return Option.some({
+        tone: "critical",
+        heading: `${appName} was uninstalled from this store.`,
+        reconnect: false,
+      });
+    if (merchant && socket.stopped === CONNECTION_CLOSE_UNAUTHENTICATED)
+      return Option.some({
+        tone: "critical",
+        heading: "Your Shopify session expired.",
+        reconnect: false,
+      });
+    return Option.some({
+      tone: "warning",
+      heading: `${appName} stopped updating this page. Reconnect to try again.`,
+      reconnect: true,
+    });
+  }
+  if (socket === "lost" && lost)
+    return Option.some({
+      tone: "warning",
+      heading: `${appName} lost its connection. This page won't update, and you can't make changes until it reconnects.`,
+      reconnect: false,
+    });
+  return Option.none();
+};
 
 /**
  * The one place the shop socket's health shows, rendered by {@link ShopSocket} above every page it
@@ -57,35 +103,24 @@ export function SocketBanner({
   const socket = useAtomValue(socketStateAtom);
   const lost = useAtomValue(lostAtom);
   const reconnect = useAtomSet(reconnectAtom);
-  const withReconnect = (heading: string) => (
-    <s-banner tone="warning" heading={heading}>
-      <s-button
-        slot="secondary-actions"
-        variant="secondary"
-        onClick={() => {
-          reconnect((n) => n + 1);
-        }}
-      >
-        Reconnect
-      </s-button>
-    </s-banner>
-  );
-  if (typeof socket === "object") {
-    if (socket.stopped === CONNECTION_CLOSE_DISPLACED)
-      return withReconnect("Signed in elsewhere. Reconnect to keep working here.");
-    return Option.match(endedCopy(appName, socket.stopped, merchant), {
-      onNone: () => withReconnect(`${appName} stopped updating this page. Reconnect to try again.`),
-      onSome: (copy) => <s-banner tone="critical" heading={copy} />,
-    });
-  }
-  if (socket === "lost" && lost)
-    return (
-      <s-banner
-        tone="warning"
-        heading={`${appName} lost its connection. This page won't update, and you can't make changes until it reconnects.`}
-      />
-    );
-  return null;
+  return Option.match(bannerCopy(socket, { appName, merchant, lost }), {
+    onNone: () => null,
+    onSome: (copy) => (
+      <s-banner tone={copy.tone} heading={copy.heading}>
+        {copy.reconnect && (
+          <s-button
+            slot="secondary-actions"
+            variant="secondary"
+            onClick={() => {
+              reconnect((n) => n + 1);
+            }}
+          >
+            Reconnect
+          </s-button>
+        )}
+      </s-banner>
+    ),
+  });
 }
 
 /** The banner while `route` shows its last answer because a reread failed (`keepLastAnswer`). */
