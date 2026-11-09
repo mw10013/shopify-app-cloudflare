@@ -140,3 +140,11 @@ A production stage, to rehearse production deploys and migrations without custom
    - It runs the shared e2e pack. App Home holds the shop and plan handle as hidden elements the pack reads; merchants see neither.
    - Checked on `mw10013-staging-shop-00` after the reset: App Home loads and a scan runs.
 8. Extract the shop actor machinery and client, then the Website side, each through the same steps.
+
+   Part A, the shop actor kit and browser client, as designed in `docs/design.md` "The shop actor" (#43). The package, the testbed and staging have passed; the release and motio's move are next.
+
+   - The package (#44, #46). `ShopActorKit.make` builds an app's `ShopActor` body; `ShopActors`, `shopActorHooks` and `actorUpgrade` are the Backend's half; `/client` holds the framework-free socket, retry and notices. #46 made the caller type come only from `caller` and the methods only from `build`, so a member-typed hook without its schema, or a shape whose methods the build never returns, no longer compiles.
+   - The testbed (#45). Its `ShopActor` holds a counter on the kit. The integ suite covers own and plain notices across two sockets, another shop's token closed with 4403, uninstall closing with 4410 and a reinstall starting from 0, and a plan change closing with 3401 and the reconnect reading again. `test/e2e/counter.spec.ts` increments in one tab and sees the count in both. The alarm is not exercised; motio's scan is the first that runs on it.
+   - Staging. Every build from #39 to #46 failed: #39 edited a comment in the applied migration `0000_swa_01_app_installation.sql`, and Alchemy refuses a deploy whose applied migration history changed (`RewrittenMigrationHistoryError`). Motio's staging had already applied the edited file through `v0.1.1`, so staging was reset rather than the edit reverted: `vp run stage reset staging --confirm staging` from `fc78362`, build `3950e095` succeeded, and `vp run stage check staging` passed. #49 keeps the migration tests as they were before #47; Alchemy's refusal is the check against an edit, so `stage check` runs after each merge to `main`.
+
+   Checked on 2026-11-08 on `mw10013-pool-17`: App Home loaded with the socket open and Count 0. Increment in one tab showed 1 there; a second tab in the background held its notice and showed 1 when brought to the front. The staging logs showed no errors.
