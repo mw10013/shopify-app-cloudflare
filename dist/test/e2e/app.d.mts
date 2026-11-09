@@ -90,6 +90,17 @@ export declare const shopOf: (app: E2eApp) => string;
 export declare const appBaseUrl: (app: E2eApp) => string;
 /** The e2e status route's URL for `shop`, on the server's local port. */
 export declare const statusUrl: (app: E2eApp, shop: string) => URL;
+/**
+ * The {@link E2eApp} `status` and `webhooks.record` of an app whose `e2e` Backend serves
+ * `withE2eRoutes`: the routes' paths, and the token of the session the running e2e server was
+ * started with, read from {@link E2E_SESSION_FILE} under the app's `root`. Throws when the file is
+ * absent or is for another store than `store`, the lease's: the server was started before its
+ * session, or for another store.
+ */
+export declare const e2eRoutes: (root: string, store: string) => {
+  readonly status: E2eApp["status"];
+  readonly record: string;
+};
 /** The pack's spec and setup files. */
 export declare const E2E_SPECS_DIR: string;
 /**

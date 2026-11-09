@@ -1,7 +1,7 @@
 import { AppNotInstalledError, InvalidIdTokenError, ReauthenticationRequiredError, ShopifyUnavailableError } from "./contract.mjs";
 import { ShopDomain, ShopGid } from "./domain.mjs";
-import { AppInstallationStore } from "./app-installation-store.mjs";
 import { AdminToken } from "./admin-token.mjs";
+import { AppInstallationStore } from "./app-installation-store.mjs";
 import { ShopifyClient } from "./shopify-client.mjs";
 import * as Schema from "effect/Schema";
 import "effect/DateTime";

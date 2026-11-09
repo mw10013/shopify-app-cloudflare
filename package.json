@@ -1,6 +1,6 @@
 {
   "name": "@mw10013/shopify-app-workers",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "files": [
     "dist",
@@ -39,6 +39,14 @@
     "./test/e2e": {
       "types": "./dist/test-e2e.d.mts",
       "default": "./dist/test-e2e.mjs"
+    },
+    "./test/e2e/backend": {
+      "types": "./dist/test-e2e-backend.d.mts",
+      "default": "./dist/test-e2e-backend.mjs"
+    },
+    "./test/e2e/server": {
+      "types": "./dist/test-e2e-server.d.mts",
+      "default": "./dist/test-e2e-server.mjs"
     }
   },
   "dependencies": {

@@ -1,7 +1,8 @@
 import { AccessDeniedError, AppNotInstalledError, InvalidIdTokenError, ReauthenticationRequiredError, ShopInaccessibleError, ShopifyAccessFailure, ShopifyUnavailableError } from "./contract.mjs";
+import { AppInstallation } from "./app-installation.mjs";
 import { ShopDomain, ShopGid } from "./domain.mjs";
-import { AppInstallation } from "./app-installation-store.mjs";
 import { AdminToken } from "./admin-token.mjs";
+import "./app-installation-store.mjs";
 import "./shopify-client.mjs";
 import "./shop-grantor.mjs";
 import * as Schema from "effect/Schema";

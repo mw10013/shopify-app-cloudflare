@@ -1,6 +1,6 @@
 import { AuthenticateMerchantFailure, ShopifyAccessFailure } from "../internal/contract.mjs";
+import { AppInstallation } from "../internal/app-installation.mjs";
 import { ShopDomain, ShopGid } from "../internal/domain.mjs";
-import { AppInstallation } from "../internal/app-installation-store.mjs";
 import { AdminToken } from "../internal/admin-token.mjs";
 import { ShopifyHooksShape } from "../internal/hooks.mjs";
 import { EnsureSessionFailure } from "../internal/shopify.mjs";

@@ -217,8 +217,10 @@ const billing = [
 		assert.deepEqual(read.installedAt, (yield* storedRow).installedAt);
 		assert.deepEqual((yield* (yield* ShopifyFake).calls).length, 0, "no exchange");
 	})),
-	behavior("N21", "the socket gate's read: unsubscribed is data, no row is AppNotInstalledError", Effect.gen(function* () {
+	behavior("N21", "the socket gate's read: the verified shop needs no row, unsubscribed is data, no row is AppNotInstalledError", Effect.gen(function* () {
 		const harness = yield* ShopifyHarness;
+		assert.equal(yield* harness.gate.verifiedShop(yield* idToken), SHOP);
+		assert.equal(yield* failureOf(harness.gate.verifiedShop("not-a-token")), "InvalidIdTokenError");
 		assert.equal(yield* failureOf(harness.gate.merchantStanding(yield* idToken)), "AppNotInstalledError");
 		yield* seedAt();
 		yield* script(BEHAVIOR_SHOP_GID, { _tag: "None" });

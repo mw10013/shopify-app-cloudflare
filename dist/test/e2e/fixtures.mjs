@@ -3,10 +3,10 @@ import { E2eApp, appBaseUrl, statusUrl, webhookRecordUrl } from "./app.mjs";
 import { onLeasedStore, planSelectionUrl, requireLeasedStore, screenError } from "./admin.mjs";
 import * as Schema from "effect/Schema";
 import * as Option from "effect/Option";
-import { appFrame, awaitHydration, closeDevConsole } from "@mw10013/devkit/shopify/embedded-app";
-import { chromium, expect as expect$1, test } from "playwright/test";
 import process from "node:process";
 import { AGENT_CDP } from "@mw10013/devkit/shopify/agent-chrome";
+import { appFrame, awaitHydration, closeDevConsole } from "@mw10013/devkit/shopify/embedded-app";
+import { chromium, expect as expect$1, test } from "playwright/test";
 import { routeAppToLocal } from "@mw10013/devkit/shopify/local-route";
 // src/test/e2e/fixtures.ts
 /**

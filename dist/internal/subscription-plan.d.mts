@@ -1,6 +1,7 @@
 import { ShopifyUnavailableError } from "./contract.mjs";
+import { AppInstallation } from "./app-installation.mjs";
 import { ShopDomain } from "./domain.mjs";
-import { AppInstallation, AppInstallationStore } from "./app-installation-store.mjs";
+import { AppInstallationStore } from "./app-installation-store.mjs";
 import { PlanCatalog, PlanStatus } from "./catalog.mjs";
 import { ShopifyHooks } from "./hooks.mjs";
 import { PartnerApi } from "./partner-api.mjs";

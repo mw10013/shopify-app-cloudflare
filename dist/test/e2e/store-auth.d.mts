@@ -1,5 +1,6 @@
 import * as Schema from "effect/Schema";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
 declare const StoreAuthError_base: Schema.Class<StoreAuthError, Schema.TaggedStruct<"StoreAuthError", {
   readonly message: Schema.String;
   readonly cause: Schema.optionalKey<Schema.Defect>;
@@ -17,4 +18,12 @@ export declare const resultText: (stdout: string) => string;
  * it.
  */
 export declare const storeAuthMissing: (shop: string, wanted: readonly string[]) => Effect.Effect<string[], StoreAuthError, import("effect/process/ChildProcessSpawner").ChildProcessSpawner>;
+/**
+ * Grants `store` store auth with `scopes`, approving Shopify's page in the agent Chrome. A pool
+ * store arrives in whatever state its last holder left it, so this checks first and does nothing
+ * when the store already has every scope. `shopify store auth` opens its URL in the default
+ * browser, so a stand-in `open` first on its `PATH` catches the URL for the agent Chrome to
+ * approve. A lapsed Shopify login in the agent Chrome fails for a person to fix.
+ */
+export declare const authorizeStore: (store: string, scopes: readonly string[]) => Effect.Effect<undefined, import("effect/PlatformError").PlatformError | StoreAuthError, import("effect/process/ChildProcessSpawner").ChildProcessSpawner | FileSystem.FileSystem>;
 export {};

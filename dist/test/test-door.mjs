@@ -1,5 +1,6 @@
 import { ShopDomain, ShopGid } from "../internal/domain.mjs";
-import { AppInstallation, AppInstallationStore } from "../internal/app-installation-store.mjs";
+import { AppInstallation } from "../internal/app-installation.mjs";
+import { AppInstallationStore } from "../internal/app-installation-store.mjs";
 import { ShopGrantors } from "../internal/shop-grantor.mjs";
 import { Shopify } from "../internal/shopify.mjs";
 import { SubscriptionPlan } from "../internal/subscription-plan.mjs";

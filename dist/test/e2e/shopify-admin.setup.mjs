@@ -1,8 +1,8 @@
 import { test } from "./fixtures.mjs";
 import * as Effect from "effect/Effect";
+import * as Console from "effect/Console";
 import { exportShopifyAdminAuth } from "@mw10013/devkit/shopify/agent-chrome";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import * as Console from "effect/Console";
 // src/test/e2e/shopify-admin.setup.ts
 /**
 * Exports the agent Chrome's Shopify login for the pack's specs on every run: a live read of

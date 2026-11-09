@@ -1,4 +1,5 @@
 import { PartnerConfig } from "./bindings.mjs";
+import * as Schema from "effect/Schema";
 import * as Option from "effect/Option";
 import * as Effect from "effect/Effect";
 import * as Config from "effect/Config";
@@ -66,3 +67,11 @@ export declare const bindShopifyApp: (backend: BindableWorker, options: {
   readonly app: ShopifyAppBinding;
   readonly partner: Option.Option<PartnerConfig>;
 }) => Effect.Effect<void, never, never>;
+/**
+ * Binds the e2e session the e2e server's `start` wrote under `appRoot` to the `e2e` stage's
+ * Backend, which gates its e2e routes with it (`withE2eRoutes` in `/test/e2e/backend`). Binds
+ * nothing when the file is absent (a bare `alchemy destroy`), and the routes then answer every
+ * request 401. Only the `e2e` stage calls it: the app's stack picks the stage, as it picks the
+ * Backend Worker that serves the routes.
+ */
+export declare const bindE2eSession: (backend: BindableWorker, appRoot: string | URL) => Effect.Effect<void, Schema.SchemaError, never>;

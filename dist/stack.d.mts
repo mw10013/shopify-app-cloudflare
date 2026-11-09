@@ -1,3 +1,3 @@
 import { PartnerConfig } from "./internal/bindings.mjs";
-import { AppIdentity, BindableWorker, ShopifyAppBinding, bindShopifyApp, deployedShopifyApp, fakeShopifyApp, partnerBindingFromConfig, readAppIdentity, shopifyCliApp } from "./internal/stack.mjs";
-export { type AppIdentity, type BindableWorker, PartnerConfig, type ShopifyAppBinding, bindShopifyApp, deployedShopifyApp, fakeShopifyApp, partnerBindingFromConfig, readAppIdentity, shopifyCliApp };
+import { AppIdentity, BindableWorker, ShopifyAppBinding, bindE2eSession, bindShopifyApp, deployedShopifyApp, fakeShopifyApp, partnerBindingFromConfig, readAppIdentity, shopifyCliApp } from "./internal/stack.mjs";
+export { type AppIdentity, type BindableWorker, PartnerConfig, type ShopifyAppBinding, bindE2eSession, bindShopifyApp, deployedShopifyApp, fakeShopifyApp, partnerBindingFromConfig, readAppIdentity, shopifyCliApp };

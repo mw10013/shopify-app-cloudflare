@@ -1,11 +1,13 @@
 import { AppHandle, SHOPIFY_BINDING, SHOPIFY_PARTNER_BINDING, partnerConfig } from "./bindings.mjs";
+import { E2E_SESSION_BINDING, E2E_SESSION_FILE, E2eSessionJson, e2eSessionEnv } from "../test/e2e-session.mjs";
 import { FAKE_APP_HANDLE, FAKE_SHOPIFY_API_KEY, FAKE_SHOPIFY_API_SECRET } from "../test/fake-app.mjs";
 import * as Schema from "effect/Schema";
 import * as Option from "effect/Option";
 import * as Effect from "effect/Effect";
 import * as Config from "effect/Config";
 import * as Redacted from "effect/Redacted";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as ConfigProvider from "effect/ConfigProvider";
 // src/internal/stack.ts
@@ -121,4 +123,18 @@ const bindShopifyApp = Effect.fn("Stack.bindShopifyApp")(function* (backend, opt
 	} });
 	if (Option.isSome(options.partner)) yield* backend.bind(SHOPIFY_PARTNER_BINDING, { env: options.partner.value });
 });
-export { bindShopifyApp, deployedShopifyApp, fakeShopifyApp, partnerBindingFromConfig, readAppIdentity, shopifyCliApp };
+const decodeE2eSession = Schema.decodeUnknownEffect(E2eSessionJson);
+/**
+* Binds the e2e session the e2e server's `start` wrote under `appRoot` to the `e2e` stage's
+* Backend, which gates its e2e routes with it (`withE2eRoutes` in `/test/e2e/backend`). Binds
+* nothing when the file is absent (a bare `alchemy destroy`), and the routes then answer every
+* request 401. Only the `e2e` stage calls it: the app's stack picks the stage, as it picks the
+* Backend Worker that serves the routes.
+*/
+const bindE2eSession = Effect.fn("Stack.bindE2eSession")(function* (backend, appRoot) {
+	const file = path.join(pathOf(appRoot), E2E_SESSION_FILE);
+	if (!existsSync(file)) return;
+	const session = yield* decodeE2eSession(readFileSync(file, "utf8"));
+	yield* backend.bind(E2E_SESSION_BINDING, { env: e2eSessionEnv(session) });
+});
+export { bindE2eSession, bindShopifyApp, deployedShopifyApp, fakeShopifyApp, partnerBindingFromConfig, readAppIdentity, shopifyCliApp };

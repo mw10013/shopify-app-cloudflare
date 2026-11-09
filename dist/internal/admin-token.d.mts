@@ -1,4 +1,4 @@
-import "./app-installation-store.mjs";
+import "./app-installation.mjs";
 import * as Schema from "effect/Schema";
 import "effect/DateTime";
 import "effect/Duration";

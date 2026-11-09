@@ -1,5 +1,6 @@
+import { AppInstallationRedacted, AppInstallationRedactedPage } from "./app-installation.mjs";
 import { ShopDomain } from "./domain.mjs";
-import { AppInstallationRedacted, AppInstallationRedactedPage, AppInstallationStore, RedactedPageInput } from "./app-installation-store.mjs";
+import { AppInstallationStore, RedactedPageInput } from "./app-installation-store.mjs";
 import { ShopifyCredentials } from "./bindings.mjs";
 import { ShopifyClient } from "./shopify-client.mjs";
 import { ShopGrantors } from "./shop-grantor.mjs";

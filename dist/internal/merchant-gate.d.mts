@@ -38,6 +38,11 @@ export interface MerchantGateShape {
     readonly installedAt: DateTime.Utc | null;
   }, AuthenticateMerchantFailure>;
   /**
+   * The ID token's verified shop, with no read: a socket gate refuses a token for another shop
+   * before {@link merchantStanding} reads that shop's row or plan.
+   */
+  readonly verifiedShop: (idToken: string) => Effect.Effect<ShopDomain, InvalidIdTokenError>;
+  /**
    * The socket gate's read: the same verification and plan read with every outcome as data or a
    * typed failure the gate maps to a close code: no row is `AppNotInstalledError`, and an
    * unsubscribed shop is its `status`, with no href.

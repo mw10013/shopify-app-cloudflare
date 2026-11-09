@@ -1,4 +1,6 @@
+import { E2E_SESSION_FILE, E2E_STATUS_PATH, E2E_TOKEN_HEADER, E2E_WEBHOOKS_PATH, E2eSessionJson } from "../e2e-session.mjs";
 import * as Schema from "effect/Schema";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { storageStatePath } from "@mw10013/devkit/shopify/agent-chrome";
@@ -98,6 +100,33 @@ const statusUrl = (app, shop) => {
 };
 /** The e2e webhook record's URL, on the server's local port. */
 const webhookRecordUrl = (app) => localServerUrl(app, app.webhooks.record);
+const decodeSession = Schema.decodeUnknownSync(E2eSessionJson);
+/**
+* The {@link E2eApp} `status` and `webhooks.record` of an app whose `e2e` Backend serves
+* `withE2eRoutes`: the routes' paths, and the token of the session the running e2e server was
+* started with, read from {@link E2E_SESSION_FILE} under the app's `root`. Throws when the file is
+* absent or is for another store than `store`, the lease's: the server was started before its
+* session, or for another store.
+*/
+const e2eRoutes = (root, store) => {
+	const file = path.join(root, E2E_SESSION_FILE);
+	const restart = "vp run e2e:stop && vp run e2e:start";
+	let text;
+	try {
+		text = readFileSync(file, "utf8");
+	} catch (cause) {
+		throw new Error(`${file} cannot be read: ${restart}`, { cause });
+	}
+	const session = decodeSession(text);
+	if (session.shop !== `${store}.myshopify.com`) throw new Error(`${file} is for ${session.shop}, not ${store}: ${restart}`);
+	return {
+		status: {
+			path: E2E_STATUS_PATH,
+			headers: { [E2E_TOKEN_HEADER]: session.token }
+		},
+		record: E2E_WEBHOOKS_PATH
+	};
+};
 /** The pack's spec and setup files. */
 const E2E_SPECS_DIR = import.meta.dirname;
 /**
@@ -190,4 +219,4 @@ const e2eProjects = (app, root) => [
 		testIgnore: LIFECYCLE_SPEC_MATCH
 	})
 ];
-export { E2E_PREFLIGHT, E2E_SPECS_DIR, E2E_TRACE, E2eApp, E2ePlan, E2eServer, LIFECYCLE_PROJECT, LIFECYCLE_SPEC_MATCH, SHOPIFY_ADMIN_PROJECT, SPECS_PROJECT, SPEC_MATCH, appBaseUrl, e2eProject, e2eProjects, localServerUrl, shopOf, statusUrl, webhookRecordUrl };
+export { E2E_PREFLIGHT, E2E_SPECS_DIR, E2E_TRACE, E2eApp, E2ePlan, E2eServer, LIFECYCLE_PROJECT, LIFECYCLE_SPEC_MATCH, SHOPIFY_ADMIN_PROJECT, SPECS_PROJECT, SPEC_MATCH, appBaseUrl, e2eProject, e2eProjects, e2eRoutes, localServerUrl, shopOf, statusUrl, webhookRecordUrl };

@@ -59,6 +59,9 @@ const make = Effect.gen(function* () {
 				installedAt: row.installedAt
 			};
 		}),
+		verifiedShop: Effect.fn("MerchantGate.verifiedShop")(function* (idToken) {
+			return (yield* client.decodeIdToken(idToken)).shop;
+		}),
 		merchantStanding: Effect.fn("MerchantGate.merchantStanding")(function* (idToken) {
 			const row = yield* installedRow(idToken);
 			return {
