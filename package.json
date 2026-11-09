@@ -1,6 +1,6 @@
 {
   "name": "@mw10013/shopify-app-workers",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "MIT",
   "files": [
     "dist",
@@ -23,6 +23,10 @@
     "./website": {
       "types": "./dist/website.d.mts",
       "default": "./dist/website.mjs"
+    },
+    "./website/react": {
+      "types": "./dist/website-react.d.mts",
+      "default": "./dist/website-react.mjs"
     },
     "./client": {
       "types": "./dist/client.d.mts",
@@ -55,15 +59,21 @@
   "peerDependencies": {
     "@alchemy.run/cloudflare": "2.0.0-beta.85",
     "@cloudflare/workers-types": "^5.20261026.1",
+    "@effect/atom-react": "^4.1.2",
     "@effect/platform-node": "^4.1.2",
     "@effect/sql-sqlite-do": "^4.1.2",
     "@mw10013/devkit": "*",
+    "@tanstack/react-router": "^1.170.41",
     "alchemy": "2.0.0-beta.85",
     "effect": "^4.1.2",
-    "playwright": "^1.64.1"
+    "playwright": "^1.64.1",
+    "react": "^19.3.0"
   },
   "peerDependenciesMeta": {
     "@cloudflare/workers-types": {
+      "optional": true
+    },
+    "@effect/atom-react": {
       "optional": true
     },
     "@effect/platform-node": {
@@ -72,7 +82,13 @@
     "@mw10013/devkit": {
       "optional": true
     },
+    "@tanstack/react-router": {
+      "optional": true
+    },
     "playwright": {
+      "optional": true
+    },
+    "react": {
       "optional": true
     }
   }

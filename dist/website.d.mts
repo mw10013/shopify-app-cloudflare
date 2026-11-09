@@ -1,13 +1,6 @@
-/**
- * What runs inside an app's Website Worker and its pages: App Bridge, Polaris and the merchant
- * guard.
- *
- * @module
- */
-/** App Bridge, which the Shopify admin requires as the App Home document's first script. */
-export declare const APP_BRIDGE_URL = "https://cdn.shopify.com/shopifycloud/app-bridge.js";
-/**
- * Polaris web components, pinned to the 2.0 line with `@shopify/polaris-types` at the matching
- * `2.0.*`: Shopify publishes each minor line at its own URL.
- */
-export declare const POLARIS_URL = "https://cdn.shopify.com/shopifycloud/polaris-2.0.js";
+import { mintIdToken, showSaveBar, toast } from "./internal/app-bridge.mjs";
+import { AppGate, AppGuardInput, AppGuardReads, AuthenticateAppInput, EmbeddedRequest, Redirect, RedirectOptions, appGuard, bearerToken, documentGuard, forgetAppGuard, hasBearer, readEmbeddedIdToken } from "./internal/merchant-request.mjs";
+import { rescue } from "./internal/rescue.mjs";
+import { APP_BRIDGE_URL, AppSearch, POLARIS_URL, appSearch, documentHeaders, embeddedAppUrl, exitIframeDestination, idTokenBounce } from "./internal/shopify-urls.mjs";
+import { WebsiteBindings, actorUpgradeHandlers, appBridgePage, exitIframeHandlers, isCrossSiteUpgrade, sessionTokenHandlers, webhookHandlers } from "./internal/website-routes.mjs";
+export { APP_BRIDGE_URL, type AppGate, type AppGuardInput, type AppGuardReads, type AppSearch, type AuthenticateAppInput, type EmbeddedRequest, POLARIS_URL, type Redirect, type RedirectOptions, type WebsiteBindings, actorUpgradeHandlers, appBridgePage, appGuard, appSearch, bearerToken, documentGuard, documentHeaders, embeddedAppUrl, exitIframeDestination, exitIframeHandlers, forgetAppGuard, hasBearer, idTokenBounce, isCrossSiteUpgrade, mintIdToken, readEmbeddedIdToken, rescue, sessionTokenHandlers, showSaveBar, toast, webhookHandlers };

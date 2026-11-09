@@ -8,8 +8,8 @@ import * as Effect from "effect/Effect";
 import * as Array from "effect/Array";
 import { tunnelReady } from "@mw10013/devkit/shopify/server";
 import { AGENT_CDP } from "@mw10013/devkit/shopify/agent-chrome";
-import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as Result from "effect/Result";
+import * as NodeServices from "@effect/platform-node/NodeServices";
 // src/test/e2e/preflight.ts
 /**
 * The run's `globalSetup`, before any project: a run that cannot work fails here in one sentence
