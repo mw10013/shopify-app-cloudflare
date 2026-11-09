@@ -182,6 +182,6 @@ A production stage, to rehearse production deploys and migrations without custom
     - The real-Shopify token-refresh spec is gone until the pack has an e2e route that ages a token. In process, the package's `REQUIRED_BEHAVIORS` cover refresh.
     - Staging was reset from scratch (`vp run stage reset staging --confirm staging`). The push of #88 started no Workers Build, so `vp run stage up staging` built it. The push of #89 built on its own (build `7a5c255f`). On `mw10013-staging-shop-00`, App Home loaded with the socket connected, and the logs showed the exchange and no errors.
 
-    - Server functions' CSRF check (baton #90). Baton's `start.ts` had dropped Start's default CSRF middleware, as the testbed and bang once did. It now restates it. The e2e replay of a server function sends `sec-fetch-site: same-origin`, as bang's does.
+    - Server functions' CSRF check (baton #90). Baton's `start.ts` had dropped Start's default CSRF middleware. It now restates it, as the testbed and bang do. The e2e replay of a server function sends `sec-fetch-site: same-origin`, as bang's does.
 
     Production is not touched. When the owner is ready, it needs a reset, and `.env.production` loses `SHOPIFY_API_KEY` and `SHOPIFY_APP_HANDLE`.
