@@ -1,6 +1,12 @@
-import { assert, describe, it } from "@effect/vitest";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 
-import { applyRules, rewriteManifest, sourceRules } from "#scripts/migrate-from-devkit.ts";
+import * as NodeServices from "@effect/platform-node/NodeServices";
+import { assert, describe, it } from "@effect/vitest";
+import * as Effect from "effect/Effect";
+
+import { applyRules, migrate, rewriteManifest, sourceRules } from "#scripts/migrate-from-devkit.ts";
 
 const source = [
   `import { app } from "@mw10013/devkit/core/app";`,
@@ -57,6 +63,7 @@ describe("rewriteManifest", () => {
         stage: "devkit-stage",
         logs: "devkit-logs",
         test: "vp test run",
+        "check:pin": "devkit check-pin",
       },
       dependencies: { "@mw10013/devkit": "catalog:" },
     };
@@ -78,4 +85,27 @@ describe("rewriteManifest", () => {
     const text = `{"name":"app","scripts":{"test":"vp test run"}}`;
     assert.strictEqual(rewriteManifest(text), text);
   });
+});
+
+describe("migrate", () => {
+  it.effect("rewrites files, skips directories named like sources and leaves refs alone", () =>
+    Effect.gen(function* () {
+      const root = mkdtempSync(path.join(tmpdir(), "migrate-from-devkit-"));
+      mkdirSync(path.join(root, "src", "snapshot.test.ts"), { recursive: true });
+      mkdirSync(path.join(root, "refs", "other"), { recursive: true });
+      const devkitImport = `import { app } from "@mw10013/devkit/core/app";\n`;
+      writeFileSync(path.join(root, "src", "app.ts"), devkitImport);
+      writeFileSync(path.join(root, "refs", "other", "app.ts"), devkitImport);
+      const changed = yield* migrate([root], false);
+      assert.deepStrictEqual(changed, [path.join(root, "src", "app.ts")]);
+      assert.strictEqual(
+        readFileSync(path.join(root, "src", "app.ts"), "utf8"),
+        `import { app } from "@mw10013/rigging/core/app";\n`,
+      );
+      assert.strictEqual(
+        readFileSync(path.join(root, "refs", "other", "app.ts"), "utf8"),
+        devkitImport,
+      );
+    }).pipe(Effect.provide(NodeServices.layer)),
+  );
 });

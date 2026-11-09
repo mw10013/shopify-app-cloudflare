@@ -19,6 +19,6 @@ The Shopify dev tooling lives here too, as `/dev/*`: the berth client, the dev a
 
 An app moving off `@mw10013/devkit` runs `vpx <this checkout>/packages/shopify-app-workers/scripts/migrate-from-devkit.ts` in its root. It rewrites `@mw10013/devkit/shopify/<m>` to `@mw10013/shopify-app-workers/dev/<m>`, `@mw10013/devkit/<core|cloudflare>/<m>` to `@mw10013/rigging/...`, the `devkit-*` and `bosun` scripts to `rigging`, and `BOSUN_ENDPOINT` to `RIGGING_ENDPOINT`. The dependency lines and prose stay for the person migrating.
 
-A pushed tag `v<version>` publishes the package to npm (`.github/workflows/publish.yml`). The version lives in `packages/shopify-app-workers/package.json`, and the tag must match it. To release, bump that version in a PR, merge it, then push the tag from `main`.
+A pushed tag `v<version>` publishes the package to npm (`.github/workflows/publish.yml`). The version lives in `packages/shopify-app-workers/package.json`, and the tag must match it. To release, bump that version in a PR, merge it, then push the tag from `main`. The first version predates trusted publishing, which npm configures only for a package that exists: the owner publishes it once by hand (`vp run build`, then `npm publish ./dist` in `packages/shopify-app-workers`), then adds this workflow as the trusted publisher in the package's npm settings.
 
 [Design](docs/design.md) explains the decisions and the production rules. [Roadmap](docs/roadmap.md) lists the work in order.

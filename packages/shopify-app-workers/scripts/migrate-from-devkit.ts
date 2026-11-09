@@ -48,32 +48,36 @@ export const SCRIPT_RULES: readonly Rule[] = [
 export const applyRules = (text: string, rules: readonly Rule[]) =>
   rules.reduce((current, [pattern, replacement]) => current.replace(pattern, replacement), text);
 
+const OBSOLETE_SCRIPT = /^devkit check-pin$/u;
+
 export const rewriteManifest = (text: string) => {
   const manifest = JSON.parse(text) as { scripts?: Record<string, string> };
   if (manifest.scripts === undefined) return text;
   const scripts = Object.fromEntries(
-    Object.entries(manifest.scripts).map(([name, command]) => [
-      name,
-      applyRules(command, SCRIPT_RULES),
-    ]),
+    Object.entries(manifest.scripts)
+      .filter(([, command]) => !OBSOLETE_SCRIPT.test(command))
+      .map(([name, command]) => [name, applyRules(command, SCRIPT_RULES)]),
   );
-  return Object.entries(scripts).every(([name, command]) => manifest.scripts?.[name] === command)
+  return JSON.stringify(scripts) === JSON.stringify(manifest.scripts)
     ? text
     : `${JSON.stringify({ ...manifest, scripts }, undefined, 2)}\n`;
 };
 
 const SOURCE = /\.(?:ts|tsx|mts|js|mjs)$/u;
-const SKIPPED = new Set(["node_modules", ".git", "dist", ".alchemy", ".rigging", ".bosun"]);
+const SKIPPED = new Set(["node_modules", ".git", "dist", "refs", ".alchemy", ".rigging", ".bosun"]);
 
 const filesUnder = Effect.fnUntraced(function* (root: string) {
   const fs = yield* FileSystem.FileSystem;
   if ((yield* fs.stat(root)).type === "File") return [path.resolve(root)];
   const entries = yield* fs.readDirectory(root, { recursive: true });
-  return entries
+  const candidates = entries
     .filter((entry) => !entry.split(path.sep).some((part) => SKIPPED.has(part)))
     .map((entry) => path.resolve(root, entry))
     .filter((file) => SOURCE.test(file) || path.basename(file) === "package.json")
     .filter((file) => file !== import.meta.filename);
+  return yield* Effect.filter(candidates, (file) =>
+    fs.stat(file).pipe(Effect.map((info) => info.type === "File")),
+  );
 });
 
 export const migrate = Effect.fn("MigrateFromDevkit.migrate")(function* (

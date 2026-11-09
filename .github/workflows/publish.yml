@@ -38,6 +38,8 @@ jobs:
         working-directory: apps/testbed
       - run: vp run build
         working-directory: packages/shopify-app-workers
+      - run: vp run consumer-check
+        working-directory: packages/shopify-app-workers
       - run: npm install -g npm@latest
       # npm "auto-corrects" a manifest it dislikes by dropping fields, and only warns. Fail instead.
       - name: npm accepts the manifest unchanged
