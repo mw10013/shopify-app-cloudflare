@@ -3,9 +3,11 @@ import {
   applyCloseOutcome,
   closeOutcome,
   makeNoticeDispatch,
+  nameSocket,
   NOTICE_THROTTLE,
   reaskAtom,
   retryPolicy,
+  shopActorProtocol,
   socketStateAtom,
   type Visibility,
 } from "@mw10013/shopify-app-workers/client";
@@ -17,12 +19,16 @@ import {
   CONNECTION_CLOSE_TRY_AGAIN,
   CONNECTION_CLOSE_UNAUTHENTICATED,
   CONNECTION_CLOSE_UNINSTALLED,
+  ShopDomain,
 } from "@mw10013/shopify-app-workers/contract";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as Function from "effect/Function";
+import * as Atom from "effect/reactivity/Atom";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import * as Schedule from "effect/Schedule";
+import * as Schema from "effect/Schema";
 import * as Socket from "effect/socket/Socket";
 import { afterEach, beforeEach, vi } from "vite-plus/test";
 
@@ -75,7 +81,7 @@ describe("close outcome", () => {
   it.effect.each([
     { code: 1006, state: "lost", reasks: 0 },
     { code: CONNECTION_CLOSE_TRY_AGAIN, state: "lost", reasks: 0 },
-    { code: CONNECTION_CLOSE_REVOKED, state: "lost", reasks: 0 },
+    { code: CONNECTION_CLOSE_REVOKED, state: "lost", reasks: 1 },
     {
       code: CONNECTION_CLOSE_PAYMENT_REQUIRED,
       state: { stopped: CONNECTION_CLOSE_PAYMENT_REQUIRED },
@@ -98,6 +104,78 @@ describe("close outcome", () => {
         registry.dispose();
       }),
   );
+});
+
+describe("socket credential", () => {
+  const shop = Schema.decodeUnknownSync(ShopDomain)("cookie-socket.myshopify.com");
+  const dialed: string[] = [];
+  beforeEach(() => {
+    dialed.length = 0;
+    vi.stubGlobal("window", { location: { origin: "https://app.example" } });
+    vi.stubGlobal(
+      "WebSocket",
+      class {
+        readonly readyState = 0;
+        constructor(url: string) {
+          dialed.push(url);
+        }
+        readonly addEventListener = Function.constVoid;
+        readonly removeEventListener = Function.constVoid;
+        readonly close = Function.constVoid;
+      },
+    );
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const dial = async (name: (registry: AtomRegistry.AtomRegistry) => void) => {
+    const registry = AtomRegistry.make();
+    const unmount = registry.mount(Atom.runtime(shopActorProtocol({ allKeys: [] })));
+    assert.deepStrictEqual(dialed, [], "no socket before the key is named");
+    name(registry);
+    await vi.waitFor(() => {
+      assert.lengthOf(dialed, 1);
+    });
+    unmount();
+    registry.dispose();
+    return new URL(dialed[0] ?? "");
+  };
+
+  it("a cookie socket connects once the key is named, with no token on its URL", async () => {
+    const url = await dial((registry) => {
+      nameSocket(registry, shop);
+    });
+    assert.strictEqual(url.origin, "wss://app.example");
+    assert.isTrue(url.pathname.endsWith(`/${shop}`));
+    assert.isFalse(url.searchParams.has("token"));
+  });
+
+  it("a merchant socket carries the token it mints", async () => {
+    const url = await dial((registry) => {
+      nameSocket(registry, shop, Effect.succeed("id-token"));
+    });
+    assert.isTrue(url.pathname.endsWith(`/${shop}`));
+    assert.strictEqual(url.searchParams.get("token"), "id-token");
+  });
+
+  it("naming another shop and credential never dials one shop with the other's credential", async () => {
+    const other = Schema.decodeUnknownSync(ShopDomain)("other-socket.myshopify.com");
+    const registry = AtomRegistry.make();
+    const unmount = registry.mount(Atom.runtime(shopActorProtocol({ allKeys: [] })));
+    nameSocket(registry, shop, Effect.succeed("id-token"));
+    await vi.waitFor(() => {
+      assert.lengthOf(dialed, 1);
+    });
+    nameSocket(registry, other);
+    await vi.waitFor(() => {
+      assert.isTrue(dialed.some((url) => url.includes(other)));
+    });
+    unmount();
+    registry.dispose();
+    for (const dial of dialed.map((url) => new URL(url)))
+      assert.strictEqual(dial.pathname.endsWith(`/${other}`), !dial.searchParams.has("token"));
+  });
 });
 
 describe("notice dispatch", () => {

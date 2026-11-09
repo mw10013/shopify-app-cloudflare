@@ -17,4 +17,9 @@ export {
   rereadRoute,
   STALE_ON_NOTICE_ONLY,
 } from "#internal/live-route.ts";
-export { RereadFailedBanner, ShopSocket, SocketBanner } from "#internal/shop-socket.tsx";
+export {
+  RereadFailedBanner,
+  type SocketCredential,
+  ShopSocket,
+  SocketBanner,
+} from "#internal/shop-socket.tsx";
