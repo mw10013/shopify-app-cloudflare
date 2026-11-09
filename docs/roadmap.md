@@ -133,4 +133,10 @@ A production stage, to rehearse production deploys and migrations without custom
 
    Skipped on 2026-11-08 by the owner's decision. Migrations stay additive, as coder's `references/deployed-stages.md` requires, so a Worker rolled back over one still runs. The first migration a Workers Build applies, and the first rollback, will be real ones.
 7. Move motio onto the package as its first real consumer. Check: motio's suites and the shared e2e spec pack pass.
+
+   Done on 2026-11-08; the check has passed. Motio is on `v0.1.1` (motio #75, #76):
+
+   - Its Backend uses the package's grantor, client, billing, webhooks and `AppInstallation` store; its copies are deleted. `AppInstallation` was the only table in motio's `0001_init.sql`, so that file is gone and the package's migrations replace it. Staging was reset from scratch rather than migrated (`vp run stage reset staging --confirm staging`); production is not yet reset.
+   - It runs the shared e2e pack. App Home holds the shop and plan handle as hidden elements the pack reads; merchants see neither.
+   - Checked on `mw10013-staging-shop-00` after the reset: App Home loads and a scan runs.
 8. Extract the shop actor machinery and client, then the Website side, each through the same steps.
