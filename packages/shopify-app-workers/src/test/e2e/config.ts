@@ -108,6 +108,7 @@ export const shopifyE2eConfig = ({
       globalSetup: E2E_PREFLIGHT,
       fullyParallel: false,
       workers: 1,
+      retries: 0,
       use: { ...base.use, trace: e2eTrace() },
       projects: e2eProjects(app, root),
     },
