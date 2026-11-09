@@ -42,6 +42,44 @@ export {
   type SubscriptionPlanShape,
 } from "#internal/subscription-plan.ts";
 export { type Failures, type Served, serve, serveAll } from "#internal/serve.ts";
+export {
+  type CallerSchema,
+  ConnectionIdentity,
+  DispatchingSocket,
+  refusedUpgrade,
+  type SocketIdentity,
+} from "#internal/actor-socket.ts";
+export {
+  type ActorGate,
+  actorKeyFromPath,
+  actorUpgrade,
+  forwardedUpgrade,
+  type GateRefusal,
+  isActorPath,
+  merchantGate,
+  refusalClose,
+} from "#internal/actor-upgrade.ts";
+export { crossDefects, logDefect } from "#internal/defects.ts";
+export {
+  ABORT_UNINSTALLED,
+  type ShopActorBuild,
+  type ShopActorContext,
+  ShopActorKit,
+  type ShopActorKitOptions,
+  type ShopActorLifecycle,
+  type ShopActorShape,
+  type ShopActorSocketHooks,
+  type StubMethods,
+  ShopNotInstalledError,
+} from "#internal/shop-actor-kit.ts";
+export {
+  settleDestroy,
+  ShopActors,
+  type ShopActorsShape,
+  shopActorHooks,
+} from "#internal/shop-actors.ts";
+export { layerStrictJson, strictCodecJson } from "#internal/strict-serialization.ts";
+export { syncTransaction, type Transaction } from "#internal/transaction.ts";
 export { scheduledJob } from "#internal/scheduled.ts";
 export { ADMIN_API_VERSION, PARTNER_API_VERSION } from "#internal/versions.ts";
 export { BUILT_IN_TOPICS, type BuiltInTopic } from "#internal/webhook-topics.ts";

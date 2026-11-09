@@ -15,7 +15,6 @@ const INTERNAL = new Set([
   "AdminUnauthorizedError",
   "WebhookRejectedError",
   "unavailable",
-  "crossDefects",
   "GrantorProbe",
   "isAlchemyRuntime",
   "bestEffort",

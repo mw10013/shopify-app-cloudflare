@@ -5,7 +5,23 @@
  * @module
  */
 
+import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
+
+/**
+ * Logs a defect at Error with `operation` and re-raises it, so the caller still sees it. A
+ * boundary that hands a defect to someone else wraps its methods in this, because nothing else
+ * logs one: Effect's `RpcServer` sends a procedure's defect to the client. Typed failures are
+ * expected outcomes and pass unlogged.
+ */
+export const logDefect =
+  (operation: string, annotations: Record<string, unknown> = {}) =>
+  <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+    effect.pipe(
+      Effect.tapCauseIf(Cause.hasDies, (cause) =>
+        Effect.logError(`${operation}: defect`, cause).pipe(Effect.annotateLogs(annotations)),
+      ),
+    );
 
 /**
  * `defect` as a plain `Error` chain: each link's `name`, `message`, string, number and boolean

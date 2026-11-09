@@ -33,6 +33,7 @@
   "dependencies": {
     "@alchemy.run/cloudflare": "catalog:",
     "@effect/platform-node": "4.1.2",
+    "@effect/sql-sqlite-do": "4.1.2",
     "@mw10013/devkit": "catalog:",
     "@mw10013/shopify-app-workers": "workspace:*",
     "@tanstack/react-router": "1.170.41",
