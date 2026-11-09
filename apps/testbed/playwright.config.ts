@@ -2,11 +2,11 @@ import { chmodSync, readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-import { app } from "@mw10013/devkit/core/app";
-import { testRunDirectory } from "@mw10013/devkit/core/test-runs";
-import { appHandle } from "@mw10013/devkit/shopify/app-handle";
-import { acquireSync } from "@mw10013/devkit/shopify/berth";
-import { runningServerSync } from "@mw10013/devkit/shopify/server";
+import { app } from "@mw10013/rigging/core/app";
+import { testRunDirectory } from "@mw10013/rigging/core/test-runs";
+import { appHandle } from "@mw10013/shopify-app-workers/dev/app-handle";
+import { acquireSync } from "@mw10013/shopify-app-workers/dev/berth";
+import { runningServerSync } from "@mw10013/shopify-app-workers/dev/server";
 import {
   E2E_PREFLIGHT,
   type E2eApp,
@@ -21,14 +21,13 @@ import { defineConfig } from "playwright/test";
 import { catalog } from "#backend/app.ts";
 import { STORE_SCOPES } from "#scripts/lib/store-auth.ts";
 
-const devkitApp = app(import.meta.dirname);
-const { root } = devkitApp;
+const checkout = app(import.meta.dirname);
+const { root } = checkout;
 const RESTART = "vp run e2e:stop && vp run e2e:start";
 
 /** This checkout's e2e store, from its berth lease. */
-const store = acquireSync("e2e", devkitApp).store;
-/** The running e2e server, from bosun; loading the config fails when it is not running. */
-const server = runningServerSync("e2e", devkitApp);
+const store = acquireSync("e2e", checkout).store;
+const server = runningServerSync("e2e", checkout);
 const tunnel = Option.getOrThrowWith(
   server.url,
   () => new Error(`the e2e server published no tunnel (no APP_URL): ${RESTART}`),

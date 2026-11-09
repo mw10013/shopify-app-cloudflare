@@ -167,9 +167,9 @@ catalogs:
     '@alchemy.run/cloudflare':
       specifier: 2.0.0-beta.85
       version: 2.0.0-beta.85
-    '@mw10013/devkit':
-      specifier: github:mw10013/tools#devkit-v0.1.3
-      version: https://codeload.github.com/mw10013/tools/tar.gz/d15683c62122a963862ac0ad2c2da05c8a75b7ce
+    '@mw10013/rigging':
+      specifier: 0.2.2
+      version: 0.2.2
     '@types/node':
       specifier: 26.6.4
       version: 26.6.4
@@ -203,9 +203,9 @@ importers:
 
   .:
     devDependencies:
-      '@mw10013/devkit':
+      '@mw10013/rigging':
         specifier: 'catalog:'
-        version: https://codeload.github.com/mw10013/tools/tar.gz/d15683c62122a963862ac0ad2c2da05c8a75b7ce(866a05535beb34b0b2ddaf7a21e4bc69)
+        version: 0.2.2(866a05535beb34b0b2ddaf7a21e4bc69)
       '@tanstack/eslint-plugin-router':
         specifier: 1.162.0
         version: 1.162.0(eslint@10.14.0(jiti@2.7.0))(typescript@7.0.2)
@@ -242,9 +242,9 @@ importers:
       '@effect/sql-sqlite-do':
         specifier: 4.1.2
         version: 4.1.2(effect@4.1.2)
-      '@mw10013/devkit':
+      '@mw10013/rigging':
         specifier: 'catalog:'
-        version: https://codeload.github.com/mw10013/tools/tar.gz/d15683c62122a963862ac0ad2c2da05c8a75b7ce(866a05535beb34b0b2ddaf7a21e4bc69)
+        version: 0.2.2(866a05535beb34b0b2ddaf7a21e4bc69)
       '@mw10013/shopify-app-workers':
         specifier: workspace:*
         version: link:../../packages/shopify-app-workers
@@ -346,9 +346,9 @@ importers:
       '@effect/vitest':
         specifier: 4.1.2
         version: 4.1.2(effect@4.1.2)(vitest@5.0.5)
-      '@mw10013/devkit':
+      '@mw10013/rigging':
         specifier: 'catalog:'
-        version: https://codeload.github.com/mw10013/tools/tar.gz/d15683c62122a963862ac0ad2c2da05c8a75b7ce(866a05535beb34b0b2ddaf7a21e4bc69)
+        version: 0.2.2(866a05535beb34b0b2ddaf7a21e4bc69)
       '@shopify/polaris-types':
         specifier: 2.0.0
         version: 2.0.0
@@ -932,9 +932,8 @@ packages:
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
 
-  '@mw10013/devkit@https://codeload.github.com/mw10013/tools/tar.gz/d15683c62122a963862ac0ad2c2da05c8a75b7ce':
-    resolution: {gitHosted: true, integrity: sha512-u42ylYyTD7+H/MtpGDrvHufzJAaT2MJi3BUSO6ISybBjqwWP/IL6o3A1nKsxMOzC7vQdk7MOAkSTcTazb4Dz6A==, tarball: https://codeload.github.com/mw10013/tools/tar.gz/d15683c62122a963862ac0ad2c2da05c8a75b7ce}
-    version: 0.1.3
+  '@mw10013/rigging@0.2.2':
+    resolution: {integrity: sha512-gIYMo48HX63AuCc3OnS6CFgw0FIw/im6wuroQQTDYIdhJirdALUqlOkrPbnWGoGNIgSc2zDUbL+00jFgMM7w4w==}
     hasBin: true
     peerDependencies:
       '@alchemy.run/cloudflare': 2.0.0-beta.85
@@ -3601,7 +3600,7 @@ snapshots:
 
   '@keyv/serialize@1.1.1': {}
 
-  '@mw10013/devkit@https://codeload.github.com/mw10013/tools/tar.gz/d15683c62122a963862ac0ad2c2da05c8a75b7ce(866a05535beb34b0b2ddaf7a21e4bc69)':
+  '@mw10013/rigging@0.2.2(866a05535beb34b0b2ddaf7a21e4bc69)':
     dependencies:
       effect: 4.1.2
       vite-plus: 1.4.0(@types/node@26.6.4)(@vitest/ui@5.0.5)(jiti@2.7.0)(playwright@1.64.1)(typescript@7.0.2)(yaml@2.9.1)

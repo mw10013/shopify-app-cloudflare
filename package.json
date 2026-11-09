@@ -5,12 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vp -C apps/testbed run dev",
-    "check:pin": "devkit check-pin",
     "release": "vp -C packages/shopify-app-workers run release",
     "deploy:staging": "vp -C apps/testbed run deploy:staging"
   },
   "devDependencies": {
-    "@mw10013/devkit": "catalog:",
+    "@mw10013/rigging": "catalog:",
     "@tanstack/eslint-plugin-router": "1.162.0",
     "@types/node": "catalog:",
     "typescript": "catalog:",

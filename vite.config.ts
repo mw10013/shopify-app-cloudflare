@@ -1,4 +1,4 @@
-import { baseRestrictions, lint } from "@mw10013/devkit/core/lint/rules";
+import { baseRestrictions, lint } from "@mw10013/rigging/core/lint/rules";
 import { defineConfig } from "vite-plus";
 import type { OxlintOverride } from "vite-plus/lint";
 
@@ -169,7 +169,8 @@ const PACKAGE_NODE_ONLY = [
   "packages/shopify-app-workers/src/test-node.ts",
   "packages/shopify-app-workers/src/test/node/**",
 ];
-const PACKAGE_E2E = [
+const PACKAGE_DEV = [
+  "packages/shopify-app-workers/src/dev/**",
   "packages/shopify-app-workers/src/test-e2e.ts",
   "packages/shopify-app-workers/src/test-e2e-server.ts",
   "packages/shopify-app-workers/src/test/e2e/**",
@@ -187,19 +188,21 @@ const TEST_NODE_IMPORTS = {
   group: ["#test/node/**", "./test/node/**"],
   message: "src/test/node/ is Node-only; only /test/node imports it.",
 };
-const E2E_IMPORTS = {
+const DEV_IMPORTS = {
   group: [
     "playwright",
     "playwright/**",
-    "@mw10013/devkit",
-    "@mw10013/devkit/**",
+    "@mw10013/rigging",
+    "@mw10013/rigging/**",
     "@effect/platform-node",
     "@effect/platform-node/**",
+    "#dev/**",
+    "./dev/**",
     "#test/e2e/**",
     "./test/e2e/**",
   ],
   message:
-    "Playwright, devkit and Node platform code are the e2e pack's optional peers; only /test/e2e imports them.",
+    "Playwright, rigging and Node platform code are optional peers of the /dev modules and the e2e pack; only they import them.",
 };
 
 /**
@@ -275,12 +278,12 @@ export default defineConfig({
       packageBoundary(
         // Only `/test/node` runs under Node alone; every other entry can reach a workerd bundle.
         ["packages/shopify-app-workers/src/**"],
-        [...PACKAGE_NODE_ONLY, ...PACKAGE_E2E],
+        [...PACKAGE_NODE_ONLY, ...PACKAGE_DEV],
         [NODE_SQLITE],
-        [TEST_NODE_IMPORTS, E2E_IMPORTS, TANSTACK_START],
+        [TEST_NODE_IMPORTS, DEV_IMPORTS, TANSTACK_START],
       ),
-      packageBoundary(PACKAGE_NODE_ONLY, [], [], [E2E_IMPORTS]),
-      packageBoundary(PACKAGE_E2E, [], [NODE_SQLITE], [TEST_NODE_IMPORTS]),
+      packageBoundary(PACKAGE_NODE_ONLY, [], [], [DEV_IMPORTS]),
+      packageBoundary(PACKAGE_DEV, [], [NODE_SQLITE], [TEST_NODE_IMPORTS]),
       ...lint.overrides,
     ],
   },

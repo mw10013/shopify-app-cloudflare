@@ -1,5 +1,5 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
-import { workerNameOf } from "@mw10013/devkit/cloudflare/stage";
+import { workerNameOf } from "@mw10013/rigging/cloudflare/stage";
 import * as Alchemy from "alchemy";
 import * as Output from "alchemy/Output";
 import * as Effect from "effect/Effect";

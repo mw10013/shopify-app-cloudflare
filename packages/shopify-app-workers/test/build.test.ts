@@ -1,5 +1,4 @@
 import {
-  cpSync,
   existsSync,
   globSync,
   mkdtempSync,
@@ -24,7 +23,7 @@ const source = JSON.parse(readFileSync(path.join(PACKAGE, "package.json"), "utf8
   string,
   unknown
 >;
-const manifest = builtManifest(source, "0.1.0");
+const manifest = builtManifest(source);
 
 let scratch: string;
 let dist: string;
@@ -32,8 +31,7 @@ let dist: string;
 beforeAll(async () => {
   scratch = realpathSync(mkdtempSync(path.join(tmpdir(), "shopify-app-workers-build-")));
   dist = path.join(scratch, "dist");
-  await Effect.runPromise(build(dist).pipe(Effect.provide(NodeServices.layer)));
-  cpSync(path.join(PACKAGE, "migrations"), path.join(scratch, "migrations"), { recursive: true });
+  await Effect.runPromise(build(scratch).pipe(Effect.provide(NodeServices.layer)));
 }, 120_000);
 
 afterAll(() => {
@@ -99,25 +97,22 @@ const NODE_ONLY = ["node:fs", "node:sqlite"];
 describe("builtManifest", () => {
   it("maps each export into dist, ships dist and migrations, and drops the workspace's fields", () => {
     assert.deepStrictEqual(
-      builtManifest(
-        {
-          name: "@mw10013/shopify-app-workers",
-          version: "0.0.0-source",
-          private: true,
-          files: ["src", "migrations"],
-          type: "module",
-          scripts: { build: "vpx scripts/build.ts" },
-          imports: { "#internal/*": "./src/internal/*" },
-          exports: { "./backend": "./src/backend.ts", "./test/node": "./src/test-node.ts" },
-          dependencies: { "@shopify/shopify-api": "15.0.1" },
-          devDependencies: { vitest: "catalog:" },
-          peerDependencies: { effect: "^4.1.2" },
-        },
-        "0.1.0",
-      ),
+      builtManifest({
+        name: "@mw10013/shopify-app-workers",
+        version: "0.5.0",
+        private: true,
+        files: ["src", "migrations"],
+        type: "module",
+        scripts: { build: "vpx scripts/build.ts" },
+        imports: { "#internal/*": "./src/internal/*" },
+        exports: { "./backend": "./src/backend.ts", "./test/node": "./src/test-node.ts" },
+        dependencies: { "@shopify/shopify-api": "15.0.1" },
+        devDependencies: { vitest: "catalog:" },
+        peerDependencies: { effect: "^4.1.2" },
+      }),
       {
         name: "@mw10013/shopify-app-workers",
-        version: "0.1.0",
+        version: "0.5.0",
         files: ["dist", "migrations"],
         type: "module",
         exports: {
@@ -138,6 +133,17 @@ describe("builtManifest", () => {
 });
 
 describe("the built package", () => {
+  it("is the tree npm publishes: the built manifest, LICENSE, README and the migrations", () => {
+    assert.deepStrictEqual(readdirSync(scratch).toSorted(), [
+      "LICENSE",
+      "README.md",
+      "dist",
+      "migrations",
+      "package.json",
+    ]);
+    assert.deepStrictEqual(JSON.parse(readFileSync(inScratch("package.json"), "utf8")), manifest);
+  });
+
   it("has a script and a declaration file behind every export", () => {
     for (const [key, target] of Object.entries(manifest.exports)) {
       assert.include(builtFiles(), inScratch(target.default), key);

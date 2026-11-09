@@ -4,8 +4,8 @@ import {
   requireStageEnv,
   stageProviders,
   stageState,
-} from "@mw10013/devkit/cloudflare/deployed-stack";
-import { environmentOf, workerNameOf } from "@mw10013/devkit/cloudflare/stage";
+} from "@mw10013/rigging/cloudflare/deployed-stack";
+import { environmentOf, workerNameOf } from "@mw10013/rigging/cloudflare/stage";
 import {
   bindE2eSession,
   bindShopifyApp,

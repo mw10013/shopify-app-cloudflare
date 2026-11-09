@@ -1,9 +1,9 @@
 import { execFileSync } from "node:child_process";
 
 import cloudflare from "@alchemy.run/cloudflare-runtime/vite";
-import { app } from "@mw10013/devkit/core/app";
-import { testRunDirectory } from "@mw10013/devkit/core/test-runs";
-import { webEnvironmentSync } from "@mw10013/devkit/shopify/web";
+import { app } from "@mw10013/rigging/core/app";
+import { testRunDirectory } from "@mw10013/rigging/core/test-runs";
+import { webEnvironmentSync } from "@mw10013/shopify-app-workers/dev/web";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
 import * as Option from "effect/Option";
@@ -95,7 +95,6 @@ export default defineConfig(({ command, mode, isPreview }) => {
         : undefined,
     test: {
       passWithNoTests: true,
-      // Every run's results stay in its own directory (`@mw10013/devkit/core/test-runs`), failures included.
       ...(mode === "test"
         ? {
             reporters: [
@@ -116,7 +115,7 @@ export default defineConfig(({ command, mode, isPreview }) => {
             name: "integ",
             // `build-website.ts` builds the Website that `website-http.test.ts` serves.
             globalSetup: [
-              "@mw10013/devkit/cloudflare/integ-setup",
+              "@mw10013/rigging/cloudflare/integ-setup",
               "./test/integ/build-website.ts",
             ],
             include: ["test/integ/**/*.test.ts"],
