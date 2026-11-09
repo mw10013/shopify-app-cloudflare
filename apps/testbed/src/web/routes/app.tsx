@@ -56,19 +56,12 @@ function AppHome() {
   const { shop, planHandle, installedAt } = Route.useLoaderData();
   return (
     <s-page heading="Workers Testbed">
-      <s-section heading="App installation">
-        <s-stack gap="small">
-          <s-paragraph>
-            Shop: <span data-testid="shop">{shop}</span>
-          </s-paragraph>
-          <s-paragraph>
-            Plan: <span data-testid="plan-handle">{planHandle}</span>
-          </s-paragraph>
-          <s-paragraph>
-            Installed: <span data-testid="installed-at">{installedAt ?? "unknown"}</span>
-          </s-paragraph>
-        </s-stack>
-      </s-section>
+      {/* Read only by the e2e pack; merchants never see them. */}
+      <div hidden>
+        <span data-testid="shop">{shop}</span>
+        <span data-testid="plan-handle">{planHandle}</span>
+        <span data-testid="installed-at">{installedAt ?? "unknown"}</span>
+      </div>
     </s-page>
   );
 }
