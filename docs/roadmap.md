@@ -158,3 +158,15 @@ A production stage, to rehearse production deploys and migrations without custom
    - The testbed (#53) dropped its copies, 608 lines net. Its staging deployed (build `28c21eb8`).
    - The release. `v0.3.0`.
    - motio (motio #78) dropped its copies, 1,521 lines net, and keeps browser mode only for its own pages. Its suites and the e2e pack passed once each; its staging deployed (build `98e90b6f`) and `stage check` passed.
+9. Move bang onto the package. Check: bang's suites and the shared e2e spec pack pass, and its staging deploys.
+
+   Done on 2026-11-09; the check has passed. Bang is on `v0.3.0` (bang #72, #73, #74). Bang has no real merchants, so staging was reset from scratch rather than migrated (`vp run stage reset staging --confirm staging`).
+
+   - The Backend (bang #72). It uses the package's grantor, client, billing, webhooks and `AppInstallation` store through `ShopifyApp.define`, with its catalog `bang-basic`, `bang-pro` and their `-test` twins, and an `afterUninstall` hook that destroys the shop's actor. Its copies and `0001_init.sql`, which held only `AppInstallation`, are gone: 5,407 lines net. `flow-auth.ts`, the Flow action HMAC check, stays in bang; only bang receives Flow actions (#55).
+   - The shop actor (bang #73). It is built with `ShopActorKit.make`, and its own transport, socket route and connection client are gone: 1,667 lines net. `alchemy plan` showed every Durable Object binding `noop`.
+   - The Website (bang #74). It is on `/website` and `/website/react`, and its live page reads through a route loader with `keepLastAnswer` instead of atom queries: 1,559 lines net. It runs the shared e2e pack.
+   - The e2e run: 30 passed and 1 failed. The navigation spec expected a `getLiveLoaderData` call, but the live page now reads over the socket once it is open; with the spec fixed, its file passed 6 of 6.
+   - The plan-access script answers 422 until the App Store has a session for the Partner account. Opening Partners, the app, Distribution, Manage submission, then Complete makes one; nothing is submitted.
+   - Staging deployed (build `9f54c510`) and `vp run stage check staging` passed.
+
+   Production is not reset yet. It waits for the owner: the production toml moves to `api_version = "2026-10"` and the owner runs `shopify app deploy`, then production is reset and `.env.production` loses `SHOPIFY_API_KEY` and `SHOPIFY_APP_HANDLE`.
