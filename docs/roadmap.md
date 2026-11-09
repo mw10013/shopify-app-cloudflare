@@ -151,3 +151,10 @@ A production stage, to rehearse production deploys and migrations without custom
    - motio (motio #77). Its `ShopActor` is built with `ShopActorKit.make` on `v0.2.0`, and its own transport, upgrade gate, `ShopActors`, contract pieces and client are gone: 1,817 lines net. Its procedures, tables, scan, alarm and pages stay, and its TanStack glue (`live-route.ts`, `ShopSocket`, `SocketBanner`) waits for part B. `alchemy plan` showed both Durable Object bindings `noop`. The integ case that completes a scan on the alarm passed, the first run of the kit's alarm in workerd. On staging, `mw10013-staging-shop-00` kept its earlier scan across the deploy, and a new scan completed on the alarm in 5 seconds with the page updating live.
 
    Checked on 2026-11-08 on `mw10013-pool-17`: App Home loaded with the socket open and Count 0. Increment in one tab showed 1 there; a second tab in the background held its notice and showed 1 when brought to the front. The staging logs showed no errors.
+
+   Part B, the Website side, as designed in `docs/design.md` "The Website side" (#52). Done on 2026-11-09; the check has passed.
+
+   - The package (#53). `/website` holds Shopify's URLs and headers, the App Bridge page and calls, the merchant guard (`appGuard` returns a typed `AppGate`), the refusal mapping and the route handlers, with no React or TanStack. `/website/react` holds `ShopSocket`, `SocketBanner` and the live route reads, from baton's versions; React, the router and atom-react are optional peers. TanStack's server functions and route files stay in each app. The guard, live reads, reruns and banner copy are tested in Node; the package has no browser-mode tests.
+   - The testbed (#53) dropped its copies, 608 lines net. Its staging deployed (build `28c21eb8`).
+   - The release. `v0.3.0`.
+   - motio (motio #78) dropped its copies, 1,521 lines net, and keeps browser mode only for its own pages. Its suites and the e2e pack passed once each; its staging deployed (build `98e90b6f`) and `stage check` passed.
