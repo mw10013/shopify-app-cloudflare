@@ -1,4 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node", "@shopify/polaris-types"]
+  },
   "include": ["src", "test", "scripts", "vite.config.ts"]
 }

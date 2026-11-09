@@ -1,15 +1,27 @@
-import { useAtomSet } from "@effect/atom-react";
+import { RegistryContext, useAtomSet, useAtomValue } from "@effect/atom-react";
+import { socketStateAtom } from "@mw10013/shopify-app-workers/client";
 import { ShopDomain, ShopifyUnavailableError } from "@mw10013/shopify-app-workers/contract";
-import { APP_BRIDGE_URL } from "@mw10013/shopify-app-workers/website";
-import { createFileRoute, type ErrorComponentProps, useHydrated } from "@tanstack/react-router";
+import {
+  APP_BRIDGE_URL,
+  type AppGate,
+  appGuard,
+  appSearch,
+  documentHeaders,
+} from "@mw10013/shopify-app-workers/website";
+import { RereadFailedBanner, ShopSocket } from "@mw10013/shopify-app-workers/website/react";
+import {
+  createFileRoute,
+  type ErrorComponentProps,
+  redirect,
+  useHydrated,
+} from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
+import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
-import { useState } from "react";
+import { useContext, useState } from "react";
 
 import { COUNT_KEY } from "#contract/counter.ts";
-import { ShopActorClient } from "#web/client/shop-actor.ts";
-import { ShopSocket } from "#web/components/ShopSocket.tsx";
-import { appSearch, documentHeaders } from "#web/server/shopify-urls.ts";
+import { noticesAtom, readLiveAnswer, ShopActorClient } from "#web/client/shop-actor.ts";
 import {
   authenticateApp,
   documentHasBearer,
@@ -18,16 +30,8 @@ import {
   getShopifyApp,
 } from "#web/server/shopify.ts";
 
-import {
-  type AppGuardReads,
-  documentGuard,
-  type GuardInput,
-  navigationGuard,
-} from "./-app-guard.ts";
+const APP_NAME = "Workers Testbed";
 
-const reads: AppGuardReads = { getShopifyApp, authenticateApp, documentHasBearer };
-
-/** The document's guard during SSR, the navigation guard in the browser. */
 /**
  * The document's `id_token` for the loader during SSR. In the browser App Bridge's bearer carries
  * the token, so none rides in the GET server function's URL.
@@ -36,23 +40,39 @@ const documentIdToken = createIsomorphicFn()
   .server((searchStr: string) => appSearch(searchStr).id_token)
   .client(() => undefined);
 
-const appGuard = createIsomorphicFn()
-  .server((input: GuardInput) => documentGuard(reads)(input))
-  .client(() => navigationGuard(reads)());
+/**
+ * The `/app` guard. Its type is written out because the route's own type would otherwise depend
+ * on it through `redirect`, which reads the registered router.
+ */
+const gate: AppGate<Awaited<ReturnType<typeof authenticateApp>>> = appGuard({
+  getShopifyApp,
+  authenticateApp,
+  documentHasBearer,
+  redirect,
+});
 
 /**
  * The embedded App Home, which the Shopify admin frames. `beforeLoad` is the merchant gate
  * (`BACKEND.authenticateMerchant`); the loader is its screen read (`BACKEND.appHome`) and the
- * shop actor's count (`BACKEND.count`), read again whenever a notice names {@link COUNT_KEY}.
- * App Bridge is the document's first script.
+ * shop actor's count (`BACKEND.count`). A notice naming {@link COUNT_KEY} reads the count again,
+ * over the socket into the last answer while it is open. App Bridge is the document's first
+ * script.
  */
 export const Route = createFileRoute("/app")({
   staticData: { live: [COUNT_KEY] },
-  beforeLoad: ({ location }) => appGuard({ location }),
-  loader: async ({ location }) => {
+  beforeLoad: gate.guard,
+  loader: ({ location, context: { registry } }) => {
     const data = { idToken: documentIdToken(location.searchStr) };
-    const [home, count] = await Promise.all([getAppHome({ data }), getCount({ data })]);
-    return { ...home, count };
+    return readLiveAnswer(registry, {
+      route: "/app",
+      request: "",
+      server: async () => {
+        const [home, count] = await Promise.all([getAppHome({ data }), getCount({ data })]);
+        return { ...home, count };
+      },
+      socket: (client, last) =>
+        client("MerchantGetCount", undefined).pipe(Effect.map((count) => ({ ...last, count }))),
+    });
   },
   head: ({ match }) => ({
     meta: [{ name: "shopify-api-key", content: match.context.apiKey }],
@@ -68,26 +88,45 @@ export const Route = createFileRoute("/app")({
  * shop, its plan's handle, the install instant and the actor socket's state.
  */
 function AppHome() {
-  const { shop, planHandle, installedAt, count } = Route.useLoaderData();
+  const { shop, apiKey, managePlanUrl } = Route.useRouteContext();
+  const registry = useContext(RegistryContext);
+  // oxlint-disable-next-line react/hook-use-state -- a lazy initializer that runs once on the first render; there is no state
+  useState(() => {
+    gate.rememberHydrated(registry, { shop, apiKey, managePlanUrl });
+  });
+  const { planHandle, installedAt, count } = Route.useLoaderData();
   const hydrated = useHydrated();
   return (
-    <s-page heading="Workers Testbed">
-      <s-section heading="Counter">
-        <s-stack gap="base">
-          <s-paragraph>
-            Count: <span data-testid="count">{count}</span>
-          </s-paragraph>
-          {hydrated ? <IncrementButton /> : <s-button disabled>Increment</s-button>}
-        </s-stack>
-      </s-section>
-      {/* Read only by the e2e suites; merchants never see them. */}
-      <div hidden>
-        <span data-testid="shop">{shop}</span>
-        <span data-testid="plan-handle">{planHandle}</span>
-        <span data-testid="installed-at">{installedAt ?? "unknown"}</span>
-        <ShopSocket shop={decodeShopDomain(shop)} />
-      </div>
-    </s-page>
+    <ShopSocket shop={decodeShopDomain(shop)} notices={noticesAtom} appName={APP_NAME}>
+      <RereadFailedBanner appName={APP_NAME} route="/app" />
+      <s-page heading={APP_NAME}>
+        <s-section heading="Counter">
+          <s-stack gap="base">
+            <s-paragraph>
+              Count: <span data-testid="count">{count}</span>
+            </s-paragraph>
+            {hydrated ? <IncrementButton /> : <s-button disabled>Increment</s-button>}
+          </s-stack>
+        </s-section>
+        {/* Read only by the e2e suites; merchants never see them. */}
+        <div hidden>
+          <span data-testid="shop">{shop}</span>
+          <span data-testid="plan-handle">{planHandle}</span>
+          <span data-testid="installed-at">{installedAt ?? "unknown"}</span>
+          <SocketState />
+        </div>
+      </s-page>
+    </ShopSocket>
+  );
+}
+
+/** The actor socket's state, for the e2e suite to read. */
+function SocketState() {
+  const state = useAtomValue(socketStateAtom);
+  return (
+    <span data-testid="actor-socket">
+      {typeof state === "string" ? state : `stopped:${String(state.stopped)}`}
+    </span>
   );
 }
 

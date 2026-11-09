@@ -1,8 +1,8 @@
+import { webhookHandlers } from "@mw10013/shopify-app-workers/website";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { webhookHandlers } from "#web/server/webhooks.ts";
+import { env } from "#web/server/env.server.ts";
 
-/** Shopify's webhooks, forwarded to the Backend ({@link webhookHandlers}). */
 export const Route = createFileRoute("/webhooks/$")({
-  server: { handlers: webhookHandlers },
+  server: { handlers: webhookHandlers(env) },
 });

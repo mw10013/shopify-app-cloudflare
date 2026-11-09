@@ -60,6 +60,34 @@ describe("/backend", () => {
   });
 });
 
+/** The optional peers only `/website/react` needs. */
+const isReactPeer = (specifier: string) =>
+  specifier === "react" ||
+  specifier.startsWith("react/") ||
+  specifier.startsWith("@tanstack/") ||
+  specifier.startsWith("@effect/atom-react");
+
+describe("/website", () => {
+  it("reaches no React and no TanStack, so a Website that imports only it needs neither", () => {
+    assert.deepStrictEqual(reachedPackages("website.ts").filter(isReactPeer), []);
+  });
+});
+
+describe("/website/react", () => {
+  it("exports the socket holder, its banners and the live route helpers", async () => {
+    const exported = Object.keys(await import("@mw10013/shopify-app-workers/website/react"));
+    for (const name of [
+      "ShopSocket",
+      "SocketBanner",
+      "RereadFailedBanner",
+      "makeLiveReads",
+      "makeLiveRoutes",
+      "keepLastAnswer",
+    ])
+      assert.include(exported, name);
+  });
+});
+
 describe("/test", () => {
   it("exports the door a test Backend mounts", async () => {
     const exported = Object.keys(await import("@mw10013/shopify-app-workers/test"));

@@ -192,8 +192,8 @@ describe("the built package", () => {
   it("bundles nothing from node_modules: each built module mirrors a source module", () => {
     const strays = readdirSync(dist, { recursive: true, encoding: "utf8" })
       .filter((file) => file.endsWith(".mjs") || file.endsWith(".d.mts"))
-      .map((file) => file.replace(/\.(?:d\.mts|mjs)$/u, ".ts"))
-      .filter((file) => !existsSync(path.join(PACKAGE, "src", file)));
+      .map((file) => path.join(PACKAGE, "src", file.replace(/\.(?:d\.mts|mjs)$/u, "")))
+      .filter((stem) => !existsSync(`${stem}.ts`) && !existsSync(`${stem}.tsx`));
     assert.deepStrictEqual(strays, []);
   });
 
@@ -202,6 +202,7 @@ describe("the built package", () => {
       ["./backend", "backend.ts"],
       ["./contract", "contract.ts"],
       ["./website", "website.ts"],
+      ["./website/react", "website-react.ts"],
       ["./client", "client.ts"],
       ["./stack", "stack.ts"],
       ["./test/e2e/backend", "test-e2e-backend.ts"],

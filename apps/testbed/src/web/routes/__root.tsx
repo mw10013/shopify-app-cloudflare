@@ -1,5 +1,11 @@
 import { POLARIS_URL } from "@mw10013/shopify-app-workers/website";
-import { createRootRoute, HeadContent, Scripts, useHydrated } from "@tanstack/react-router";
+import {
+  createRootRouteWithContext,
+  HeadContent,
+  Scripts,
+  useHydrated,
+} from "@tanstack/react-router";
+import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import type { ReactNode } from "react";
 
 /**
@@ -27,7 +33,9 @@ function RootDocument({ children }: { children: ReactNode }) {
   );
 }
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{
+  readonly registry: AtomRegistry.AtomRegistry;
+}>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },

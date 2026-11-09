@@ -1,18 +1,27 @@
 /**
  * The embedded App Home's redirects, page destinations and document headers, as pure functions
  * over the request's search, so the guard and the auth routes share them and unit tests reach
- * them without the Website's bindings. Ported from baton's `src/web/server/shopify-urls.ts`.
+ * them without the Website's bindings.
  *
  * @module
  */
 
-import { ShopDomain } from "@mw10013/shopify-app-workers/contract";
-import { APP_BRIDGE_URL, POLARIS_URL } from "@mw10013/shopify-app-workers/website";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as SchemaIssue from "effect/SchemaIssue";
 import * as SchemaTransformation from "effect/SchemaTransformation";
+
+import { ShopDomain } from "./domain.ts";
+
+/** App Bridge, which the Shopify admin requires as the App Home document's first script. */
+export const APP_BRIDGE_URL = "https://cdn.shopify.com/shopifycloud/app-bridge.js";
+
+/**
+ * Polaris web components, pinned to the 2.0 line with `@shopify/polaris-types` at the matching
+ * `2.0.*`: Shopify publishes each minor line at its own URL.
+ */
+export const POLARIS_URL = "https://cdn.shopify.com/shopifycloud/polaris-2.0.js";
 
 /** Shopify's CDN, which App Bridge and Polaris load from. */
 const CDN_URL = "https://cdn.shopify.com";

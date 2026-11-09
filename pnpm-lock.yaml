@@ -334,6 +334,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 5.20261026.1
         version: 5.20261026.1
+      '@effect/atom-react':
+        specifier: 4.1.2
+        version: 4.1.2(effect@4.1.2)(react@19.3.0)(scheduler@0.28.0)
       '@effect/platform-node':
         specifier: 4.1.2
         version: 4.1.2(effect@4.1.2)(redis@6.3.1)
@@ -346,12 +349,24 @@ importers:
       '@mw10013/devkit':
         specifier: 'catalog:'
         version: https://codeload.github.com/mw10013/tools/tar.gz/d15683c62122a963862ac0ad2c2da05c8a75b7ce(866a05535beb34b0b2ddaf7a21e4bc69)
+      '@shopify/polaris-types':
+        specifier: 2.0.0
+        version: 2.0.0
+      '@tanstack/react-router':
+        specifier: 1.170.41
+        version: 1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.4
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
       playwright:
         specifier: 1.64.1
         version: 1.64.1
+      react:
+        specifier: 19.3.0
+        version: 19.3.0
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
