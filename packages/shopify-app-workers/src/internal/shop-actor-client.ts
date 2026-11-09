@@ -99,20 +99,27 @@ interface ProtocolInput {
   readonly registry: AtomRegistry.AtomRegistry;
   readonly notices: PubSub.PubSub<BusNotice>;
   readonly key: ShopDomain;
-  readonly merchantToken: Effect.Effect<string>;
+  readonly merchantToken: Option.Option<Effect.Effect<string>>;
   readonly allKeys: readonly string[];
 }
 
 /**
  * One hibernating WebSocket per browser, retried on `retryPolicy`. The gate names the socket on
- * its upgrade from the merchant's Shopify ID token on the URL, minted for each connect, so no call
- * carries a credential. Every close goes through `closeOutcome` to the page's atoms.
+ * its upgrade, from the session cookie or, for a merchant, the Shopify ID token on the URL, minted
+ * for each connect, so no call carries a credential. Every close goes through `closeOutcome` to
+ * the page's atoms.
  */
 const browserProtocol = (input: ProtocolInput) => {
-  const url = Effect.map(input.merchantToken, (token) => {
-    const withToken = new URL(`${ACTOR_PATH}/${input.key}`, wsOrigin());
-    withToken.searchParams.set("token", token);
-    return withToken.toString();
+  const url = Effect.suspend(() => {
+    const base = new URL(`${ACTOR_PATH}/${input.key}`, wsOrigin());
+    return Option.match(input.merchantToken, {
+      onNone: () => Effect.succeed(base.toString()),
+      onSome: (mint) =>
+        Effect.map(mint, (token) => {
+          base.searchParams.set("token", token);
+          return base.toString();
+        }),
+    });
   });
   const setState = (state: "connecting" | "open") =>
     Effect.sync(() => {
@@ -175,31 +182,33 @@ const unnamedShop = Layer.effect(
 export const shopActorProtocol =
   (options: { readonly allKeys: readonly string[] }) => (get: Atom.AtomContext) => {
     get(reconnectAtom);
-    return Option.match(Option.all([get(shopKeyAtom), get(merchantTokenAtom)]), {
+    return Option.match(get(shopKeyAtom), {
       onNone: () => unnamedShop,
-      onSome: ([key, merchantToken]) =>
+      onSome: (key) =>
         browserProtocol({
           registry: get.registry,
           notices: get(noticeBus),
           key,
-          merchantToken,
+          merchantToken: get(merchantTokenAtom),
           allKeys: options.allKeys,
         }),
     });
   };
 
 /**
- * Names the shop and credential the protocol connects with, and starts the socket state afresh.
- * Only the socket holder runs it, once per shop and credential, in the browser, before anything
- * reads a socket atom.
+ * Names the shop and credential the protocol connects with, and starts the socket state afresh:
+ * with `merchantToken`, a merchant's socket carrying a Shopify ID token minted per connect;
+ * without, a socket the gate names from the session cookie. The key is set last, since naming it
+ * is what lets the protocol connect. Only the socket holder runs it, once per shop and credential,
+ * in the browser, before anything reads a socket atom.
  */
 export const nameSocket = (
   registry: AtomRegistry.AtomRegistry,
   key: ShopDomain,
-  merchantToken: Effect.Effect<string>,
+  merchantToken?: Effect.Effect<string>,
 ) => {
+  registry.set(merchantTokenAtom, Option.fromUndefinedOr(merchantToken));
   registry.set(shopKeyAtom, Option.some(key));
-  registry.set(merchantTokenAtom, Option.some(merchantToken));
   registry.set(socketStateAtom, "connecting");
 };
 

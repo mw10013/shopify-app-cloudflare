@@ -25,7 +25,8 @@ export const shopKeyAtom = Atom.make<Option.Option<ShopDomain>>(Option.none()).p
 
 /**
  * How the merchant's browser gets a Shopify ID token, run once per connect, so every reconnect
- * carries a token minted for it. None until the socket holder names the socket.
+ * carries a token minted for it. None for a socket the gate names from the session cookie, and
+ * until the socket holder names the socket.
  */
 export const merchantTokenAtom = Atom.make<Option.Option<Effect.Effect<string>>>(
   Option.none(),
