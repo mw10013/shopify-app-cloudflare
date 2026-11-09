@@ -25,6 +25,7 @@ import type * as Scope from "effect/Scope";
 import { AppInstallationStore } from "#internal/app-installation-store.ts";
 import { AppInstallation } from "#internal/app-installation.ts";
 import { ShopDomain, ShopGid } from "#internal/domain.ts";
+import { ShopifyHooks } from "#internal/hooks.ts";
 import { MerchantGate } from "#internal/merchant-gate.ts";
 import { ShopGrantors } from "#internal/shop-grantor.ts";
 import { ShopifyApp, type ShopifyAppDefinition } from "#internal/shopify-app.ts";
@@ -112,16 +113,21 @@ class DoorHooks extends Context.Service<DoorHooks, ReturnType<typeof recordingHo
 /**
  * Tier 2 as a test Backend provides it in place of `ShopifyApp.layerConfig(app)` and the app's
  * hooks: over `app` with the probe topic added, as `inProcessHarness` builds it, the
- * {@link PartnerFake} answering the catalog's first handle, and hooks that record each call.
+ * {@link PartnerFake} answering the catalog's first handle, and hooks that record each call and
+ * then run `appHooks`, the app's own (none by default): an app with shop actors passes the hooks
+ * that destroy and revoke them, so the door's uninstall and plan changes reach its actors.
  */
-const shopifyApp = (app: ShopifyAppDefinition) => {
+const shopifyApp = <E = never, R = never>(
+  app: ShopifyAppDefinition,
+  appHooks?: Layer.Layer<ShopifyHooks, E, R>,
+) => {
   const definition = behaviorApp(app);
   const hooks = Layer.unwrap(
-    Effect.sync(() => {
-      const recorder = recordingHooks();
+    Effect.gen(function* () {
+      const recorder = recordingHooks(yield* ShopifyHooks);
       return Layer.merge(recorder.layer, Layer.succeed(DoorHooks, recorder));
     }),
-  );
+  ).pipe(Layer.provide(appHooks ?? (ShopifyHooks.layerNoop as Layer.Layer<ShopifyHooks, E, R>)));
   return ShopifyApp.layerNoDeps(definition).pipe(
     Layer.provideMerge(hooks),
     Layer.provideMerge(PartnerFake.layer({ defaultHandle: definition.catalog.handles[0] })),

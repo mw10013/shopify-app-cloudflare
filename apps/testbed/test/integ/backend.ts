@@ -6,12 +6,13 @@ import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as Layer from "effect/Layer";
 
 import { testbedApp } from "#backend/app.ts";
-import { backendBody, backendProps, provideBackend } from "#backend/backend.ts";
+import { backendBody, backendProps, provideBackend, testbedHooks } from "#backend/backend.ts";
 
 /**
- * The Backend as integ deploys it: the production body and tier 1 ({@link provideBackend}), with
- * tier 2 over the {@link ShopifyTestDoor}'s fakes and recording hooks in place of the Partner
- * API and the testbed's (no) hooks, and the door in front of its `fetch` at
+ * The Backend as integ deploys it: the production body, its shop actors and tier 1
+ * ({@link provideBackend}), with tier 2 over the {@link ShopifyTestDoor}'s fakes in place of the
+ * Partner API and hooks that record each call before the testbed's own ({@link testbedHooks}),
+ * and the door in front of its `fetch` at
  * {@link SHOPIFY_TEST_DOOR_PATH}. The door installs the Shopify fake in place of the library's
  * fetch, so the `ShopGrantor` Durable Object, in the same isolate, grants against it.
  *
@@ -39,6 +40,6 @@ export default class TestBackend extends Cloudflare.Worker<TestBackend>()(
       // Spread first, so the methods stay beside the new `fetch`.
       return { ...base, fetch };
     }),
-    ShopifyTestDoor.shopifyApp(testbedApp),
+    ShopifyTestDoor.shopifyApp(testbedApp, testbedHooks),
   ),
 ) {}

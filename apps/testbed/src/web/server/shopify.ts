@@ -149,6 +149,16 @@ export const getAppHome = createServerFn({ method: "GET" })
     backend().appHome({ idToken }).catch(rescueRefusal).catch(rethrowUnavailable),
   );
 
+/** The App Home's count, from the shop's actor (`BACKEND.count`); refused as `getAppHome` is. */
+export const getCount = createServerFn({ method: "GET" })
+  .middleware([embeddedIdToken])
+  .validator(
+    Schema.toStandardSchemaV1(Schema.Struct({ idToken: Schema.optional(Schema.NonEmptyString) })),
+  )
+  .handler(({ context: { idToken, rescueRefusal } }) =>
+    backend().count({ idToken }).catch(rescueRefusal).catch(rethrowUnavailable),
+  );
+
 /** The app's API key and public URL, from the Website's bindings. */
 export const getShopifyApp = createServerFn({ method: "GET" }).handler(() => ({
   apiKey: env.SHOPIFY_API_KEY,

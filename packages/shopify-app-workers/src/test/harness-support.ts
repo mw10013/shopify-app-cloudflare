@@ -76,25 +76,31 @@ export const expireAccessToken = (
     });
   });
 
-/** Hooks that record each call, and die once on a hook a case broke; `reset` forgets both. */
-export const recordingHooks = () => {
+/**
+ * Hooks that record each call, and die once on a hook a case broke; `reset` forgets both. A call
+ * not broken runs `app`'s hook, so an app's own hooks (its shop actors') still run under the
+ * recording.
+ */
+export const recordingHooks = (app: ShopifyHooksShape = ShopifyHooks.noop) => {
   const calls: string[] = [];
   const broken = new Set<HookName>();
-  const run = (hook: HookName, call: string) =>
+  const run = (hook: HookName, call: string, then: Effect.Effect<void>) =>
     Effect.suspend(() => {
       calls.push(call);
-      return broken.delete(hook)
-        ? Effect.die(new Error(`${hook}: broken by the case`))
-        : Effect.void;
+      return broken.delete(hook) ? Effect.die(new Error(`${hook}: broken by the case`)) : then;
     });
   const hooks: ShopifyHooksShape = {
-    beforeUninstall: (shop) => run("beforeUninstall", `beforeUninstall:${shop}`),
-    afterUninstall: (shop) => run("afterUninstall", `afterUninstall:${shop}`),
-    beforePlanChange: (shop) => run("beforePlanChange", `beforePlanChange:${shop}`),
-    afterPlanRevalidated: ({ shop, changed, next }) =>
+    beforeUninstall: (shop) =>
+      run("beforeUninstall", `beforeUninstall:${shop}`, app.beforeUninstall(shop)),
+    afterUninstall: (shop) =>
+      run("afterUninstall", `afterUninstall:${shop}`, app.afterUninstall(shop)),
+    beforePlanChange: (shop) =>
+      run("beforePlanChange", `beforePlanChange:${shop}`, app.beforePlanChange(shop)),
+    afterPlanRevalidated: (revalidation) =>
       run(
         "afterPlanRevalidated",
-        `afterPlanRevalidated:${shop}:changed=${String(changed)}:next=${next?.handle ?? "none"}`,
+        `afterPlanRevalidated:${revalidation.shop}:changed=${String(revalidation.changed)}:next=${revalidation.next?.handle ?? "none"}`,
+        app.afterPlanRevalidated(revalidation),
       ),
   };
   return {

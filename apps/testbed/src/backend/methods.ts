@@ -18,6 +18,8 @@ import {
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
+import { ShopActor } from "./shop-actor.ts";
+
 /** What the App Home's screen read sends the Backend: the ID token alone. */
 export const AppHomeInput = Schema.Struct({ idToken: Schema.NonEmptyString });
 export type AppHomeInput = typeof AppHomeInput.Type;
@@ -73,4 +75,22 @@ export const backendMethods = Effect.gen(function* () {
     { authenticateMerchant, appHome },
     { authenticateMerchant: AuthenticateMerchantFailure, appHome: AuthenticateMerchantFailure },
   );
+});
+
+/**
+ * The App Home's count, read from the shop's actor: the server half of the page's live read, for
+ * its first render and each rerun a notice starts. Apart from {@link backendMethods}, whose unit
+ * test runs under Node, with no Durable Object to bind.
+ */
+export const counterMethods = Effect.gen(function* () {
+  const gate = yield* MerchantGate;
+  const actors = yield* ShopActor;
+
+  const count = Effect.fn("Backend.count")(function* (payload: AppHomeInput) {
+    const { idToken } = yield* decodeAppHomeInput(payload).pipe(Effect.orDie);
+    const { shop } = yield* gate.subscribedShop(idToken);
+    return yield* actors.getByName(shop).getCount();
+  });
+
+  return serveAll({ count }, { count: AuthenticateMerchantFailure });
 });

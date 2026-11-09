@@ -1,14 +1,30 @@
+import { RegistryContext, scheduleTask } from "@effect/atom-react";
+import { liveRoutesAtom } from "@mw10013/shopify-app-workers/client";
 import { createRouter } from "@tanstack/react-router";
+import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { StrictMode } from "react";
 
+import { makeLiveRoutes } from "./client/shop-actor.ts";
 import { routeTree } from "./routeTree.gen";
 
+/**
+ * Builds the router and its atom registry, once per request on the server and once in the
+ * browser, so the actor socket's atoms never cross between requests. Only the browser's router
+ * hears notices ({@link makeLiveRoutes}).
+ */
 export function getRouter() {
-  return createRouter({
+  const registry = AtomRegistry.make({ scheduleTask });
+  const router = createRouter({
     routeTree,
     scrollRestoration: true,
-    Wrap: ({ children }) => <StrictMode>{children}</StrictMode>,
+    Wrap: ({ children }) => (
+      <StrictMode>
+        <RegistryContext.Provider value={registry}>{children}</RegistryContext.Provider>
+      </StrictMode>
+    ),
   });
+  if (typeof document !== "undefined") registry.set(liveRoutesAtom, makeLiveRoutes(router));
+  return router;
 }
 
 declare module "@tanstack/react-router" {

@@ -5,6 +5,7 @@
   "type": "module",
   "imports": {
     "#backend/*": "./src/backend/*",
+    "#contract/*": "./src/contract/*",
     "#e2e/*": "./src/e2e/*",
     "#web/*": "./src/web/*",
     "#test/*": "./test/*",
@@ -32,6 +33,7 @@
   },
   "dependencies": {
     "@alchemy.run/cloudflare": "catalog:",
+    "@effect/atom-react": "4.1.2",
     "@effect/platform-node": "4.1.2",
     "@effect/sql-sqlite-do": "4.1.2",
     "@mw10013/devkit": "catalog:",
