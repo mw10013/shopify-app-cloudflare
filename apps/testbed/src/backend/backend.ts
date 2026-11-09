@@ -7,7 +7,11 @@
 
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import {
+  actorUpgrade,
+  isActorPath,
   scheduledJob,
+  shopActorHooks,
+  ShopActors,
   ShopifyAccess,
   ShopifyApp,
   ShopifyHooks,
@@ -20,20 +24,24 @@ import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import * as Layer from "effect/Layer";
 
 import { testbedApp } from "./app.ts";
-import { backendMethods } from "./methods.ts";
+import { backendMethods, counterMethods } from "./methods.ts";
 import { Database } from "./resources.ts";
+import { ShopActor, ShopActorLive } from "./shop-actor.ts";
 
 /**
  * The Backend's init, built once per isolate. `fetch` serves Shopify's webhooks under
- * `/webhooks/` ({@link Webhooks}), which the Website forwards; anything else is 404. The
- * methods ({@link backendMethods}) serve the Website over the binding. A daily cron, `17 4 * * *`,
- * revalidates every stale plan ({@link SubscriptionPlan}); the event source swallows a handler's
- * failure, so `scheduledJob` logs it.
+ * `/webhooks/` ({@link Webhooks}) and the shop actor's sockets under `/api/actor/<shop>`
+ * ({@link actorUpgrade}), both forwarded by the Website; anything else is 404. The methods
+ * ({@link backendMethods}, {@link counterMethods}) serve the Website over the binding. A daily
+ * cron, `17 4 * * *`, revalidates every stale plan ({@link SubscriptionPlan}); the event source
+ * swallows a handler's failure, so `scheduledJob` logs it.
  */
 export const backendBody = Effect.gen(function* () {
   const webhooks = yield* Webhooks;
   const plans = yield* SubscriptionPlan;
   const methods = yield* backendMethods;
+  const counter = yield* counterMethods;
+  const upgrade = yield* actorUpgrade(ShopActor);
   yield* Cloudflare.Workers.cron(
     "17 4 * * *",
     Effect.fn("Backend.scheduled")(function* () {
@@ -44,9 +52,10 @@ export const backendBody = Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const { pathname } = new URL(request.url, "http://backend");
     if (pathname.startsWith("/webhooks/")) return yield* webhooks.serve(request);
+    if (isActorPath(pathname)) return yield* upgrade(request);
     return HttpServerResponse.empty({ status: 404 });
   });
-  return { fetch, ...methods };
+  return { fetch, ...methods, ...counter };
 });
 
 /**
@@ -64,8 +73,8 @@ const shopifyAccess = Layer.unwrap(
 /**
  * Provides `body` with the Backend's services over `shopifyApp`, tier 2 and the app's hooks
  * together: the production one ({@link productionShopifyApp}), or a test Backend's. The order
- * is the layer cycle's break: tier 2 needs the hooks, which an app with shop actors builds above
- * its actors, and both need tier 1.
+ * is the layer cycle's break: tier 2 needs the hooks, the hooks need the shop actors, and the
+ * actors need tier 1.
  */
 export const provideBackend = <A, E, R, ROut, E2, R2>(
   body: Effect.Effect<A, E, R>,
@@ -73,14 +82,27 @@ export const provideBackend = <A, E, R, ROut, E2, R2>(
 ) =>
   body.pipe(
     Effect.provide(shopifyApp),
+    Effect.provide(ShopActors.layer(ShopActor)),
+    Effect.provide(ShopActorLive),
     Effect.provide(shopifyAccess),
     Effect.provide(Cloudflare.Workers.CronEventSourceLive),
     Effect.provide(Cloudflare.D1.QueryDatabaseBinding),
   );
 
-/** Tier 2 over the testbed's app and the Partner API, with no hooks: the testbed has none. */
+/**
+ * The testbed's hooks, the package's over its shop actors ({@link shopActorHooks}): uninstall
+ * destroys the shop's actor, and a plan change closes its sockets.
+ */
+export const testbedHooks = Layer.effect(
+  ShopifyHooks,
+  Effect.gen(function* () {
+    return shopActorHooks(yield* ShopActors);
+  }),
+);
+
+/** Tier 2 over the testbed's app, the Partner API and {@link testbedHooks}. */
 export const productionShopifyApp = ShopifyApp.layerConfig(testbedApp).pipe(
-  Layer.provideMerge(ShopifyHooks.layerNoop),
+  Layer.provideMerge(testbedHooks),
 );
 
 /** The Worker's props, which a test Backend shares but for its name and entry. */

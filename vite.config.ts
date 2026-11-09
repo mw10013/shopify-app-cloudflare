@@ -247,6 +247,11 @@ export default defineConfig({
         { allowTypeImports: true },
       ),
       runtimeBoundary(
+        "apps/testbed/src/contract/**",
+        ["backend", "web", "e2e"],
+        "The contract crosses to the browser and the Backend alike, so it imports neither.",
+      ),
+      runtimeBoundary(
         "apps/testbed/src/backend/**",
         ["web", "e2e"],
         "The Backend never imports the Website or the e2e stage's Backend, which only `e2e` deploys.",

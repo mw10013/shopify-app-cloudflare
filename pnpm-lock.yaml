@@ -233,6 +233,9 @@ importers:
       '@alchemy.run/cloudflare':
         specifier: 'catalog:'
         version: 2.0.0-beta.85(patch_hash=a6b705172c5db3b42c11875799094f8b0689a40260790fc9c257a008ff373dcc)(@effect/platform-bun@4.1.2(effect@4.1.2))(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.1))(@types/node@26.6.4)(@voidzero-dev/vite-plus-core@1.4.0(@types/node@26.6.4)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(alchemy@2.0.0-beta.85(@effect/platform-bun@4.1.2(effect@4.1.2))(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.1))(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.4.0(@types/node@26.6.4)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(effect@4.1.2)(ws@8.22.1))(effect@4.1.2)(typescript@7.0.2)
+      '@effect/atom-react':
+        specifier: 4.1.2
+        version: 4.1.2(effect@4.1.2)(react@19.3.0)(scheduler@0.28.0)
       '@effect/platform-node':
         specifier: 4.1.2
         version: 4.1.2(effect@4.1.2)(redis@6.3.1)
@@ -632,6 +635,13 @@ packages:
     resolution: {integrity: sha512-XjUJ/vEOylhIZbAm85O9H6YqXKWGfVROT5BE9BGA/RXvo0bLK2+sUcjC6BoN77a99lImJkrXJuvbHBhNebObEA==}
     peerDependencies:
       effect: ^4.0.5
+
+  '@effect/atom-react@4.1.2':
+    resolution: {integrity: sha512-XRAm4lks2kzNFQIz9QTGKR02CaDTR9VJNRXDjDAR8OzM15ybrK4YkB7OlFZ9U+hxXe3DXJZx7RU1/xI2Em2PGQ==}
+    peerDependencies:
+      effect: ^4.1.2
+      react: '>=19.0.0 <20.0.0'
+      scheduler: '>=0.25.0 <0.29.0'
 
   '@effect/platform-bun@4.1.2':
     resolution: {integrity: sha512-waEAa84CITqjctgw9VdhlL9PyXRHICG3KAWTFRDPUE2XL/pfMPhO7V9oFdfx22dbAhhUzV+MHs0d9hnmy/DQ7w==}
@@ -3344,6 +3354,12 @@ snapshots:
     dependencies:
       '@distilled.cloud/core': 1.0.0-rc.18(effect@4.1.2)
       effect: 4.1.2
+
+  '@effect/atom-react@4.1.2(effect@4.1.2)(react@19.3.0)(scheduler@0.28.0)':
+    dependencies:
+      effect: 4.1.2
+      react: 19.3.0
+      scheduler: 0.28.0
 
   '@effect/platform-bun@4.1.2(effect@4.1.2)':
     dependencies:

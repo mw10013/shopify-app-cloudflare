@@ -11,6 +11,7 @@ import {
   E2E_PREFLIGHT,
   type E2eApp,
   type E2eOptions,
+  e2eProject,
   e2eProjects,
   e2eRoutes,
 } from "@mw10013/shopify-app-workers/test/e2e";
@@ -109,5 +110,12 @@ export default defineConfig<object, E2eOptions>({
     ["json", { outputFile: `${run}/results.json` }],
     ["html", { outputFolder: `${run}/report`, open: "never" }],
   ],
-  projects: e2eProjects(testbed, root),
+  projects: [
+    ...e2eProjects(testbed, root),
+    e2eProject(testbed, root, {
+      name: "testbed",
+      testDir: path.join(root, "test/e2e"),
+      testMatch: /\.spec\.ts$/u,
+    }),
+  ],
 });
