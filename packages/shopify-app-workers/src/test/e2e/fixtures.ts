@@ -10,7 +10,6 @@
 
 import process from "node:process";
 
-import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import {
   test as base,
@@ -66,12 +65,7 @@ export const readWebhookDeliveries = async (app: E2eApp): Promise<E2eWebhookDeli
 
 /** The browser runs on this machine, so the app's tunnel is answered from its local port. */
 const routeToServer = (context: BrowserContext, app: E2eApp) =>
-  routeAppToLocal(context, {
-    port: app.server.port,
-    url: Option.some(app.server.tunnel),
-    startedAt: Option.none(),
-    log: "",
-  });
+  routeAppToLocal(context, app.server);
 
 /**
  * The contexts this worker's specs opened in the agent Chrome, until each closes. Never the

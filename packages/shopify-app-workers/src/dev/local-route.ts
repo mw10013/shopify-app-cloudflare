@@ -1,7 +1,4 @@
-import * as Option from "effect/Option";
 import type { BrowserContext } from "playwright";
-
-import type { RunningServer } from "./server.ts";
 
 const routed = new WeakSet<BrowserContext>();
 
@@ -20,11 +17,11 @@ const routed = new WeakSet<BrowserContext>();
  */
 export const routeAppToLocal = async (
   context: BrowserContext,
-  server: RunningServer,
+  server: { readonly port: number; readonly tunnel: string },
 ): Promise<void> => {
-  if (Option.isNone(server.url) || routed.has(context)) return;
+  if (routed.has(context)) return;
   routed.add(context);
-  const tunnel = new URL(server.url.value);
+  const tunnel = new URL(server.tunnel);
   const local = `http://localhost:${String(server.port)}`;
   await context.route(
     (url) => url.origin === tunnel.origin && !url.pathname.startsWith("/extensions"),

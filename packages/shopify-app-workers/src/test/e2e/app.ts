@@ -195,17 +195,17 @@ export const LIFECYCLE_SPEC_MATCH = /lifecycle\.spec\.[cm]?[jt]s$/u;
 export const E2E_TRACE = "E2E_TRACE";
 
 /**
- * Whether this run keeps traces. Off by default: a trace holds the context's storage state (the
- * live Shopify admin login) in its context options and the login's cookies in its network log,
- * and the HTML report copies traces. `E2E_TRACE=1` opts in, with a warning from the main process.
+ * This run's `use.trace`. Off by default: a trace holds the context's storage state (the live
+ * Shopify admin login) in its context options and the login's cookies in its network log, and the
+ * HTML report copies traces. `E2E_TRACE=1` opts in, with a warning from the main process.
  */
-const traced = () => {
-  if (process.env[E2E_TRACE] !== "1") return false;
+export const e2eTrace = (): "retain-on-failure" | "off" => {
+  if (process.env[E2E_TRACE] !== "1") return "off";
   if (process.env.TEST_WORKER_INDEX === undefined)
     console.warn(
       `${E2E_TRACE}=1: each failed test's trace and the HTML report hold a live Shopify admin login; do not share them, and delete the run's directory when done`,
     );
-  return true;
+  return "retain-on-failure";
 };
 
 /** Where in the app the project's specs drive the store's admin. */
@@ -219,6 +219,8 @@ export interface E2eProjectSpecs {
    * {@link LIFECYCLE_PROJECT}, which leaves the store installed on a plan.
    */
   readonly after?: readonly string[];
+  /** Options over the project's own, such as the app's own `baseURL` and `channel`. */
+  readonly use?: PlaywrightTestProject<object, E2eOptions>["use"];
 }
 
 /**
@@ -231,7 +233,14 @@ export interface E2eProjectSpecs {
 export const e2eProject = (
   app: E2eApp,
   root: string,
-  { name, testDir, testMatch, testIgnore = [], after = [LIFECYCLE_PROJECT] }: E2eProjectSpecs,
+  {
+    name,
+    testDir,
+    testMatch,
+    testIgnore = [],
+    after = [LIFECYCLE_PROJECT],
+    use = {},
+  }: E2eProjectSpecs,
 ): PlaywrightTestProject<object, E2eOptions> => {
   const adminAuthFile = path.join(root, storageStatePath);
   return {
@@ -249,9 +258,10 @@ export const e2eProject = (
       storageState: adminAuthFile,
       actionTimeout: 10_000,
       navigationTimeout: 30_000,
-      trace: traced() ? "retain-on-failure" : "off",
+      trace: e2eTrace(),
       screenshot: "off",
       video: "off",
+      ...use,
     },
   };
 };

@@ -1,8 +1,8 @@
 /**
  * The end-to-end spec pack: Playwright specs that run against an app's long-lived e2e server and
- * its leased store, in the agent Chrome. An app registers it from its own `playwright.config.ts`
- * ({@link e2eProjects}, {@link E2E_PREFLIGHT}) and may add its own specs on the same
- * fixtures with {@link e2eProject}. Needs the optional peers `playwright`, `@mw10013/rigging` and `@effect/platform-node`.
+ * its leased store, in the agent Chrome. An app's `playwright.config.ts` registers it through
+ * `shopifyE2eConfig` (`/test/e2e/config`) and may add its own specs on the same fixtures with
+ * {@link e2eProject}. Needs the optional peers `playwright`, `@mw10013/rigging` and `@effect/platform-node`.
  *
  * @module
  */
