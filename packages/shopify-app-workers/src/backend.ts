@@ -49,7 +49,16 @@ export {
   refusedUpgrade,
   type SocketIdentity,
 } from "#internal/actor-socket.ts";
-export { actorKeyFromPath, actorUpgrade, isActorPath } from "#internal/actor-upgrade.ts";
+export {
+  type ActorGate,
+  actorKeyFromPath,
+  actorUpgrade,
+  forwardedUpgrade,
+  type GateRefusal,
+  isActorPath,
+  merchantGate,
+  refusalClose,
+} from "#internal/actor-upgrade.ts";
 export { crossDefects, logDefect } from "#internal/defects.ts";
 export {
   ABORT_UNINSTALLED,

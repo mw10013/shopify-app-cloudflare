@@ -92,8 +92,10 @@ export type StubMethods<Methods> = {
 };
 
 /** What an app's `build` gets, once per activation of a named, installed shop's actor. */
-export interface ShopActorContext {
+export interface ShopActorContext<C extends Caller = MerchantCaller> {
   readonly shop: ShopDomain;
+  /** The caller of the procedure being served, as the kit's `caller` schema decoded it. */
+  readonly caller: Effect.Effect<C, never, CurrentCaller>;
   /** The object's own SQLite, migrated. */
   readonly sql: SqlClient.SqlClient;
   /** A multi-statement body in one storage transaction; see {@link Transaction}. */
@@ -181,7 +183,7 @@ export interface ShopActorKitOptions<
    * the outer phase, where the Backend provides the services.
    */
   readonly build: (
-    context: ShopActorContext,
+    context: ShopActorContext<C>,
   ) => Effect.Effect<ShopActorBuild<Rpcs, C, Methods>, never, R>;
 }
 
@@ -368,13 +370,22 @@ const make = <
 
       if (Option.isNone(name)) {
         const nameless = Effect.die(new Error(`ShopActor: id=${label}: reached without its name`));
-        const stub: ShopActorLifecycle = { destroy, revoke: () => nameless };
-        // The app's methods are absent, and Alchemy's bridge dies on a call to a missing method.
-        return {
+        const { reached } = crossDefects({ reached: () => nameless });
+        const served: Record<string, unknown> = {
           fetch: nameless,
           alarm: () => nameless,
-          ...crossDefects(stub),
-        } as ShopActorLifecycle as ShopActorShape<Methods>;
+          ...crossDefects<ShopActorLifecycle>({ destroy, revoke: reached }),
+        };
+        // The app's methods are not built without a name; each answers the nameless defect.
+        // Alchemy's bridge checks `Object.hasOwn` before it calls, so the descriptor trap answers.
+        const own = (key: string | symbol) => typeof key !== "string" || Object.hasOwn(served, key);
+        return new Proxy(served, {
+          get: (target, key) => (own(key) ? (Reflect.get(target, key) as unknown) : reached),
+          getOwnPropertyDescriptor: (target, key) =>
+            own(key)
+              ? Reflect.getOwnPropertyDescriptor(target, key)
+              : { value: reached, writable: true, enumerable: true, configurable: true },
+        }) as ShopActorShape<Methods>;
       }
       const shop = name.value;
       const sql = yield* Layer.build(SqliteClient.layer({ storage: state.raw.storage })).pipe(
@@ -403,10 +414,13 @@ const make = <
       }, Effect.provide(runtime));
 
       // What is left of `R` once `services` is provided is the activation's own services, which
-      // TypeScript cannot reduce for a generic `R`.
+      // TypeScript cannot reduce for a generic `R`. The activation's values win over the outer
+      // phase's, its span among them.
       const built = yield* options
         .build({
           shop,
+          // `ConnectionMiddleware` provides the socket's caller, which `callerSchema` decoded.
+          caller: Effect.map(Effect.service(CurrentCaller), (current) => current as C),
           sql,
           transaction: syncTransaction(sql),
           notify,
@@ -414,11 +428,12 @@ const make = <
           runtime,
           closeSocket,
         })
-        .pipe(Effect.provideContext(services)) as Effect.Effect<
-        ShopActorBuild<Rpcs, C, Methods>,
-        never,
-        ActivationServices
-      >;
+        .pipe(
+          Effect.updateContext(
+            (context: Context.Context<ActivationServices>) =>
+              Context.merge(services, context) as Context.Context<R>,
+          ),
+        );
       const hooks = built.sockets ?? {};
 
       const socket = yield* ActorSocket.make({

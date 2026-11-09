@@ -1,6 +1,6 @@
 /**
- * The Backend's upgrade path to its shop actors: the shop from the URL, the merchant gate, and
- * the socket forwarded to the shop's actor as the caller the gate resolved.
+ * The Backend's upgrade path to its shop actors: the shop from the URL, the gate (the merchant's
+ * by default), and the socket forwarded to the shop's actor as the caller the gate resolved.
  *
  * @module
  */
@@ -20,6 +20,7 @@ import { MerchantGate } from "./merchant-gate.ts";
 import {
   ACTOR_PATH,
   CONNECTION_CLOSE_FORBIDDEN,
+  CONNECTION_CLOSE_NOT_A_MEMBER,
   CONNECTION_CLOSE_PAYMENT_REQUIRED,
   CONNECTION_CLOSE_TRY_AGAIN,
   CONNECTION_CLOSE_UNAUTHENTICATED,
@@ -85,10 +86,19 @@ export const forwardedUpgrade = (
 
 /**
  * The gate's refusal, as the HTTP status it stands for: 401 a token it rejects, 402 a shop with
- * no app subscription, 403 a token for another shop, 410 a shop with no `AppInstallation` row,
- * 503 a gate that could not answer.
+ * no app subscription, 403 a token for another shop, 404 a caller who is not a member of the
+ * shop, 410 a shop with no `AppInstallation` row, 503 a gate that could not answer.
  */
-type GateRefusal = 401 | 402 | 403 | 410 | 503;
+export type GateRefusal = 401 | 402 | 403 | 404 | 410 | 503;
+
+/**
+ * Admits an upgrade to the shop `key`: its caller encoded as {@link CONNECTION_HEADER}'s JSON, or
+ * the refusal. It runs before anything is forwarded, so it reads only what it has verified.
+ */
+export type ActorGate = (
+  key: ShopDomain,
+  request: HttpServerRequest.HttpServerRequest,
+) => Effect.Effect<string, GateRefusal>;
 
 /** The gate's refusal as the close code the browser reads, with a short reason. */
 export const refusalClose = (status: GateRefusal) =>
@@ -99,6 +109,7 @@ export const refusalClose = (status: GateRefusal) =>
       reason: "payment required",
     })),
     Match.when(403, () => ({ code: CONNECTION_CLOSE_FORBIDDEN, reason: "forbidden" })),
+    Match.when(404, () => ({ code: CONNECTION_CLOSE_NOT_A_MEMBER, reason: "not a member" })),
     Match.when(410, () => ({ code: CONNECTION_CLOSE_UNINSTALLED, reason: "uninstalled" })),
     Match.when(503, () => ({ code: CONNECTION_CLOSE_TRY_AGAIN, reason: "try again" })),
     Match.exhaustive,
@@ -108,29 +119,17 @@ const isUpgrade = (request: HttpServerRequest.HttpServerRequest) =>
   request.method === "GET" && request.headers.upgrade?.toLowerCase() === "websocket";
 
 /**
- * The Backend's `fetch` branch for {@link isActorPath}, over the app's `ShopActor` binding:
- *
- * ```ts
- * const upgrade = yield* actorUpgrade(ShopActor);
- * if (isActorPath(pathname)) return yield* upgrade(request);
- * ```
- *
- * A path that names no shop is 404, anything but a WebSocket upgrade 426: there is no HTTP RPC
- * into the actor. The merchant's Shopify ID token arrives as `?token=`, because a browser cannot
- * set a header on an upgrade. The gate verifies it (never exchanges it: the `/app` guard did),
- * checks its shop is the socket's before any read, and requires an active plan. A D1 failure and
- * a plan that could not be read are both 503, so an outage never reads as "uninstalled" and the
- * browser retries. A refusal is a socket closed at once with its {@link refusalClose} code.
+ * The merchant gate, {@link actorUpgrade}'s default. The merchant's Shopify ID token arrives as
+ * `?token=`, because a browser cannot set a header on an upgrade. The gate verifies it (never
+ * exchanges it: the `/app` guard did), checks its shop is the socket's before any read, and
+ * requires an active plan. A D1 failure and a plan that could not be read are both 503, so an
+ * outage never reads as "uninstalled" and the browser retries.
  */
-export const actorUpgrade = Effect.fn("actorUpgrade")(function* <
-  Shape extends ShopActorLifecycle,
-  R,
->(actor: Effect.Effect<Cloudflare.DurableObject<Shape>, never, R>) {
-  const actors = yield* actor;
+export const merchantGate: Effect.Effect<ActorGate, never, MerchantGate> = Effect.gen(function* () {
   const gate = yield* MerchantGate;
-
-  const merchantGate = Effect.fn("Backend.merchantGate")(
-    function* (key: ShopDomain, token: string | null) {
+  return Effect.fn("Backend.merchantGate")(
+    function* (key: ShopDomain, request: HttpServerRequest.HttpServerRequest) {
+      const token = new URL(request.url, "http://backend").searchParams.get("token");
       if (token === null) return yield* Effect.fail<GateRefusal>(401);
       const shop = yield* gate
         .verifiedShop(token)
@@ -163,6 +162,31 @@ export const actorUpgrade = Effect.fn("actorUpgrade")(function* <
         ),
       ),
   );
+});
+
+/**
+ * The Backend's `fetch` branch for {@link isActorPath}, over the app's `ShopActor` binding:
+ *
+ * ```ts
+ * const upgrade = yield* actorUpgrade(ShopActor);
+ * if (isActorPath(pathname)) return yield* upgrade(request);
+ * ```
+ *
+ * A path that names no shop is 404, anything but a WebSocket upgrade 426: there is no HTTP RPC
+ * into the actor. `gate` admits the upgrade, {@link merchantGate} by default; an app with other
+ * roles passes its own. A refusal is a socket closed at once with its {@link refusalClose} code.
+ */
+export const actorUpgrade = Effect.fn("actorUpgrade")(function* <
+  Shape extends ShopActorLifecycle,
+  R,
+  RG = MerchantGate,
+>(
+  actor: Effect.Effect<Cloudflare.DurableObject<Shape>, never, R>,
+  options?: { readonly gate?: Effect.Effect<ActorGate, never, RG> | undefined },
+) {
+  const actors = yield* actor;
+  // Without `gate`, `RG` keeps its default, the merchant gate's requirement.
+  const gate = yield* options?.gate ?? (merchantGate as Effect.Effect<ActorGate, never, RG>);
 
   const forwardToActor = Effect.fn("Backend.forwardToActor")(function* (
     key: ShopDomain,
@@ -170,8 +194,7 @@ export const actorUpgrade = Effect.fn("actorUpgrade")(function* <
   ) {
     if (!isUpgrade(request))
       return HttpServerResponse.empty({ status: 426, headers: { upgrade: "websocket" } });
-    const url = new URL(request.url, "http://backend");
-    const connection = yield* merchantGate(key, url.searchParams.get("token")).pipe(Effect.result);
+    const connection = yield* gate(key, request).pipe(Effect.result);
     if (connection._tag === "Failure") {
       const { code, reason } = refusalClose(connection.failure);
       yield* Effect.logDebug(
@@ -179,9 +202,10 @@ export const actorUpgrade = Effect.fn("actorUpgrade")(function* <
       ).pipe(Effect.annotateLogs({ shop: key, code }));
       return yield* refusedUpgrade(code, reason);
     }
+    const { pathname } = new URL(request.url, "http://backend");
     return yield* actors
       .getByName(key)
-      .fetch(forwardedUpgrade(request, url.pathname, connection.success));
+      .fetch(forwardedUpgrade(request, pathname, connection.success));
   });
 
   return (request: HttpServerRequest.HttpServerRequest) =>

@@ -3,12 +3,17 @@ import * as Migrator from "@effect/sql-sqlite-do/SqliteMigrator";
 import { assert, describe, it } from "@effect/vitest";
 import {
   actorUpgrade,
+  refusalClose,
   ShopActorKit,
   ShopActors,
   type ShopActorShape,
 } from "@mw10013/shopify-app-workers/backend";
 import { makeNoticesAtom, shopActorProtocol } from "@mw10013/shopify-app-workers/client";
-import { ConnectionMiddleware, RequireMerchant } from "@mw10013/shopify-app-workers/contract";
+import {
+  CONNECTION_CLOSE_NOT_A_MEMBER,
+  ConnectionMiddleware,
+  RequireMerchant,
+} from "@mw10013/shopify-app-workers/contract";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
@@ -128,6 +133,30 @@ const ShopActorLive = ShopActor.make(
   }),
 );
 
+const MemberCaller = Schema.Struct({ role: Schema.Literal("member"), memberId: Schema.String });
+
+const MemberRpcs = RpcGroup.make(Rpc.make("MemberGetId", { success: Schema.String })).middleware(
+  ConnectionMiddleware,
+);
+
+class MemberShopActor extends Cloudflare.DurableObject<MemberShopActor, ShopActorShape>()(
+  "MemberShopActor",
+) {}
+
+const MemberShopActorLive = MemberShopActor.make(
+  ShopActorKit.make({
+    rpcs: MemberRpcs,
+    migrations: Migrator.fromRecord({ "0001_init": Effect.void }),
+    caller: MemberCaller,
+    build: ({ caller }) =>
+      Effect.succeed({
+        handlers: MemberRpcs.toLayer({
+          MemberGetId: () => Effect.map(caller, ({ memberId }) => memberId),
+        }),
+      }),
+  }),
+);
+
 class ShopActorClient extends AtomRpc.Service<ShopActorClient>()("app/ShopActorClient", {
   group: CounterRpcs,
   protocol: shopActorProtocol({ allKeys: ["counter"] }),
@@ -139,5 +168,12 @@ describe("the shop actor's pieces", () => {
     assert.isTrue(Layer.isLayer(ShopActors.layer(ShopActor)));
     assert.isTrue(Effect.isEffect(actorUpgrade(ShopActor)));
     assert.isDefined(makeNoticesAtom(ShopActorClient.runtime));
+  });
+
+  it("serve an app whose caller is its own, behind its own gate", () => {
+    assert.isTrue(Layer.isLayer(MemberShopActorLive));
+    const gate = Effect.succeed(() => Effect.fail(404 as const));
+    assert.isTrue(Effect.isEffect(actorUpgrade(MemberShopActor, { gate })));
+    assert.strictEqual(refusalClose(404).code, CONNECTION_CLOSE_NOT_A_MEMBER);
   });
 });
