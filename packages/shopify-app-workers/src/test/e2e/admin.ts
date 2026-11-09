@@ -10,9 +10,10 @@
 
 import { execFile } from "node:child_process";
 
-import { appFrame } from "@mw10013/devkit/shopify/embedded-app";
 import * as Schema from "effect/Schema";
 import { expect, type Locator, type Page } from "playwright/test";
+
+import { appFrame } from "#dev/embedded-app.ts";
 
 import { type E2eApp, type E2ePlan, E2eServer } from "./app.ts";
 

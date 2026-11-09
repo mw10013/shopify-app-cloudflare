@@ -10,10 +10,10 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-import { storageStatePath } from "@mw10013/devkit/shopify/agent-chrome";
 import * as Schema from "effect/Schema";
 import type { PlaywrightTestProject } from "playwright/test";
 
+import { storageStatePath } from "#dev/agent-chrome.ts";
 import {
   E2E_SESSION_FILE,
   E2E_STATUS_PATH,

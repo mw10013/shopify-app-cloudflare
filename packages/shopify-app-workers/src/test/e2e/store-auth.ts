@@ -9,13 +9,7 @@
 import path from "node:path";
 import process from "node:process";
 
-import { runCommand } from "@mw10013/devkit/core/command";
-import {
-  AGENT_CDP,
-  checkShopifyLogin,
-  ensureAgentChrome,
-} from "@mw10013/devkit/shopify/agent-chrome";
-import { StoreFor } from "@mw10013/devkit/shopify/worktree";
+import { runCommand } from "@mw10013/rigging/core/command";
 import * as Array from "effect/Array";
 import * as Console from "effect/Console";
 import * as Effect from "effect/Effect";
@@ -26,6 +20,9 @@ import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import * as SchemaTransformation from "effect/SchemaTransformation";
 import { chromium } from "playwright";
+
+import { AGENT_CDP, checkShopifyLogin, ensureAgentChrome } from "#dev/agent-chrome.ts";
+import { StoreFor } from "#dev/worktree.ts";
 
 export class StoreAuthError extends Schema.TaggedError<StoreAuthError>()("StoreAuthError", {
   message: Schema.String,

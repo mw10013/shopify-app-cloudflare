@@ -10,8 +10,8 @@ import {
   loadServer,
   startServer,
   statusReport,
-} from "@mw10013/devkit/shopify/server";
-import { recordStore, resetStaleStage } from "@mw10013/devkit/shopify/stage-store";
+} from "@mw10013/shopify-app-workers/dev/server";
+import { recordStore, resetStaleStage } from "@mw10013/shopify-app-workers/dev/stage-store";
 import * as CliError from "effect/cli/CliError";
 import * as Command from "effect/cli/Command";
 import * as Flag from "effect/cli/Flag";
@@ -67,7 +67,7 @@ const statusCommand = Command.make(
 Command.make("dev").pipe(
   Command.withDescription(
     [
-      "Run this checkout's dev server (shopify app dev, which runs alchemy dev, under bosun), the same for an agent and a person.",
+      "Run this checkout's dev server (shopify app dev, which runs alchemy dev, under rigging server), the same for an agent and a person.",
       "start adopts a server already running for this checkout, or starts one detached, waits until it answers, and exits; the server keeps running until dev:stop.",
       "vp run dev:logs -f follows its log.",
     ].join("\n"),

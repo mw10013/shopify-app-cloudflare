@@ -1,8 +1,8 @@
 #!/usr/bin/env vpx
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { PerDeveloper } from "@mw10013/devkit/cloudflare/stage";
-import { stage } from "@mw10013/devkit/shopify/worktree";
+import { PerDeveloper } from "@mw10013/rigging/cloudflare/stage";
+import { stage } from "@mw10013/shopify-app-workers/dev/worktree";
 import * as Argument from "effect/cli/Argument";
 import * as CliError from "effect/cli/CliError";
 import * as Command from "effect/cli/Command";

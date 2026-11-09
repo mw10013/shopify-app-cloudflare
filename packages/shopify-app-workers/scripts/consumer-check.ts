@@ -3,9 +3,9 @@
  * Installs the package as a stranger would and uses every entry: a throwaway project in a fresh
  * temporary directory outside the repo, with no credentials (a `HOME` of its own, no git config,
  * no git prompt, and no variable of this process but `PATH` and `TMPDIR`).
- * `vpx scripts/consumer-check.ts [spec] [--keep]` checks `spec`
- * (`github:mw10013/shopify-app-workers#v0.1.0`, `file:<tgz>`) or, without one, a tarball of this
- * checkout's release tree ({@link packRelease}). It prints each step's outcome, exits non-zero when
+ * `vpx scripts/consumer-check.ts [spec] [--keep]` checks `spec` (`0.5.0`, `file:<tgz>`) or,
+ * without one, the tarball `npm pack` makes of a fresh `vp run build`'s `dist/`, the tree
+ * `npm publish ./dist` ships ({@link packDist}). It prints each step's outcome, exits non-zero when
  * any fails, and removes the temporary directory unless `--keep`.
  *
  * @module
@@ -23,14 +23,11 @@ import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as Stream from "effect/Stream";
 
-import { build, builtManifest, OUTPUT, PACKAGE } from "./build.ts";
+import { build, OUTPUT, PACKAGE } from "./build.ts";
 
 const NAME = "@mw10013/shopify-app-workers";
 
 const WORKSPACE = path.dirname(path.dirname(PACKAGE));
-
-/** The version {@link packRelease} stamps on a tarball of this checkout. */
-const LOCAL_VERSION = "0.1.0";
 
 /** Every public entry. */
 const SUBPATHS = [
@@ -45,6 +42,15 @@ const SUBPATHS = [
   "test/e2e",
   "test/e2e/backend",
   "test/e2e/server",
+  "dev/agent-chrome",
+  "dev/app-handle",
+  "dev/berth",
+  "dev/embedded-app",
+  "dev/local-route",
+  "dev/server",
+  "dev/stage-store",
+  "dev/web",
+  "dev/worktree",
 ] as const;
 
 /** The entries a consumer loads in Node, which must load there. */
@@ -55,6 +61,7 @@ const NODE_REQUIRED: readonly string[] = [
   "test/node",
   "test/e2e",
   "test/e2e/server",
+  ...SUBPATHS.filter((subpath) => subpath.startsWith("dev/")),
 ];
 
 const COMPATIBILITY_DATE = "2026-07-01";
@@ -70,8 +77,6 @@ const DEV_TOOLS = {
   miniflare: "4.20260730.0",
   rolldown: "1.2.13",
 } as const;
-
-const DEVKIT = "github:mw10013/tools#devkit-v0.1.3";
 
 class CheckFailedError extends Data.TaggedError("CheckFailedError")<{ readonly message: string }> {}
 
@@ -106,7 +111,7 @@ const consumerManifest = (spec: string) => ({
     react: peer("react"),
     "@tanstack/react-router": peer("@tanstack/react-router"),
     "@effect/atom-react": peer("@effect/atom-react"),
-    "@mw10013/devkit": DEVKIT,
+    "@mw10013/rigging": peer("@mw10013/rigging"),
   },
   devDependencies: {
     ...DEV_TOOLS,
@@ -140,7 +145,7 @@ const PROJECT_FILES: Record<string, string> = {
     files: ["entries.ts"],
   }),
   "entries.ts": SUBPATHS.map(
-    (subpath) => `export * as ${subpath.replaceAll("/", "_")} from "${NAME}/${subpath}";\n`,
+    (subpath) => `export * as ${subpath.replaceAll(/[/-]/gu, "_")} from "${NAME}/${subpath}";\n`,
   ).join(""),
   "node-imports.mjs": `const results = [];
 for (const entry of ${JSON.stringify(SUBPATHS)}) {
@@ -265,40 +270,19 @@ const run = Effect.fn("ConsumerCheck.run")(function* (
 const succeeded = (result: { readonly ok: boolean; readonly output: string }) =>
   result.ok ? Effect.succeed(result.output) : new CheckFailedError({ message: result.output });
 
-/**
- * Packs this checkout as a release ships it: `vp run build`'s `dist/`, the migrations,
- * `LICENSE`, the package's README when it has one, and {@link builtManifest}, in a tree under
- * `directory`, so the tarball holds the same files as the release's tree. Returns the tarball's
- * `file:` spec.
- */
-const packRelease = Effect.fn("ConsumerCheck.packRelease")(function* (
+/** Builds `dist/` and packs it as `npm publish ./dist` would. Returns the tarball's `file:` spec. */
+const packDist = Effect.fn("ConsumerCheck.packDist")(function* (
   directory: string,
   env: Record<string, string>,
 ) {
   const fs = yield* FileSystem.FileSystem;
-  const tree = path.join(directory, "release");
   yield* build(OUTPUT);
-  yield* fs.copy(OUTPUT, path.join(tree, "dist"));
-  yield* fs.copy(path.join(PACKAGE, "migrations"), path.join(tree, "migrations"));
-  yield* fs.copyFile(path.join(WORKSPACE, "LICENSE"), path.join(tree, "LICENSE"));
-  if (yield* fs.exists(path.join(PACKAGE, "README.md")))
-    yield* fs.copyFile(path.join(PACKAGE, "README.md"), path.join(tree, "README.md"));
-  yield* fs.writeFileString(
-    path.join(tree, "package.json"),
-    `${JSON.stringify(builtManifest(source, LOCAL_VERSION), undefined, 2)}\n`,
-  );
-  yield* succeeded(yield* run(tree, env, "pnpm", ["pack", "--pack-destination", directory]));
+  yield* succeeded(yield* run(OUTPUT, env, "npm", ["pack", "--pack-destination", directory]));
   const tarball = (yield* fs.readDirectory(directory)).find((file) => file.endsWith(".tgz"));
   if (tarball === undefined)
-    return yield* new CheckFailedError({ message: `pnpm pack wrote no tarball in ${directory}` });
+    return yield* new CheckFailedError({ message: `npm pack wrote no tarball in ${directory}` });
   return `file:${path.join(directory, tarball)}`;
 });
-
-/** `github:<owner>/<repo>#<ref>` as the codeload tarball URL a lockfile pins it by. */
-const codeloadPrefix = (spec: string) => {
-  const repo = /^github:(?<repo>[^#]+)/u.exec(spec)?.groups?.repo;
-  return repo === undefined ? undefined : `codeload.github.com/${repo}/tar.gz/`;
-};
 
 /**
  * The type errors that are the package's: every error but those located in a third-party
@@ -346,7 +330,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
       check: Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         yield* fs.makeDirectory(home, { recursive: true });
-        if (spec === undefined) resolved.spec = yield* packRelease(root, env);
+        if (spec === undefined) resolved.spec = yield* packDist(root, env);
         return resolved.spec;
       }),
     },
@@ -373,14 +357,9 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
         yield* succeeded(
           yield* inProject("pnpm", ["install", "--store-dir", path.join(root, "store-a")]),
         );
-        const lockfile = yield* fs.readFileString(path.join(project, "pnpm-lock.yaml"));
-        const prefix = codeloadPrefix(resolved.spec);
-        if (prefix === undefined) return "pnpm-lock.yaml written";
-        if (!lockfile.includes(prefix))
-          return yield* new CheckFailedError({
-            message: `pnpm-lock.yaml pins ${NAME} by no ${prefix} tarball`,
-          });
-        return `pnpm-lock.yaml pins ${prefix}…`;
+        if (!(yield* fs.exists(path.join(project, "pnpm-lock.yaml"))))
+          return yield* new CheckFailedError({ message: "pnpm install wrote no pnpm-lock.yaml" });
+        return "pnpm-lock.yaml written";
       }),
     },
     {

@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+      - run: vp check
+      - run: vp test run
+        working-directory: packages/shopify-app-workers
+      - run: vp test run --project unit
+        working-directory: apps/testbed
+      - run: vp test run --project integ
+        working-directory: apps/testbed
+      - run: vp run build
+        working-directory: packages/shopify-app-workers

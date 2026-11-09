@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "@effect/vitest";
-import { workerNameOf } from "@mw10013/devkit/cloudflare/stage";
+import { workerNameOf } from "@mw10013/rigging/cloudflare/stage";
 import { parse } from "smol-toml";
 
 /** The Cloudflare account's `workers.dev` subdomain, the one baton and motio deploy under. */

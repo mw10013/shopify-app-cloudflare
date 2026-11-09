@@ -9,8 +9,6 @@
  */
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { AGENT_CDP } from "@mw10013/devkit/shopify/agent-chrome";
-import { tunnelReady } from "@mw10013/devkit/shopify/server";
 import * as Array from "effect/Array";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -19,6 +17,8 @@ import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type { FullConfig } from "playwright/test";
 
+import { AGENT_CDP } from "#dev/agent-chrome.ts";
+import { tunnelReady } from "#dev/server.ts";
 import { E2eShopStatus } from "#internal/e2e-status.ts";
 
 import { E2eApp, shopOf, statusUrl } from "./app.ts";

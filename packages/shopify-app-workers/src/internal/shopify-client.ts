@@ -312,8 +312,7 @@ const make = (credentials: ShopifyCredentials) =>
   });
 
 /**
- * Whether this code runs in a Worker Alchemy built: its bundler folds the global to `true`. The
- * same check as devkit's `isAlchemyRuntime`, which the package does not depend on at run time.
+ * Whether this code runs in a Worker Alchemy built: its bundler folds the global to `true`.
  */
 export const isAlchemyRuntime = () =>
   // oxlint-disable-next-line no-underscore-dangle -- the global's name is Alchemy's

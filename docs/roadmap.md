@@ -185,3 +185,6 @@ A production stage, to rehearse production deploys and migrations without custom
     - Server functions' CSRF check (baton #90). Baton's `start.ts` had dropped Start's default CSRF middleware. It now restates it, as the testbed and bang do. The e2e replay of a server function sends `sec-fetch-site: same-origin`, as bang's does.
 
     Production is not touched. When the owner is ready, it needs a reset, and `.env.production` loses `SHOPIFY_API_KEY` and `SHOPIFY_APP_HANDLE`.
+11. Publish the package to npm on `@mw10013/rigging`, and move the Shopify dev tooling in from devkit as `/dev/*` (rigging #4, step 1). Check: `vp check` and the suites pass, `npm publish ./dist --dry-run` accepts the built manifest unchanged, `consumer-check` passes against the packed tarball, and the testbed e2e pack passes on a leased store.
+
+    The apps then install `pnpm add @mw10013/shopify-app-workers` and run `scripts/migrate-from-devkit.ts` to move off devkit. The first npm release, `0.5.0`, is published by hand, since npm configures trusted publishing only for a package that exists.

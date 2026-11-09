@@ -1,4 +1,4 @@
-import { TestFileStage } from "@mw10013/devkit/cloudflare/stage";
+import { TestFileStage } from "@mw10013/rigging/cloudflare/stage";
 import * as Schema from "effect/Schema";
 
 const encodeTestFileStage = Schema.encodeSync(TestFileStage);

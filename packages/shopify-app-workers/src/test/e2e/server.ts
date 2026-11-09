@@ -1,7 +1,7 @@
 /**
  * The long-lived e2e server's command line, for an app's `scripts/e2e.ts`
  * ({@link e2eServerCommand}): `start`, `status`, `restart` and `reinstall` of the checkout's
- * `shopify app dev` on its e2e lease's pool store, under bosun, which every e2e run reuses. A
+ * `shopify app dev` on its e2e lease's pool store, under rigging server, which every e2e run reuses. A
  * start writes the e2e session the stack binds and the spec pack reads, waits for the stack and
  * the Shopify CLI's first `app/uninstalled`, and grants the store auth the suite needs.
  *
@@ -12,22 +12,7 @@ import { randomBytes } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 
-import { app } from "@mw10013/devkit/core/app";
-import {
-  describeRunning,
-  loadClientId,
-  loadServer,
-  type RunningServer,
-  runningServer,
-  type Server,
-  ServerError,
-  startServer,
-  statusReport,
-  step,
-  stopServer,
-} from "@mw10013/devkit/shopify/server";
-import { destroyStage, recordStore, resetStaleStage } from "@mw10013/devkit/shopify/stage-store";
-import { StoreFor } from "@mw10013/devkit/shopify/worktree";
+import { app } from "@mw10013/rigging/core/app";
 import * as CliError from "effect/cli/CliError";
 import * as Command from "effect/cli/Command";
 import * as Flag from "effect/cli/Flag";
@@ -41,6 +26,21 @@ import * as Ref from "effect/Ref";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 
+import {
+  describeRunning,
+  loadClientId,
+  loadServer,
+  type RunningServer,
+  runningServer,
+  type Server,
+  ServerError,
+  startServer,
+  statusReport,
+  step,
+  stopServer,
+} from "#dev/server.ts";
+import { destroyStage, recordStore, resetStaleStage } from "#dev/stage-store.ts";
+import { StoreFor } from "#dev/worktree.ts";
 import { E2E_SESSION_FILE, E2eSession, E2eSessionJson } from "#test/e2e-session.ts";
 
 import { authorizeStore } from "./store-auth.ts";
@@ -105,7 +105,7 @@ const RESET_WEBHOOK_SENT = /Sending APP_UNINSTALLED webhook to app server/u;
 const RESET_WEBHOOK_SETTLED =
   /APP_UNINSTALLED webhook delivered|APP_UNINSTALLED webhook delivery failed|App hasn't started in time, giving up/u;
 
-/** bosun stamps each line of the log, and opens each run with this. */
+/** rigging server stamps each line of the log, and opens each run with this. */
 const RUN_MARKER = "==== e2e start ";
 
 /** Alchemy takes about 20 s; the CLI tries the webhook three times, five seconds apart. */
@@ -375,9 +375,9 @@ export const e2eServerCommand = <R = never>({
   return Command.make("e2e").pipe(
     Command.withDescription(
       [
-        "Run this checkout's long-lived e2e server (shopify app dev on the e2e store, under bosun) for every e2e run.",
+        "Run this checkout's long-lived e2e server (shopify app dev on the e2e store, under rigging server) for every e2e run.",
         "start adopts a server already running for this checkout, or starts one detached, like the dev server; it writes shopify.app.e2e.toml from shopify.app.toml first.",
-        "Output goes to .bosun/e2e/log/current; vp run e2e:logs -f follows it.",
+        "Output goes to .rigging/servers/e2e/log/current; vp run e2e:logs -f follows it.",
       ].join("\n"),
     ),
     Command.withSubcommands([startCommand, statusCommand, restartCommand, reinstallCommand]),

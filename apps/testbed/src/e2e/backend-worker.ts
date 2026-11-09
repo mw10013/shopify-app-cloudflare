@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Environment } from "@mw10013/devkit/cloudflare/stage";
+import type { Environment } from "@mw10013/rigging/cloudflare/stage";
 
 import Backend from "#backend/worker.ts";
 

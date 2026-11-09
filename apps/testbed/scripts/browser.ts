@@ -4,26 +4,26 @@ import path from "node:path";
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { Deployed } from "@mw10013/devkit/cloudflare/stage";
-import { app } from "@mw10013/devkit/core/app";
-import { runCommand } from "@mw10013/devkit/core/command";
+import { Deployed } from "@mw10013/rigging/cloudflare/stage";
+import { app } from "@mw10013/rigging/core/app";
+import { runCommand } from "@mw10013/rigging/core/command";
 import {
   AGENT_CDP,
   checkShopifyLogin,
   ensureAgentChrome,
   loginAgentChrome,
-} from "@mw10013/devkit/shopify/agent-chrome";
-import { appHandle } from "@mw10013/devkit/shopify/app-handle";
-import * as Berth from "@mw10013/devkit/shopify/berth";
+} from "@mw10013/shopify-app-workers/dev/agent-chrome";
+import { appHandle } from "@mw10013/shopify-app-workers/dev/app-handle";
+import * as Berth from "@mw10013/shopify-app-workers/dev/berth";
 import {
   appFrame,
   awaitHydration,
   closeDevConsole,
   gotoApp,
   prepareApp,
-} from "@mw10013/devkit/shopify/embedded-app";
-import { runningServer } from "@mw10013/devkit/shopify/server";
-import { storeNameOf } from "@mw10013/devkit/shopify/worktree";
+} from "@mw10013/shopify-app-workers/dev/embedded-app";
+import { runningServer } from "@mw10013/shopify-app-workers/dev/server";
+import { storeNameOf } from "@mw10013/shopify-app-workers/dev/worktree";
 import * as Argument from "effect/cli/Argument";
 import * as CliError from "effect/cli/CliError";
 import * as Command from "effect/cli/Command";

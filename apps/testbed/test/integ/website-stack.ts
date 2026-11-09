@@ -1,5 +1,5 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
-import { stageProviders, stageState } from "@mw10013/devkit/cloudflare/deployed-stack";
+import { stageProviders, stageState } from "@mw10013/rigging/cloudflare/deployed-stack";
 import { bindShopifyApp, fakeShopifyApp } from "@mw10013/shopify-app-workers/stack";
 import { FAKE_SHOPIFY_API_KEY } from "@mw10013/shopify-app-workers/test";
 import * as Alchemy from "alchemy";

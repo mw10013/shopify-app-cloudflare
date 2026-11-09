@@ -10,9 +10,6 @@
 
 import process from "node:process";
 
-import { AGENT_CDP } from "@mw10013/devkit/shopify/agent-chrome";
-import { appFrame, awaitHydration, closeDevConsole } from "@mw10013/devkit/shopify/embedded-app";
-import { routeAppToLocal } from "@mw10013/devkit/shopify/local-route";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import {
@@ -26,6 +23,9 @@ import {
   type TestInfo,
 } from "playwright/test";
 
+import { AGENT_CDP } from "#dev/agent-chrome.ts";
+import { appFrame, awaitHydration, closeDevConsole } from "#dev/embedded-app.ts";
+import { routeAppToLocal } from "#dev/local-route.ts";
 import { E2eShopStatus, E2eWebhookDeliveries } from "#internal/e2e-status.ts";
 
 import { onLeasedStore, planSelectionUrl, requireLeasedStore, screenError } from "./admin.ts";

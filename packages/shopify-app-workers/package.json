@@ -1,14 +1,20 @@
 {
   "name": "@mw10013/shopify-app-workers",
-  "version": "0.0.0-source",
+  "version": "0.5.0",
   "private": true,
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mw10013/shopify-app-workers.git",
+    "directory": "packages/shopify-app-workers"
+  },
   "files": [
     "src",
     "migrations"
   ],
   "type": "module",
   "imports": {
+    "#dev/*": "./src/dev/*",
     "#internal/*": "./src/internal/*",
     "#test/*": "./src/test/*",
     "#scripts/*": "./scripts/*"
@@ -24,11 +30,22 @@
     "./test/node": "./src/test-node.ts",
     "./test/e2e": "./src/test-e2e.ts",
     "./test/e2e/backend": "./src/test-e2e-backend.ts",
-    "./test/e2e/server": "./src/test-e2e-server.ts"
+    "./test/e2e/server": "./src/test-e2e-server.ts",
+    "./dev/agent-chrome": "./src/dev/agent-chrome.ts",
+    "./dev/app-handle": "./src/dev/app-handle.ts",
+    "./dev/berth": "./src/dev/berth.ts",
+    "./dev/embedded-app": "./src/dev/embedded-app.ts",
+    "./dev/local-route": "./src/dev/local-route.ts",
+    "./dev/server": "./src/dev/server.ts",
+    "./dev/stage-store": "./src/dev/stage-store.ts",
+    "./dev/web": "./src/dev/web.ts",
+    "./dev/worktree": "./src/dev/worktree.ts"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "vpx scripts/build.ts",
-    "release": "vpx scripts/release.ts",
     "consumer-check": "vpx scripts/consumer-check.ts"
   },
   "dependencies": {
@@ -40,7 +57,7 @@
     "@effect/platform-node": "4.1.2",
     "@effect/sql-sqlite-do": "4.1.2",
     "@effect/vitest": "4.1.2",
-    "@mw10013/devkit": "catalog:",
+    "@mw10013/rigging": "catalog:",
     "@shopify/polaris-types": "2.0.0",
     "@tanstack/react-router": "1.170.41",
     "@types/node": "catalog:",
@@ -58,7 +75,7 @@
     "@effect/atom-react": "^4.1.2",
     "@effect/platform-node": "^4.1.2",
     "@effect/sql-sqlite-do": "^4.1.2",
-    "@mw10013/devkit": "*",
+    "@mw10013/rigging": ">=0.2.2 <1",
     "@tanstack/react-router": "^1.170.41",
     "alchemy": "2.0.0-beta.85",
     "effect": "^4.1.2",
@@ -75,7 +92,7 @@
     "@effect/platform-node": {
       "optional": true
     },
-    "@mw10013/devkit": {
+    "@mw10013/rigging": {
       "optional": true
     },
     "@tanstack/react-router": {

@@ -13,9 +13,10 @@
 
 import { performance } from "node:perf_hooks";
 
-import { appFrame, awaitHydration, closeDevConsole } from "@mw10013/devkit/shopify/embedded-app";
 import * as DateTime from "effect/DateTime";
 import type { BrowserContext, Page } from "playwright/test";
+
+import { appFrame, awaitHydration, closeDevConsole } from "#dev/embedded-app.ts";
 
 import {
   type AdminLanding,

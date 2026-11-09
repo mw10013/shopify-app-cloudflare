@@ -7,9 +7,10 @@
  */
 
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { exportShopifyAdminAuth } from "@mw10013/devkit/shopify/agent-chrome";
 import * as Console from "effect/Console";
 import * as Effect from "effect/Effect";
+
+import { exportShopifyAdminAuth } from "#dev/agent-chrome.ts";
 
 import { test as setup } from "./fixtures.ts";
 

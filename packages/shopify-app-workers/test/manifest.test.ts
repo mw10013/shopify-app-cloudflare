@@ -6,7 +6,6 @@ const manifest = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8"),
 ) as Record<string, unknown>;
 
-/** The fields a tagged copy of this manifest hands consumers; devDependencies stay in the workspace. */
 const PUBLISHED = ["dependencies", "peerDependencies", "optionalDependencies"] as const;
 
 describe("package.json", () => {
@@ -19,8 +18,8 @@ describe("package.json", () => {
     assert.deepStrictEqual(workspaceOnly, []);
   });
 
-  it("is a private source manifest under MIT", () => {
-    assert.strictEqual(manifest.version, "0.0.0-source");
+  it("is a private source manifest under MIT that holds the release's version", () => {
+    assert.match(String(manifest.version), /^\d+\.\d+\.\d+$/u);
     assert.strictEqual(manifest.private, true);
     assert.strictEqual(manifest.license, "MIT");
   });
