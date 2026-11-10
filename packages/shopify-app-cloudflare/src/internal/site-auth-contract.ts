@@ -51,7 +51,7 @@ export const RequestInfo = Schema.Struct({
 });
 export type RequestInfo = typeof RequestInfo.Type;
 
-export const SIGN_IN_CODE_LENGTH = 6;
+export const SIGN_IN_CODE_LENGTH = 8;
 
 export const SIGN_IN_CODE_TTL = Duration.minutes(5);
 

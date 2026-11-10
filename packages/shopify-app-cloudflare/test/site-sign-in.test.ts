@@ -74,9 +74,9 @@ describe("requestInfoOf", () => {
 
 describe("signInCodeResult", () => {
   it("answers Sent with the code under inline delivery, and without one otherwise", async () => {
-    assert.deepStrictEqual(await signInCodeResult(Promise.resolve({ code: "123456" })), {
+    assert.deepStrictEqual(await signInCodeResult(Promise.resolve({ code: "12345678" })), {
       _tag: "Sent",
-      code: "123456",
+      code: "12345678",
     });
     assert.deepStrictEqual(await signInCodeResult(Promise.resolve({ code: null })), {
       _tag: "Sent",

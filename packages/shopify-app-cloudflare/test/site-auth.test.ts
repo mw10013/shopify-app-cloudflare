@@ -165,10 +165,10 @@ describe("sign-up by an effectful rule", () => {
 describe("the sign-in code", () => {
   const layer = () => SiteAuthTest.layer({ users: SEEDED });
 
-  it.live("is six digits and stored hashed", () =>
+  it.live("is eight digits and stored hashed", () =>
     Effect.gen(function* () {
       const code = Option.getOrThrow(codeOf(yield* requestCode(ADMIN)));
-      assert.match(code, /^[0-9]{6}$/u);
+      assert.match(code, /^[0-9]{8}$/u);
       const { sqlite } = yield* D1Test;
       const values = sqlite.prepare("select value from verification").all();
       assert.lengthOf(values, 1);
@@ -179,7 +179,7 @@ describe("the sign-in code", () => {
   it.live("a wrong code is refused, and after three wrong guesses the right one is spent too", () =>
     Effect.gen(function* () {
       const code = Option.getOrThrow(codeOf(yield* requestCode(ADMIN)));
-      const wrong = code === "000000" ? "111111" : "000000";
+      const wrong = code === "00000000" ? "11111111" : "00000000";
       for (const _ of [1, 2, 3])
         assert.strictEqual((yield* SiteAuthTest.verify(ADMIN, wrong)).status, 400);
       const last = yield* SiteAuthTest.verify(ADMIN, code);
@@ -237,7 +237,7 @@ describe("code delivery", () => {
       const mails = yield* Ref.get(yield* SentMail);
       assert.lengthOf(mails, 1);
       assert.strictEqual(mails[0]?.to, ADMIN);
-      const code = /\b(?<code>[0-9]{6})\b/u.exec(mails[0]?.text ?? "")?.groups?.code ?? "";
+      const code = /\b(?<code>[0-9]{8})\b/u.exec(mails[0]?.text ?? "")?.groups?.code ?? "";
       assert.isTrue((yield* SiteAuthTest.verify(ADMIN, code)).ok);
     }).pipe(Effect.provide(SiteAuthTest.layer({ users: SEEDED, delivery: "mailed" }))),
   );

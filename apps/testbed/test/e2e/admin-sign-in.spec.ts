@@ -11,7 +11,7 @@ test("an admin signs in with the code the page shows, and out again", async ({ p
   await page.getByLabel("Email").fill(TEST_ADMIN);
   await page.getByRole("button", { name: "Send code" }).click();
   const code = page.getByTestId("sign-in-code");
-  await expect(code).toHaveText(/^[0-9]{6}$/u);
+  await expect(code).toHaveText(/^[0-9]{8}$/u);
   await page.getByLabel("Code").fill((await code.textContent()) ?? "");
   await page.getByRole("button", { name: "Sign in" }).click();
 

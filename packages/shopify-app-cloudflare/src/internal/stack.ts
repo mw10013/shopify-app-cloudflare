@@ -263,21 +263,29 @@ export const bindE2eSession = Effect.fn("Stack.bindE2eSession")(function* (
   yield* backend.bind(E2E_SESSION_BINDING, { env: e2eSessionEnv(session) });
 });
 
+/** A stage's environment, as rigging's `environmentOf` names it. */
+export type SiteAuthEnvironment = "dev" | "test" | "e2e" | "staging" | "production";
+
+/** Where an environment's sign-in codes go: back to the page on a local stage, by mail on a deployed one. */
+const deliveryOf = (environment: SiteAuthEnvironment): SignInCodeDeliveryMode =>
+  environment === "staging" || environment === "production" ? "mailed" : "inline";
+
 /**
  * Binds what `Auth` and `SignInCodeDelivery.layerConfig` read: `authOrigin`, the Website's URL,
- * which Better Auth serves its endpoints and sets its cookie on, and the stage's `delivery`.
+ * which Better Auth serves its endpoints and sets its cookie on, and the delivery the
+ * `environment` takes, `mailed` on staging and production and `inline` elsewhere.
  */
 export const bindSiteAuth = Effect.fn("Stack.bindSiteAuth")(function* (
   backend: BindableWorker,
   options: {
     readonly authOrigin: string | Output.Output<string | undefined>;
-    readonly delivery: SignInCodeDeliveryMode;
+    readonly environment: SiteAuthEnvironment;
   },
 ) {
   yield* backend.bind(SITE_AUTH_BINDING, {
     env: {
       [SITE_AUTH_ENV.authOrigin]: options.authOrigin,
-      [SITE_AUTH_ENV.delivery]: options.delivery,
+      [SITE_AUTH_ENV.delivery]: deliveryOf(options.environment),
     },
   });
 });

@@ -3,7 +3,6 @@ import {
   type BindableWorker,
   bindSiteAuth,
   seedSiteUsers,
-  type SignInCodeDeliveryMode,
   type SiteUserSeed,
 } from "@mw10013/shopify-app-cloudflare/stack";
 import * as Alchemy from "alchemy";
@@ -32,18 +31,12 @@ const siteUsersFor = Match.type<Environment>().pipe(
   Match.exhaustive,
 );
 
-const deliveryFor = Match.type<Environment>().pipe(
-  Match.whenOr("dev", "test", "e2e", (): SignInCodeDeliveryMode => "inline"),
-  Match.whenOr("staging", "production", (): SignInCodeDeliveryMode => "mailed"),
-  Match.exhaustive,
-);
-
 export const wireSiteAuth = Effect.fn("Stack.wireSiteAuth")(function* (
   backend: BindableWorker,
   websiteUrl: Output.Output<string | undefined>,
 ) {
   const environment = yield* environmentOf(yield* Alchemy.Stage);
-  yield* bindSiteAuth(backend, { authOrigin: websiteUrl, delivery: deliveryFor(environment) });
+  yield* bindSiteAuth(backend, { authOrigin: websiteUrl, environment });
   yield* seedSiteUsers(yield* Database, siteUsersFor(environment));
   yield* Match.value(environment).pipe(
     Match.whenOr("dev", "test", "e2e", () =>
