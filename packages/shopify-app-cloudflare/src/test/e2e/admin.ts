@@ -270,7 +270,9 @@ export const choosePlan = async (page: Page, app: E2eApp, plan: E2ePlan) => {
  */
 export const uninstall = async (page: Page, app: E2eApp) => {
   await page.goto(adminUrl(app, "/settings/apps"), { waitUntil: "commit" });
-  const row = page.locator(`a[href*="/settings/apps/app_installations/app/${app.appHandle}"]`);
+  const row = page
+    .locator(`a[href*="/settings/apps/app_installations/app/${app.appHandle}"]`)
+    .filter({ visible: true });
   await awaitScreen(page, app, row, `the app's row in Settings > Apps`);
   await row.first().click();
   const settings = page.getByRole("region", { name: "Settings" });
