@@ -1,6 +1,6 @@
 /**
- * The Website's React half: the shop socket's holder and banners, and the live route helpers over
- * the app's router and actor client. Needs the optional peers `react`, `@tanstack/react-router`
+ * The Website's React half: the shop socket's holder and banners, the live route helpers over the
+ * app's router and actor client, and the orphan sweep's admin pages. Needs the optional peers `react`, `@tanstack/react-router`
  * and `@effect/atom-react`.
  *
  * @module
@@ -17,6 +17,14 @@ export {
   rereadRoute,
   STALE_ON_NOTICE_ONLY,
 } from "#internal/live-route.ts";
+export {
+  type DestroyOutcome,
+  OrphanShopActorObjectsPage,
+  type OrphanShopActorObjectsPageProps,
+  ShopActorObjectsPage,
+  type ShopActorObjectsPageProps,
+  type ShopActorObjectsSearch,
+} from "#internal/shop-actor-objects-pages.tsx";
 export {
   RereadFailedBanner,
   type SocketCredential,

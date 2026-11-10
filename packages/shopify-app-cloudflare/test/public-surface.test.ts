@@ -25,6 +25,8 @@ const INTERNAL = new Set([
   "STALE_PLAN_CONCURRENCY",
   "layerHttpClient",
   "bindShopifyApp",
+  "bindShopActorObjects",
+  "SHOP_ACTOR_OBJECTS_ENV",
   "shopifyCredentialsConfig",
   "partnerConfig",
 ]);
@@ -51,6 +53,11 @@ describe("/backend", () => {
       "serve",
       "serveAll",
       "scheduledJob",
+      "ShopActorObjects",
+      "shopActorObjectMethods",
+      "shopActorObjectFailures",
+      "OrphanInstalledError",
+      "SHOP_ACTOR_OBJECTS_LIMIT",
     ])
       assert.include(exported, name);
     assert.deepStrictEqual(
@@ -74,7 +81,7 @@ describe("/website", () => {
 });
 
 describe("/website/react", () => {
-  it("exports the socket holder, its banners and the live route helpers", async () => {
+  it("exports the socket holder, its banners, the live route helpers and the orphan sweep's pages", async () => {
     const exported = Object.keys(await import("@mw10013/shopify-app-cloudflare/website/react"));
     for (const name of [
       "ShopSocket",
@@ -83,6 +90,8 @@ describe("/website/react", () => {
       "makeLiveReads",
       "makeLiveRoutes",
       "keepLastAnswer",
+      "OrphanShopActorObjectsPage",
+      "ShopActorObjectsPage",
     ])
       assert.include(exported, name);
   });

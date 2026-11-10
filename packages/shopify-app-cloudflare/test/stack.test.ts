@@ -4,7 +4,13 @@ import path from "node:path";
 
 import { assert, describe, it } from "@effect/vitest";
 import {
+  AppInstallations,
+  ShopActorObjects,
+  ShopActors,
+} from "@mw10013/shopify-app-cloudflare/backend";
+import {
   type BindableWorker,
+  bindShopActorObjects,
   bindShopifyApp,
   deployedShopifyApp,
   fakeShopifyApp,
@@ -21,6 +27,9 @@ import * as Cause from "effect/Cause";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
+import * as HttpClient from "effect/http/HttpClient";
+import * as HttpClientResponse from "effect/http/HttpClientResponse";
+import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 
@@ -265,6 +274,88 @@ describe("/stack", () => {
         (yield* partnerConfig.pipe(withEnv(env))).SHOPIFY_PARTNER_ORG_ID,
         PARTNER_ENV.SHOPIFY_PARTNER_ORG_ID,
       );
+    }),
+  );
+
+  it.effect(
+    "bindShopActorObjects binds the account always, and the token and script when given",
+    () =>
+      Effect.gen(function* () {
+        const none = recordingWorker();
+        yield* bindShopActorObjects(none.worker, {
+          accountId: "account",
+          apiToken: Option.none(),
+          script: Option.none(),
+        });
+        assert.deepStrictEqual(none.bound, [
+          { id: "ShopActorObjects", env: { CLOUDFLARE_ACCOUNT_ID: "account" } },
+        ]);
+        const all = recordingWorker();
+        const apiToken = Redacted.make("cf_token");
+        yield* bindShopActorObjects(all.worker, {
+          accountId: "account",
+          apiToken: Option.some(apiToken),
+          script: Option.some("testbed-backend-staging"),
+        });
+        assert.deepStrictEqual(all.bound, [
+          {
+            id: "ShopActorObjects",
+            env: {
+              CLOUDFLARE_ACCOUNT_ID: "account",
+              CLOUDFLARE_WORKERS_API_TOKEN: apiToken,
+              SHOP_ACTOR_SCRIPT: "testbed-backend-staging",
+            },
+          },
+        ]);
+      }),
+  );
+
+  it.effect("what bindShopActorObjects binds is what ShopActorObjects.layerConfig reads", () =>
+    Effect.gen(function* () {
+      const { bound, worker } = recordingWorker();
+      yield* bindShopActorObjects(worker, {
+        accountId: "account",
+        apiToken: Option.some(Redacted.make("cf_token")),
+        script: Option.some("testbed-backend-staging"),
+      });
+      const env: Record<string, string> = Object.fromEntries(
+        bound
+          .flatMap(({ env: each }) => Object.entries(each))
+          .map(([name, value]): [string, string] => [
+            name,
+            Redacted.isRedacted(value) ? String(Redacted.value(value)) : String(value),
+          ]),
+      );
+      const asked: string[] = [];
+      const client = HttpClient.make((request) => {
+        asked.push(`${request.url} ${request.headers.authorization ?? ""}`);
+        return Effect.succeed(
+          HttpClientResponse.fromWeb(
+            request,
+            Response.json(
+              request.url.endsWith("/namespaces")
+                ? { result: [{ id: "ns", class: "ShopActor", script: "testbed-backend-staging" }] }
+                : { result: [{ id: "one" }] },
+            ),
+          ),
+        );
+      });
+      const page = yield* Effect.flatMap(ShopActorObjects, (objects) => objects.list()).pipe(
+        Effect.provide(ShopActorObjects.layerHttpClient),
+        Effect.provide(
+          Layer.mergeAll(
+            Layer.succeed(HttpClient.HttpClient, client),
+            ShopActors.layerTest(),
+            Layer.mock(AppInstallations)({}),
+          ),
+        ),
+        withEnv(env),
+      );
+      assert.deepStrictEqual(page.objects, [{ id: "one" }]);
+      assert.deepStrictEqual(asked, [
+        "https://api.cloudflare.com/client/v4/accounts/account/workers/durable_objects/namespaces Bearer cf_token",
+        "https://api.cloudflare.com/client/v4/accounts/account/workers/durable_objects/namespaces/ns/objects Bearer cf_token",
+      ]);
     }),
   );
 });

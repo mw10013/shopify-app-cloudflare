@@ -1,9 +1,11 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
+import { serveAll, ShopActors, type ShopDomain } from "@mw10013/shopify-app-cloudflare/backend";
 import { SHOPIFY_TEST_DOOR_PATH, ShopifyTestDoor } from "@mw10013/shopify-app-cloudflare/test";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 import { testbedApp } from "#backend/app.ts";
 import { backendBody, backendProps, provideBackend, testbedHooks } from "#backend/backend.ts";
@@ -29,6 +31,14 @@ export default class TestBackend extends Cloudflare.Worker<TestBackend>()(
       // fake, released with it, would hand the library back the real fetch.
       const door = Context.get(yield* Layer.build(ShopifyTestDoor.layer), ShopifyTestDoor);
       const base = yield* backendBody;
+      const actors = yield* ShopActors;
+      const shopActorId = serveAll(
+        {
+          shopActorId: (payload: { readonly shop: ShopDomain }) =>
+            Effect.succeed(actors.idOf(payload.shop)),
+        },
+        { shopActorId: Schema.Never },
+      );
       const fetch = Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
         const { pathname } = new URL(request.url, "http://backend");
@@ -38,7 +48,7 @@ export default class TestBackend extends Cloudflare.Worker<TestBackend>()(
         return yield* base.fetch;
       });
       // Spread first, so the methods stay beside the new `fetch`.
-      return { ...base, fetch };
+      return { ...base, ...shopActorId, fetch };
     }),
     ShopifyTestDoor.shopifyApp(testbedApp, testbedHooks),
   ),

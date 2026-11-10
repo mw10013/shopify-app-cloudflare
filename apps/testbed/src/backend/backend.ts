@@ -11,6 +11,7 @@ import {
   isActorPath,
   scheduledJob,
   shopActorHooks,
+  ShopActorObjects,
   ShopActors,
   ShopifyAccess,
   ShopifyApp,
@@ -24,7 +25,7 @@ import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import * as Layer from "effect/Layer";
 
 import { testbedApp } from "./app.ts";
-import { backendMethods, counterMethods } from "./methods.ts";
+import { backendMethods, counterMethods, orphanMethods } from "./methods.ts";
 import { Database } from "./resources.ts";
 import { ShopActor, ShopActorLive } from "./shop-actor.ts";
 
@@ -32,15 +33,17 @@ import { ShopActor, ShopActorLive } from "./shop-actor.ts";
  * The Backend's init, built once per isolate. `fetch` serves Shopify's webhooks under
  * `/webhooks/` ({@link Webhooks}) and the shop actor's sockets under `/api/actor/<shop>`
  * ({@link actorUpgrade}), both forwarded by the Website; anything else is 404. The methods
- * ({@link backendMethods}, {@link counterMethods}) serve the Website over the binding. A daily
- * cron, `17 4 * * *`, revalidates every stale plan ({@link SubscriptionPlan}); the event source
- * swallows a handler's failure, so `scheduledJob` logs it.
+ * ({@link backendMethods}, {@link counterMethods}, {@link orphanMethods}) serve the Website over
+ * the binding. A daily cron, `17 4 * * *`, revalidates every stale plan
+ * ({@link SubscriptionPlan}); the event source swallows a handler's failure, so `scheduledJob`
+ * logs it.
  */
 export const backendBody = Effect.gen(function* () {
   const webhooks = yield* Webhooks;
   const plans = yield* SubscriptionPlan;
   const methods = yield* backendMethods;
   const counter = yield* counterMethods;
+  const orphans = yield* orphanMethods;
   const upgrade = yield* actorUpgrade(ShopActor);
   yield* Cloudflare.Workers.cron(
     "17 4 * * *",
@@ -55,7 +58,7 @@ export const backendBody = Effect.gen(function* () {
     if (isActorPath(pathname)) return yield* upgrade(request);
     return HttpServerResponse.empty({ status: 404 });
   });
-  return { fetch, ...methods, ...counter };
+  return { fetch, ...methods, ...counter, ...orphans };
 });
 
 /**
@@ -82,6 +85,7 @@ export const provideBackend = <A, E, R, ROut, E2, R2>(
 ) =>
   body.pipe(
     Effect.provide(shopifyApp),
+    Effect.provide(ShopActorObjects.layerConfig),
     Effect.provide(ShopActors.layer(ShopActor)),
     Effect.provide(ShopActorLive),
     Effect.provide(shopifyAccess),

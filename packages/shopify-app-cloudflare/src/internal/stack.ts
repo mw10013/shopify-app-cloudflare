@@ -31,6 +31,8 @@ import {
   AppHandle,
   type PartnerConfig,
   partnerConfig,
+  SHOP_ACTOR_OBJECTS_BINDING,
+  SHOP_ACTOR_OBJECTS_ENV,
   SHOPIFY_BINDING,
   SHOPIFY_PARTNER_BINDING,
 } from "./bindings.ts";
@@ -204,6 +206,36 @@ export const bindShopifyApp = Effect.fn("Stack.bindShopifyApp")(function* (
   });
   if (Option.isSome(options.partner))
     yield* backend.bind(SHOPIFY_PARTNER_BINDING, { env: options.partner.value });
+});
+
+/**
+ * Binds what `ShopActorObjects.layerConfig` reads to list the stage's `ShopActor` objects: the
+ * Cloudflare account, and the `script` that hosts `ShopActor`, which its namespace is found by,
+ * when `Some`. `apiToken`, a Workers Scripts Read token, is `Some` only on a stage that can list
+ * (staging and production, from the deploy's trigger variables). With `None` the stage's `list`
+ * and `orphans` die saying it cannot, while `destroyOrphan` still works.
+ */
+export const bindShopActorObjects = Effect.fn("Stack.bindShopActorObjects")(function* (
+  backend: BindableWorker,
+  options: {
+    readonly accountId: string;
+    readonly apiToken: Option.Option<Redacted.Redacted>;
+    readonly script: Option.Option<string>;
+  },
+) {
+  yield* backend.bind(SHOP_ACTOR_OBJECTS_BINDING, {
+    env: {
+      [SHOP_ACTOR_OBJECTS_ENV.accountId]: options.accountId,
+      ...Option.match(options.apiToken, {
+        onNone: () => ({}),
+        onSome: (token) => ({ [SHOP_ACTOR_OBJECTS_ENV.apiToken]: token }),
+      }),
+      ...Option.match(options.script, {
+        onNone: () => ({}),
+        onSome: (script) => ({ [SHOP_ACTOR_OBJECTS_ENV.script]: script }),
+      }),
+    },
+  });
 });
 
 const decodeE2eSession = Schema.decodeUnknownEffect(E2eSessionJson);

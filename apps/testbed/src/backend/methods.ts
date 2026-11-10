@@ -13,6 +13,8 @@ import {
   MerchantGate,
   PlanHandle,
   serveAll,
+  shopActorObjectFailures,
+  shopActorObjectMethods,
   ShopDomain,
 } from "@mw10013/shopify-app-cloudflare/backend";
 import * as Effect from "effect/Effect";
@@ -93,4 +95,8 @@ export const counterMethods = Effect.gen(function* () {
   });
 
   return serveAll({ count }, { count: AuthenticateMerchantFailure });
+});
+
+export const orphanMethods = Effect.gen(function* () {
+  return serveAll(yield* shopActorObjectMethods, shopActorObjectFailures);
 });
