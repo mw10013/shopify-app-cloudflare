@@ -1,14 +1,14 @@
 import { RegistryContext, useAtomSet, useAtomValue } from "@effect/atom-react";
-import { socketStateAtom } from "@mw10013/shopify-app-workers/client";
-import { ShopDomain, ShopifyUnavailableError } from "@mw10013/shopify-app-workers/contract";
+import { socketStateAtom } from "@mw10013/shopify-app-cloudflare/client";
+import { ShopDomain, ShopifyUnavailableError } from "@mw10013/shopify-app-cloudflare/contract";
 import {
   APP_BRIDGE_URL,
   type AppGate,
   appGuard,
   appSearch,
   documentHeaders,
-} from "@mw10013/shopify-app-workers/website";
-import { RereadFailedBanner, ShopSocket } from "@mw10013/shopify-app-workers/website/react";
+} from "@mw10013/shopify-app-cloudflare/website";
+import { RereadFailedBanner, ShopSocket } from "@mw10013/shopify-app-cloudflare/website/react";
 import {
   createFileRoute,
   type ErrorComponentProps,

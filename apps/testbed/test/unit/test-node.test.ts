@@ -1,4 +1,4 @@
-import { D1Test } from "@mw10013/shopify-app-workers/test/node";
+import { D1Test } from "@mw10013/shopify-app-cloudflare/test/node";
 import * as Effect from "effect/Effect";
 import { expect, test } from "vite-plus/test";
 

@@ -11,12 +11,12 @@ import {
   partnerBindingFromConfig,
   readAppIdentity,
   shopifyCliApp,
-} from "@mw10013/shopify-app-workers/stack";
+} from "@mw10013/shopify-app-cloudflare/stack";
 import {
   FAKE_APP_HANDLE,
   FAKE_SHOPIFY_API_KEY,
   FAKE_SHOPIFY_API_SECRET,
-} from "@mw10013/shopify-app-workers/test";
+} from "@mw10013/shopify-app-cloudflare/test";
 import * as Cause from "effect/Cause";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Effect from "effect/Effect";
@@ -61,7 +61,7 @@ handle = "ignored"
 `;
 
 const toml = (contents: string) => {
-  const file = path.join(mkdtempSync(path.join(tmpdir(), "swa-identity-")), "shopify.app.toml");
+  const file = path.join(mkdtempSync(path.join(tmpdir(), "sac-identity-")), "shopify.app.toml");
   writeFileSync(file, contents);
   return file;
 };
@@ -124,7 +124,7 @@ describe("/stack", () => {
   });
 
   it("readAppIdentity throws, naming the path, on a missing file or key", () => {
-    const missing = path.join(mkdtempSync(path.join(tmpdir(), "swa-identity-")), "absent.toml");
+    const missing = path.join(mkdtempSync(path.join(tmpdir(), "sac-identity-")), "absent.toml");
     assert.throws(() => readAppIdentity(missing), new RegExp(`cannot read ${missing}`, "u"));
     const noHandle = toml(`client_id = "${CLIENT_ID}"\n`);
     assert.throws(
@@ -178,7 +178,7 @@ describe("/stack", () => {
 
   it.effect("deployedShopifyApp fails, naming the path, when the stage's toml is missing", () =>
     Effect.gen(function* () {
-      const missing = path.join(mkdtempSync(path.join(tmpdir(), "swa-identity-")), "absent.toml");
+      const missing = path.join(mkdtempSync(path.join(tmpdir(), "sac-identity-")), "absent.toml");
       const exit = yield* Effect.exit(
         deployedShopifyApp(missing, "https://app.example").pipe(
           withEnv({ SHOPIFY_API_SECRET: "s" }),

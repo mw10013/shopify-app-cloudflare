@@ -5,8 +5,8 @@
  * @module
  */
 
-import { makeNoticesAtom, shopActorProtocol } from "@mw10013/shopify-app-workers/client";
-import { makeLiveReads } from "@mw10013/shopify-app-workers/website/react";
+import { makeNoticesAtom, shopActorProtocol } from "@mw10013/shopify-app-cloudflare/client";
+import { makeLiveReads } from "@mw10013/shopify-app-cloudflare/website/react";
 import * as AtomRpc from "effect/reactivity/AtomRpc";
 
 import { ALL_KEYS, CounterRpcs } from "#contract/counter.ts";

@@ -5,7 +5,7 @@
  * @module
  */
 
-import { ConnectionMiddleware, RequireMerchant } from "@mw10013/shopify-app-workers/contract";
+import { ConnectionMiddleware, RequireMerchant } from "@mw10013/shopify-app-cloudflare/contract";
 import * as Rpc from "effect/rpc/Rpc";
 import * as RpcGroup from "effect/rpc/RpcGroup";
 import * as Schema from "effect/Schema";

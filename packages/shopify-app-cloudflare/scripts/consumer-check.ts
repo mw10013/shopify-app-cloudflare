@@ -25,7 +25,7 @@ import * as Stream from "effect/Stream";
 
 import { build, OUTPUT, PACKAGE } from "./build.ts";
 
-const NAME = "@mw10013/shopify-app-workers";
+const NAME = "@mw10013/shopify-app-cloudflare";
 
 const WORKSPACE = path.dirname(path.dirname(PACKAGE));
 
@@ -445,7 +445,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
 const check = Effect.fn("ConsumerCheck.check")(function* (spec: string | undefined, keep: boolean) {
   const fs = yield* FileSystem.FileSystem;
   const root = yield* Effect.acquireRelease(
-    fs.makeTempDirectory({ prefix: "shopify-app-workers-consumer-" }),
+    fs.makeTempDirectory({ prefix: "shopify-app-cloudflare-consumer-" }),
     (directory) =>
       keep ? Effect.void : fs.remove(directory, { recursive: true }).pipe(Effect.ignore),
   );

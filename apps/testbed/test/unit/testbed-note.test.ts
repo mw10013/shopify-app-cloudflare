@@ -1,9 +1,9 @@
 import { fileURLToPath } from "node:url";
 
 import { assert, describe, it } from "@effect/vitest";
-import { ShopDomain, ShopGid, Webhooks } from "@mw10013/shopify-app-workers/backend";
-import { signWebhook } from "@mw10013/shopify-app-workers/test";
-import { D1Test, ShopifyAppTest } from "@mw10013/shopify-app-workers/test/node";
+import { ShopDomain, ShopGid, Webhooks } from "@mw10013/shopify-app-cloudflare/backend";
+import { signWebhook } from "@mw10013/shopify-app-cloudflare/test";
+import { D1Test, ShopifyAppTest } from "@mw10013/shopify-app-cloudflare/test/node";
 import * as Effect from "effect/Effect";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as Schema from "effect/Schema";

@@ -1,8 +1,8 @@
 import path from "node:path";
 
 import { app } from "@mw10013/rigging/core/app";
-import { e2eProject } from "@mw10013/shopify-app-workers/test/e2e";
-import { shopifyE2eConfig } from "@mw10013/shopify-app-workers/test/e2e/config";
+import { e2eProject } from "@mw10013/shopify-app-cloudflare/test/e2e";
+import { shopifyE2eConfig } from "@mw10013/shopify-app-cloudflare/test/e2e/config";
 import { defineConfig } from "playwright/test";
 
 import { catalog } from "#backend/app.ts";

@@ -10,8 +10,8 @@ import {
   loadServer,
   startServer,
   statusReport,
-} from "@mw10013/shopify-app-workers/dev/server";
-import { recordStore, resetStaleStage } from "@mw10013/shopify-app-workers/dev/stage-store";
+} from "@mw10013/shopify-app-cloudflare/dev/server";
+import { recordStore, resetStaleStage } from "@mw10013/shopify-app-cloudflare/dev/stage-store";
 import * as CliError from "effect/cli/CliError";
 import * as Command from "effect/cli/Command";
 import * as Flag from "effect/cli/Flag";

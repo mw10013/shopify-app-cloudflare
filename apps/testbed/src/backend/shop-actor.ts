@@ -8,7 +8,7 @@
 
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import * as SqliteMigrator from "@effect/sql-sqlite-do/SqliteMigrator";
-import { ShopActorKit, type ShopActorShape } from "@mw10013/shopify-app-workers/backend";
+import { ShopActorKit, type ShopActorShape } from "@mw10013/shopify-app-cloudflare/backend";
 import * as Effect from "effect/Effect";
 import * as SqlClient from "effect/sql/SqlClient";
 

@@ -1,4 +1,4 @@
-import { webhookHandlers } from "@mw10013/shopify-app-workers/website";
+import { webhookHandlers } from "@mw10013/shopify-app-cloudflare/website";
 
 import { backend } from "#web/server/backend.ts";
 import { env } from "#web/server/env.server.ts";

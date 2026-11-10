@@ -7,7 +7,7 @@
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { e2eServerCommand } from "@mw10013/shopify-app-workers/test/e2e/server";
+import { e2eServerCommand } from "@mw10013/shopify-app-cloudflare/test/e2e/server";
 import * as Command from "effect/cli/Command";
 import * as Effect from "effect/Effect";
 
@@ -20,7 +20,7 @@ e2eServerCommand({
     "../../pnpm-lock.yaml",
     "alchemy.run.ts",
     "migrations",
-    "../../packages/shopify-app-workers/package.json",
+    "../../packages/shopify-app-cloudflare/package.json",
   ],
   storeScopes: STORE_SCOPES,
 }).pipe(Command.run({ version: "1.0.0" }), Effect.provide(NodeServices.layer), NodeRuntime.runMain);

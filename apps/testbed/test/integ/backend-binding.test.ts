@@ -1,13 +1,13 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import * as Test from "@alchemy.run/test/Vitest";
 import { assert } from "@effect/vitest";
-import { ShopDomain, ShopGid } from "@mw10013/shopify-app-workers/contract";
+import { ShopDomain, ShopGid } from "@mw10013/shopify-app-cloudflare/contract";
 import {
   deliverWebhook,
   FAKE_SHOP_GID,
   fakePlanSelectionUrl,
   mintIdToken,
-} from "@mw10013/shopify-app-workers/test";
+} from "@mw10013/shopify-app-cloudflare/test";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";

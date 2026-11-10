@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import * as Backend from "@mw10013/shopify-app-workers/backend";
+import * as Backend from "@mw10013/shopify-app-cloudflare/backend";
 
 import { reachedPackages } from "./reach.ts";
 
@@ -75,7 +75,7 @@ describe("/website", () => {
 
 describe("/website/react", () => {
   it("exports the socket holder, its banners and the live route helpers", async () => {
-    const exported = Object.keys(await import("@mw10013/shopify-app-workers/website/react"));
+    const exported = Object.keys(await import("@mw10013/shopify-app-cloudflare/website/react"));
     for (const name of [
       "ShopSocket",
       "SocketBanner",
@@ -90,7 +90,7 @@ describe("/website/react", () => {
 
 describe("/test", () => {
   it("exports the door a test Backend mounts", async () => {
-    const exported = Object.keys(await import("@mw10013/shopify-app-workers/test"));
+    const exported = Object.keys(await import("@mw10013/shopify-app-cloudflare/test"));
     for (const name of [
       "ShopifyTestDoor",
       "ShopifyTestDoorRpcs",

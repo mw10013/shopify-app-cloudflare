@@ -32,10 +32,10 @@ const runtimeBoundary = (
           },
           {
             group: [
-              "@mw10013/shopify-app-workers/test",
-              "@mw10013/shopify-app-workers/test/**",
+              "@mw10013/shopify-app-cloudflare/test",
+              "@mw10013/shopify-app-cloudflare/test/**",
               ...(options.testEntries ?? []).map(
-                (entry) => `!@mw10013/shopify-app-workers/${entry}`,
+                (entry) => `!@mw10013/shopify-app-cloudflare/${entry}`,
               ),
             ],
             message: "Test support stays in test/; a production Worker never carries it.",
@@ -50,7 +50,7 @@ const runtimeBoundary = (
 const WEB_FILES = [
   "apps/testbed/src/web/**",
   "apps/testbed/test/browser/**",
-  "packages/shopify-app-workers/src/**/*.tsx",
+  "packages/shopify-app-cloudflare/src/**/*.tsx",
 ];
 
 /**
@@ -166,15 +166,15 @@ const webOnlyRules = [
 ];
 
 const PACKAGE_NODE_ONLY = [
-  "packages/shopify-app-workers/src/test-node.ts",
-  "packages/shopify-app-workers/src/test/node/**",
+  "packages/shopify-app-cloudflare/src/test-node.ts",
+  "packages/shopify-app-cloudflare/src/test/node/**",
 ];
 const PACKAGE_DEV = [
-  "packages/shopify-app-workers/src/dev/**",
-  "packages/shopify-app-workers/src/test-e2e.ts",
-  "packages/shopify-app-workers/src/test-e2e-server.ts",
-  "packages/shopify-app-workers/src/test-e2e-config.ts",
-  "packages/shopify-app-workers/src/test/e2e/**",
+  "packages/shopify-app-cloudflare/src/dev/**",
+  "packages/shopify-app-cloudflare/src/test-e2e.ts",
+  "packages/shopify-app-cloudflare/src/test-e2e-server.ts",
+  "packages/shopify-app-cloudflare/src/test-e2e-config.ts",
+  "packages/shopify-app-cloudflare/src/test/e2e/**",
 ];
 const NODE_SQLITE = {
   name: "node:sqlite",
@@ -278,7 +278,7 @@ export default defineConfig({
       ),
       packageBoundary(
         // Only `/test/node` runs under Node alone; every other entry can reach a workerd bundle.
-        ["packages/shopify-app-workers/src/**"],
+        ["packages/shopify-app-cloudflare/src/**"],
         [...PACKAGE_NODE_ONLY, ...PACKAGE_DEV],
         [NODE_SQLITE],
         [TEST_NODE_IMPORTS, DEV_IMPORTS, TANSTACK_START],

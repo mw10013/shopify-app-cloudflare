@@ -1,5 +1,5 @@
 import * as Test from "@alchemy.run/test/Vitest";
-import { SHOPIFY_TEST_DOOR_PATH, ShopifyTestDoorRpcs } from "@mw10013/shopify-app-workers/test";
+import { SHOPIFY_TEST_DOOR_PATH, ShopifyTestDoorRpcs } from "@mw10013/shopify-app-cloudflare/test";
 import * as Effect from "effect/Effect";
 import * as RpcClient from "effect/rpc/RpcClient";
 import type * as RpcClientError from "effect/rpc/RpcClientError";

@@ -1,7 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
-import { MerchantGate, PlanCatalog, ShopifyApp } from "@mw10013/shopify-app-workers/backend";
-import { mintIdToken, PartnerFake } from "@mw10013/shopify-app-workers/test";
-import { D1Test, ShopifyAppTest } from "@mw10013/shopify-app-workers/test/node";
+import { MerchantGate, PlanCatalog, ShopifyApp } from "@mw10013/shopify-app-cloudflare/backend";
+import { mintIdToken, PartnerFake } from "@mw10013/shopify-app-cloudflare/test";
+import { D1Test, ShopifyAppTest } from "@mw10013/shopify-app-cloudflare/test/node";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 

@@ -1,4 +1,4 @@
-import { ShopifyUnavailableError } from "@mw10013/shopify-app-workers/contract";
+import { ShopifyUnavailableError } from "@mw10013/shopify-app-cloudflare/contract";
 import { createSerializationAdapter } from "@tanstack/react-router";
 import { createCsrfMiddleware, createStart } from "@tanstack/react-start";
 import * as Schema from "effect/Schema";

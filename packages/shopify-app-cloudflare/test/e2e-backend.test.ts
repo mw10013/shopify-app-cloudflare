@@ -3,10 +3,15 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { assert, describe, it } from "@effect/vitest";
-import { PlanCatalog, ShopDomain, ShopGid, ShopifyApp } from "@mw10013/shopify-app-workers/backend";
-import { E2E_WEBHOOK_MARKER_PARAM } from "@mw10013/shopify-app-workers/contract";
-import { type BindableWorker, bindE2eSession } from "@mw10013/shopify-app-workers/stack";
-import { ShopifyAppTest } from "@mw10013/shopify-app-workers/test/node";
+import {
+  PlanCatalog,
+  ShopDomain,
+  ShopGid,
+  ShopifyApp,
+} from "@mw10013/shopify-app-cloudflare/backend";
+import { E2E_WEBHOOK_MARKER_PARAM } from "@mw10013/shopify-app-cloudflare/contract";
+import { type BindableWorker, bindE2eSession } from "@mw10013/shopify-app-cloudflare/stack";
+import { ShopifyAppTest } from "@mw10013/shopify-app-cloudflare/test/node";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";

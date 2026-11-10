@@ -11,7 +11,7 @@ import {
   ShopifyApp,
   type TopicHandler,
   type WebhookDelivery,
-} from "@mw10013/shopify-app-workers/backend";
+} from "@mw10013/shopify-app-cloudflare/backend";
 import * as Effect from "effect/Effect";
 
 /** Two plans. Each handle must also exist in the Partner Dashboard before a merchant can pay. */

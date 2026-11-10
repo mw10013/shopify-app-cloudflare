@@ -1,12 +1,12 @@
 import { fileURLToPath } from "node:url";
 
 import { describe, it } from "@effect/vitest";
-import { REQUIRED_BEHAVIORS } from "@mw10013/shopify-app-workers/test";
+import { REQUIRED_BEHAVIORS } from "@mw10013/shopify-app-cloudflare/test";
 import {
   expectMigrationsSynced,
   expectTomlMatches,
   inProcessHarness,
-} from "@mw10013/shopify-app-workers/test/node";
+} from "@mw10013/shopify-app-cloudflare/test/node";
 import * as Effect from "effect/Effect";
 
 import { testbedApp } from "#backend/app.ts";

@@ -5,7 +5,7 @@
  * @module
  */
 
-import { expect, openApp, test } from "@mw10013/shopify-app-workers/test/e2e";
+import { expect, openApp, test } from "@mw10013/shopify-app-cloudflare/test/e2e";
 import type { FrameLocator } from "playwright/test";
 
 test("an Increment in one tab shows in another through the actor's notice", async ({

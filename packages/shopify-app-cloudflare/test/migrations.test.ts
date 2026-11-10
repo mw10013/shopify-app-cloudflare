@@ -69,7 +69,7 @@ describe("N8. the package's migrations only expand", () => {
 
 describe("expectMigrationsSynced", () => {
   const appMigrations = () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "swa-migrations-"));
+    const dir = mkdtempSync(path.join(tmpdir(), "sac-migrations-"));
     cpSync(PACKAGE_MIGRATIONS_DIR, dir, { recursive: true });
     writeFileSync(path.join(dir, "0001_app_note.sql"), "create table Note (id integer);\n");
     return dir;
@@ -82,7 +82,7 @@ describe("expectMigrationsSynced", () => {
     }
     return assert.fail("expectMigrationsSynced passed");
   };
-  const NAME = "0000_swa_01_app_installation.sql";
+  const NAME = "0000_sac_01_app_installation.sql";
 
   it("passes for byte-identical copies beside the app's own migrations", () => {
     expectMigrationsSynced({ migrationsDir: appMigrations() });
@@ -98,7 +98,7 @@ describe("expectMigrationsSynced", () => {
   });
 
   it("fails on a missing copy with the cp that fixes it", () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "swa-migrations-"));
+    const dir = mkdtempSync(path.join(tmpdir(), "sac-migrations-"));
     const shipped = readdirSync(PACKAGE_MIGRATIONS_DIR)
       .toSorted()
       .map((name) => path.join(PACKAGE_MIGRATIONS_DIR, name));
@@ -107,7 +107,7 @@ describe("expectMigrationsSynced", () => {
 
   it("fails on a package-named migration the package does not ship", () => {
     const dir = appMigrations();
-    writeFileSync(path.join(dir, "0000_swa_99_gone.sql"), "select 1;\n");
-    assert.include(failure(dir), "0000_swa_99_gone.sql named as the package's");
+    writeFileSync(path.join(dir, "0000_sac_99_gone.sql"), "select 1;\n");
+    assert.include(failure(dir), "0000_sac_99_gone.sql named as the package's");
   });
 });

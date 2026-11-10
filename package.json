@@ -1,11 +1,11 @@
 {
-  "name": "shopify-app-workers-workspace",
+  "name": "shopify-app-cloudflare-workspace",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vp -C apps/testbed run dev",
-    "release": "vp -C packages/shopify-app-workers run release",
+    "release": "vp -C packages/shopify-app-cloudflare run release",
     "deploy:staging": "vp -C apps/testbed run deploy:staging"
   },
   "devDependencies": {
