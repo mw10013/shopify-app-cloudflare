@@ -71,7 +71,7 @@ describe("storeOf", () => {
     const link = path.join(scratch, "link");
     fs.symlinkSync(appRoot, link);
     await run(storeOf("dev", { root: link, name: "my-app" }));
-    const ledger = path.join(scratch, "state", "berth", "ledger");
+    const ledger = path.join(scratch, "state", "shopify-app-cloudflare", "stores", "ledger");
     const [generation] = fs.readdirSync(ledger);
     const written = JSON.parse(fs.readFileSync(path.join(ledger, generation ?? ""), "utf8")) as {
       readonly format: number;
