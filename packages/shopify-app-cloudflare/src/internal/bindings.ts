@@ -26,6 +26,20 @@ export interface ShopifyCredentials {
 export const SHOPIFY_BINDING = "Shopify";
 export const SHOPIFY_PARTNER_BINDING = "ShopifyPartner";
 export const SHOP_ACTOR_OBJECTS_BINDING = "ShopActorObjects";
+export const SITE_AUTH_BINDING = "SiteAuth";
+
+export const SITE_AUTH_ENV = {
+  authOrigin: "AUTH_ORIGIN",
+  delivery: "SIGN_IN_CODE_DELIVERY",
+} as const;
+
+/**
+ * Where a stage's sign-in codes go. `inline`: back to the caller that asked, which the sign-in
+ * page shows and a test runner types; nothing is mailed. `mailed`: to the address's inbox, which
+ * nothing in-process can read. The stack chooses per stage, never anything the browser sends.
+ */
+export const SignInCodeDeliveryMode = Schema.Literals(["inline", "mailed"]);
+export type SignInCodeDeliveryMode = typeof SignInCodeDeliveryMode.Type;
 
 export const SHOP_ACTOR_OBJECTS_ENV = {
   accountId: "CLOUDFLARE_ACCOUNT_ID",

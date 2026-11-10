@@ -35,6 +35,26 @@ export {
   ShopActorObjectsRequest,
 } from "#internal/shop-actor-objects-contract.ts";
 export {
+  AdminRefusal,
+  AUTH_BASE_PATH,
+  AUTH_ENDPOINTS,
+  Email,
+  EMAIL_MAX_LENGTH,
+  isAuthEndpoint,
+  RequestInfo,
+  Role,
+  SIGN_IN_CODE_ATTEMPTS,
+  SIGN_IN_CODE_LENGTH,
+  SIGN_IN_CODE_TTL,
+  SignInCode,
+  SignInCodeRequest,
+  SignInCodeRequested,
+  SiteAuthControlRpcs,
+  SiteUser,
+  TooManyRequestsError,
+  UnauthorizedError,
+} from "#internal/site-auth-contract.ts";
+export {
   E2E_WEBHOOK_MARKER_PARAM,
   E2eShopStatus,
   E2eWebhookDeliveries,

@@ -6,17 +6,21 @@
  * @module
  */
 
-export { PartnerConfig } from "#internal/bindings.ts";
+export { PartnerConfig, type SignInCodeDeliveryMode } from "#internal/bindings.ts";
 export {
   type AppIdentity,
   type BindableWorker,
   bindE2eSession,
   bindShopActorObjects,
   bindShopifyApp,
+  bindSiteAuth,
   deployedShopifyApp,
   fakeShopifyApp,
   partnerBindingFromConfig,
   readAppIdentity,
+  seedSiteUsers,
   type ShopifyAppBinding,
   shopifyCliApp,
+  siteUserSeedSql,
+  type SiteUserSeed,
 } from "#internal/stack.ts";

@@ -14,6 +14,7 @@ import {
   exitIframeDestination,
   inlineScriptString,
 } from "./shopify-urls.ts";
+import { isAuthEndpoint } from "./site-auth-contract.ts";
 
 /**
  * The Website's bindings the handlers read. Each handler reads them when it runs, so `env` may be
@@ -107,3 +108,16 @@ export const actorUpgradeHandlers = (env: Pick<WebsiteBindings, "BACKEND">) => (
     return env.BACKEND.fetch(request);
   },
 });
+
+/**
+ * `/api/auth/$`: the Better Auth endpoints a browser may reach (`AUTH_ENDPOINTS`) forwarded to the
+ * Backend, every other path `404`. The answer sets or clears the session cookie, so it passes
+ * through to the browser unfollowed. The Backend refuses any other endpoint itself as well.
+ */
+export const authHandlers = (env: Pick<WebsiteBindings, "BACKEND">) => {
+  const forward = ({ request }: { readonly request: Request }) =>
+    isAuthEndpoint(request.method, new URL(request.url).pathname)
+      ? env.BACKEND.fetch(new Request(request, { redirect: "manual" }))
+      : Promise.resolve(text(404, "Not Found"));
+  return { GET: forward, POST: forward };
+};

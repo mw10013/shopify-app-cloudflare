@@ -58,6 +58,16 @@ describe("/backend", () => {
       "shopActorObjectFailures",
       "OrphanInstalledError",
       "SHOP_ACTOR_OBJECTS_LIMIT",
+      "Auth",
+      "SIGN_UP_CLOSED",
+      "signInMethods",
+      "signInFailures",
+      "SignInCodeDelivery",
+      "SignInLimiter",
+      "Mailer",
+      "requireAdmin",
+      "serveAdmin",
+      "siteAuthControlHandlers",
     ])
       assert.include(exported, name);
     assert.deepStrictEqual(
@@ -92,8 +102,24 @@ describe("/website/react", () => {
       "keepLastAnswer",
       "OrphanShopActorObjectsPage",
       "ShopActorObjectsPage",
+      "SignInPage",
+      "SignOutButton",
+      "verifySignInCode",
+      "signOut",
     ])
       assert.include(exported, name);
+  });
+});
+
+/** Better Auth and its Alchemy layer, which only the Backend loads. */
+const isBetterAuth = (specifier: string) =>
+  specifier.startsWith("better-auth") || specifier.startsWith("@alchemy.run/better-auth");
+
+describe("site auth", () => {
+  it("only the Backend, the stack and the Node test support reach Better Auth", () => {
+    assert.isNotEmpty(reachedPackages("backend.ts").filter(isBetterAuth));
+    for (const entry of ["contract.ts", "website.ts", "website-react.ts", "client.ts", "test.ts"])
+      assert.deepStrictEqual(reachedPackages(entry).filter(isBetterAuth), [], entry);
   });
 });
 

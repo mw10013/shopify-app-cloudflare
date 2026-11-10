@@ -52,9 +52,9 @@ export const serve = <A, E extends F["Type"], R, F extends Failures = typeof Sch
     ),
   );
 
-type Method = (...args: never) => Effect.Effect<unknown, unknown, unknown>;
+export type Method = (...args: never) => Effect.Effect<unknown, unknown, unknown>;
 
-type Undeclared<M extends Method, F extends Failures> = Exclude<
+export type Undeclared<M extends Method, F extends Failures> = Exclude<
   M extends (...args: never) => Effect.Effect<unknown, infer E, unknown> ? E : never,
   F["Type"]
 >;

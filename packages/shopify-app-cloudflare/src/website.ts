@@ -24,6 +24,11 @@ export {
 } from "#internal/merchant-request.ts";
 export { rescue } from "#internal/rescue.ts";
 export {
+  requestInfoOf,
+  signInCodeResult,
+  type SignInCodeResult,
+} from "#internal/sign-in-code-result.ts";
+export {
   APP_BRIDGE_URL,
   type AppSearch,
   appSearch,
@@ -36,6 +41,7 @@ export {
 export {
   actorUpgradeHandlers,
   appBridgePage,
+  authHandlers,
   exitIframeHandlers,
   isCrossSiteUpgrade,
   sessionTokenHandlers,
