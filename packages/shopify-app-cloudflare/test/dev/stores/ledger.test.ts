@@ -145,7 +145,7 @@ describe("Ledger", () => {
     expect(generationsAfter).toEqual(["g-1.json"]);
   });
 
-  it("keeps the fields the global berth wrote that this version does not read", async () => {
+  it("keeps the fields this version does not read", async () => {
     const written = await withLedger((ledger, directory) =>
       Effect.gen(function* () {
         writeGeneration(directory, 1, {

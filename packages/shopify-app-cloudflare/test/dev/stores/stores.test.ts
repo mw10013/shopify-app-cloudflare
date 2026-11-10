@@ -66,7 +66,7 @@ describe("storeOf", () => {
     expect(await run(storeOf("dev", app()))).toEqual(dev);
   });
 
-  it("keys the lease by machine, the app's real path and the environment, as berth does", async () => {
+  it("keys the lease by machine, the app's real path and the environment", async () => {
     writePool(["mw10013-pool-03"]);
     const link = path.join(scratch, "link");
     fs.symlinkSync(appRoot, link);
