@@ -1,7 +1,8 @@
 /**
  * What crosses between an app's Workers and the browser: the brands, the errors and the failure
- * schemas, and the redacted `AppInstallation` records `AppInstallations` answers. Free of
- * `@shopify/shopify-api`, so the Website imports it without loading the library.
+ * schemas, the redacted `AppInstallation` records `AppInstallations` answers and the orphan sweep's
+ * objects and batches. Free of `@shopify/shopify-api`, so the Website imports it without loading
+ * the library.
  *
  * @module
  */
@@ -24,6 +25,15 @@ export {
   AppInstallationRedacted,
   AppInstallationRedactedPage,
 } from "#internal/app-installation.ts";
+export {
+  DestroyOrphanRequest,
+  OrphanInstalledError,
+  OrphanShopActorObjectsData,
+  SHOP_ACTOR_OBJECTS_LIMIT,
+  ShopActorObject,
+  ShopActorObjectsData,
+  ShopActorObjectsRequest,
+} from "#internal/shop-actor-objects-contract.ts";
 export {
   E2E_WEBHOOK_MARKER_PARAM,
   E2eShopStatus,

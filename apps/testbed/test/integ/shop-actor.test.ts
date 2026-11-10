@@ -30,6 +30,7 @@ import * as Socket from "effect/socket/Socket";
 import { catalog } from "#backend/app.ts";
 import { COUNT_KEY, CounterRpcs } from "#contract/counter.ts";
 
+import { call } from "./call.ts";
 import { door } from "./door.ts";
 import { fileStage } from "./file-stage.ts";
 import Stack from "./stack.ts";
@@ -247,5 +248,62 @@ test(
         .pipe(Effect.retry({ schedule: Schedule.spaced("100 millis"), times: 30 }));
       assert.strictEqual(yield* reread, 1, "the reconnect, through the gate, reads again");
     }).pipe(Effect.scoped);
+  }),
+);
+
+const objectIdOf = (websiteUrl: string, shop: ShopDomain) =>
+  call(websiteUrl, "shopActorId", { shop }).pipe(
+    Effect.map((outcome) => {
+      assert.strictEqual(outcome._tag, "Returned");
+      return Schema.decodeUnknownSync(Schema.String)(
+        outcome._tag === "Returned" ? outcome.value : undefined,
+      );
+    }),
+  );
+
+test(
+  "destroyOrphan refuses an installed shop's object with OrphanInstalledError, and its storage stays intact",
+  Effect.gen(function* () {
+    const { backendUrl, websiteUrl } = yield* stack;
+    const shop = shopNamed("orphan-installed");
+    yield* install(backendUrl, shop);
+    const id = yield* objectIdOf(websiteUrl, shop);
+    yield* Effect.gen(function* () {
+      const socket = yield* connect(backendUrl, shop, yield* mintIdToken({ shop }));
+      assert.strictEqual(yield* socket.client.MerchantIncrement(), 1);
+      assert.deepStrictEqual(yield* call(websiteUrl, "destroyOrphan", { id }), {
+        _tag: "Threw",
+        value: { _tag: "OrphanInstalledError" },
+      });
+      assert.strictEqual(yield* socket.client.MerchantGetCount(), 1);
+    }).pipe(Effect.scoped);
+  }),
+);
+
+test(
+  "destroyOrphan of an uninstalled shop's object deletes its storage, and a repeated call succeeds",
+  Effect.gen(function* () {
+    const { backendUrl, websiteUrl } = yield* stack;
+    const shop = shopNamed("orphan-uninstalled");
+    yield* install(backendUrl, shop);
+    const token = yield* mintIdToken({ shop });
+    const id = yield* objectIdOf(websiteUrl, shop);
+    yield* Effect.gen(function* () {
+      const socket = yield* connect(backendUrl, shop, token);
+      assert.strictEqual(yield* socket.client.MerchantIncrement(), 1);
+    }).pipe(Effect.scoped);
+    yield* door(backendUrl, (client) => client.Reset({}));
+
+    const destroyed = yield* call(websiteUrl, "destroyOrphan", { id });
+    assert.strictEqual(destroyed._tag, "Returned");
+    const repeated = yield* call(websiteUrl, "destroyOrphan", { id });
+    assert.strictEqual(repeated._tag, "Returned");
+
+    yield* install(backendUrl, shop);
+    const count = yield* Effect.gen(function* () {
+      const socket = yield* connect(backendUrl, shop, token);
+      return yield* socket.client.MerchantGetCount();
+    }).pipe(Effect.scoped);
+    assert.strictEqual(count, 0, "the actor starts empty after its storage was deleted");
   }),
 );

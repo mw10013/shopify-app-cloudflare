@@ -11,6 +11,7 @@ export {
   type AppIdentity,
   type BindableWorker,
   bindE2eSession,
+  bindShopActorObjects,
   bindShopifyApp,
   deployedShopifyApp,
   fakeShopifyApp,

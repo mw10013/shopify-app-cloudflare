@@ -14,6 +14,12 @@ The subpath exports are `/backend`, `/contract`, `/stack`, `/website`, `/website
 
 The `stores` command runs inside an app with `vp exec stores`: `acquire <env>`, `show <env>`, `release [<env>]`, `list [--json]` and `pool ensure [<count>]`. State lives in `$XDG_STATE_HOME` (default `~/.local/state`): the lease ledger in `shopify-app-cloudflare/stores/ledger/` and the pool in `shopify-app-cloudflare/stores/pool.json`. Every file carries `"format": 1`, and a reader that finds another format fails before it writes, asking for a newer package.
 
+## Orphan shop actor objects
+
+An uninstall deletes the shop's row before it destroys the shop's `ShopActor`, so a destroy that failed leaves an object nothing accounts for. `ShopActorObjects` from `/backend` lists the stage's objects through Cloudflare's REST API, rules which are orphans and destroys one by id (`OrphanInstalledError` when the shop is installed again). `ShopActorObjects.layerConfig` needs `ShopActors` and `AppInstallations` in the Backend's init, `shopActorObjectMethods` with `shopActorObjectFailures` serves the three through `serveAll`, and `ShopActorObjects.layerTest(pages)` lists a fixed set in an app's unit tests. The methods guard nothing: the app guards them, in its Website middleware or around them.
+
+`bindShopActorObjects` from `/stack` binds `CLOUDFLARE_ACCOUNT_ID`, the script that hosts `ShopActor` and, only on staging and production, a Workers Scripts Read token as `CLOUDFLARE_WORKERS_API_TOKEN`. On any other stage listing dies saying so. `ShopActorObjectsPage` and `OrphanShopActorObjectsPage` from `/website/react` render the two admin pages from data and callbacks. The app keeps its route files and server functions, because TanStack Start's compiler is not known to rewrite a `createServerFn` under `node_modules`.
+
 ## Upgrading to 0.8
 
 `/dev/berth` is gone: `acquire`, `acquireSync` and `LeaseNotGrantedError` become `storeOf` from `/dev/stores`, and `StoreName`, `storeNameOf` and `StoreFor` move there from `/dev/worktree`. `shopifyE2eConfig` is async: `await` it at the top level of `playwright.config.ts`. Delete `berth.json`; the toml of each environment is fixed by convention.

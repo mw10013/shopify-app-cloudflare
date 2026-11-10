@@ -25,6 +25,13 @@ export interface ShopifyCredentials {
  */
 export const SHOPIFY_BINDING = "Shopify";
 export const SHOPIFY_PARTNER_BINDING = "ShopifyPartner";
+export const SHOP_ACTOR_OBJECTS_BINDING = "ShopActorObjects";
+
+export const SHOP_ACTOR_OBJECTS_ENV = {
+  accountId: "CLOUDFLARE_ACCOUNT_ID",
+  apiToken: "CLOUDFLARE_WORKERS_API_TOKEN",
+  script: "SHOP_ACTOR_SCRIPT",
+} as const;
 
 /** {@link ShopifyCredentials} read from the Backend's bindings, each absent one `None`. */
 export const shopifyCredentialsConfig = Config.all({

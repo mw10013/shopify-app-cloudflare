@@ -73,6 +73,12 @@ export {
   ShopNotInstalledError,
 } from "#internal/shop-actor-kit.ts";
 export {
+  ShopActorObjects,
+  type ShopActorObjectsShape,
+  shopActorObjectFailures,
+  shopActorObjectMethods,
+} from "#internal/shop-actor-objects.ts";
+export {
   settleDestroy,
   ShopActors,
   type ShopActorsShape,

@@ -15,6 +15,7 @@ import * as Schema from "effect/Schema";
 
 import { catalog } from "#backend/app.ts";
 
+import { call } from "./call.ts";
 import { door } from "./door.ts";
 import { fileStage } from "./file-stage.ts";
 import Stack from "./stack.ts";
@@ -41,22 +42,6 @@ const fresh = Effect.gen(function* () {
   yield* door(urls.backendUrl, (client) => client.Reset({}));
   return urls;
 });
-
-const Outcome = Schema.Union([
-  Schema.TaggedStruct("Returned", { value: Schema.Unknown }),
-  Schema.TaggedStruct("ThrewError", { message: Schema.String }),
-  Schema.TaggedStruct("Threw", { value: Schema.Unknown }),
-]);
-const decodeOutcome = Schema.decodeUnknownEffect(Outcome);
-
-/** Calls the Backend's `method` through the test Website's `BACKEND` binding. */
-const call = (websiteUrl: string, method: string, ...args: unknown[]) =>
-  Effect.gen(function* () {
-    const response = yield* Effect.promise(() =>
-      fetch(new URL(method, websiteUrl), { method: "POST", body: JSON.stringify(args) }),
-    );
-    return yield* decodeOutcome(yield* Effect.promise(() => response.json()));
-  });
 
 test(
   "authenticateMerchant over BACKEND: a first install exchanges against the fake and answers the shop",
