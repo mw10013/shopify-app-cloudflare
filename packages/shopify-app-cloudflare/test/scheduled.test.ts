@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import { scheduledJob } from "@mw10013/shopify-app-workers/backend";
+import { scheduledJob } from "@mw10013/shopify-app-cloudflare/backend";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 

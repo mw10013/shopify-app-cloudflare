@@ -24,28 +24,28 @@ jobs:
       - run: echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
       - name: The tag matches package.json
         run: |
-          version=$(node -p 'require("./packages/shopify-app-workers/package.json").version')
+          version=$(node -p 'require("./packages/shopify-app-cloudflare/package.json").version')
           test "$GITHUB_REF_NAME" = "v$version" || {
             echo "tag $GITHUB_REF_NAME does not match package.json version $version"
             exit 1
           }
       - run: vp check
       - run: vp test run
-        working-directory: packages/shopify-app-workers
+        working-directory: packages/shopify-app-cloudflare
       - run: vp test run --project unit
         working-directory: apps/testbed
       - run: vp test run --project integ
         working-directory: apps/testbed
       - run: vp run build
-        working-directory: packages/shopify-app-workers
+        working-directory: packages/shopify-app-cloudflare
       - run: vp run consumer-check
-        working-directory: packages/shopify-app-workers
+        working-directory: packages/shopify-app-cloudflare
       - run: npm install -g npm@latest
       # npm "auto-corrects" a manifest it dislikes by dropping fields, and only warns. Fail instead.
       - name: npm accepts the manifest unchanged
-        working-directory: packages/shopify-app-workers
+        working-directory: packages/shopify-app-cloudflare
         run: |
           npm publish ./dist --dry-run 2>&1 | tee publish-dry-run.txt
           ! grep -q "auto-corrected" publish-dry-run.txt
       - run: npm publish ./dist --provenance
-        working-directory: packages/shopify-app-workers
+        working-directory: packages/shopify-app-cloudflare

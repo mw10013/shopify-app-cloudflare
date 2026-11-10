@@ -14,7 +14,7 @@ import {
   PlanHandle,
   serveAll,
   ShopDomain,
-} from "@mw10013/shopify-app-workers/backend";
+} from "@mw10013/shopify-app-cloudflare/backend";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 

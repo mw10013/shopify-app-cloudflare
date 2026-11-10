@@ -183,10 +183,10 @@ export const SHOPIFY_ADMIN_PROJECT = "shopify-admin";
  * state and restarts the e2e server. Every later project runs in a worker of its own, which loads
  * the app's config again and so reads the restarted server.
  */
-export const LIFECYCLE_PROJECT = "shopify-app-workers-lifecycle";
+export const LIFECYCLE_PROJECT = "shopify-app-cloudflare-lifecycle";
 
 /** The project of the pack's specs but the lifecycle. */
-export const SPECS_PROJECT = "shopify-app-workers";
+export const SPECS_PROJECT = "shopify-app-cloudflare";
 
 /** The lifecycle spec, as source or built. */
 export const LIFECYCLE_SPEC_MATCH = /lifecycle\.spec\.[cm]?[jt]s$/u;

@@ -29,7 +29,7 @@ let scratch: string;
 let dist: string;
 
 beforeAll(async () => {
-  scratch = realpathSync(mkdtempSync(path.join(tmpdir(), "shopify-app-workers-build-")));
+  scratch = realpathSync(mkdtempSync(path.join(tmpdir(), "shopify-app-cloudflare-build-")));
   dist = path.join(scratch, "dist");
   await Effect.runPromise(build(scratch).pipe(Effect.provide(NodeServices.layer)));
 }, 120_000);
@@ -98,7 +98,7 @@ describe("builtManifest", () => {
   it("maps each export into dist, ships dist and migrations, and drops the workspace's fields", () => {
     assert.deepStrictEqual(
       builtManifest({
-        name: "@mw10013/shopify-app-workers",
+        name: "@mw10013/shopify-app-cloudflare",
         version: "0.5.0",
         private: true,
         files: ["src", "migrations"],
@@ -111,7 +111,7 @@ describe("builtManifest", () => {
         peerDependencies: { effect: "^4.1.2" },
       }),
       {
-        name: "@mw10013/shopify-app-workers",
+        name: "@mw10013/shopify-app-cloudflare",
         version: "0.5.0",
         files: ["dist", "migrations"],
         type: "module",
@@ -232,8 +232,8 @@ describe("the built package", () => {
     )) as { readonly PACKAGE_MIGRATIONS_DIR: string };
     assert.strictEqual(PACKAGE_MIGRATIONS_DIR, inScratch("migrations"));
     assert.deepStrictEqual(
-      readdirSync(PACKAGE_MIGRATIONS_DIR).filter((name) => name.startsWith("0000_swa_")),
-      ["0000_swa_01_app_installation.sql", "0000_swa_02_app_installation_installed_at.sql"],
+      readdirSync(PACKAGE_MIGRATIONS_DIR).filter((name) => name.startsWith("0000_sac_")),
+      ["0000_sac_01_app_installation.sql"],
     );
   });
 });

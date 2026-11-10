@@ -1,5 +1,5 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
-import { SHOPIFY_TEST_DOOR_PATH, ShopifyTestDoor } from "@mw10013/shopify-app-workers/test";
+import { SHOPIFY_TEST_DOOR_PATH, ShopifyTestDoor } from "@mw10013/shopify-app-cloudflare/test";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";

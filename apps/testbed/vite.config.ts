@@ -4,7 +4,7 @@ import cloudflare from "@alchemy.run/cloudflare-runtime/vite";
 import { integProject } from "@mw10013/rigging/cloudflare/test";
 import { app } from "@mw10013/rigging/core/app";
 import { TEST_RESULTS_GLOB, testRun, unitProject } from "@mw10013/rigging/core/test";
-import { webEnvironmentSync } from "@mw10013/shopify-app-workers/dev/web";
+import { webEnvironmentSync } from "@mw10013/shopify-app-cloudflare/dev/web";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
 import * as Option from "effect/Option";

@@ -1,4 +1,4 @@
-# About the design of shopify-app-workers
+# About the design of shopify-app-cloudflare
 
 baton, bang and motio are embedded Shopify admin apps built the same way. Each one had its own copy of Shopify admin authentication, written by hand from a spec in the coder skill. The copies drifted: on 2026-11-07, `shop-grantor.ts` differed from baton's by 4 lines in motio and by 471 lines in bang, and only bang and baton tested token refresh end to end. A spec cannot keep three implementations the same. One implementation can.
 
@@ -39,11 +39,9 @@ So version skew between apps is expected. It stays visible as a table of app, st
 
 ## How apps install it
 
-Apps install the package as a git dependency on a release tag of this public repository, for example `"@mw10013/shopify-app-workers": "github:mw10013/shopify-app-workers#v0.1.0"`. pnpm resolves the tag to a commit and records the commit's tarball URL and SHA-512 hash in the lockfile, so every install gets the same bytes and needs no token. This was measured with pnpm 12.9.1 against a public repository.
+Apps install the package from npm, `pnpm add @mw10013/shopify-app-cloudflare`. The published tree is `dist/`, the built package: JavaScript, `.d.ts` files and source maps with their sources, so nothing builds at install time and Node never strips TypeScript under `node_modules`. `effect` and the Alchemy packages are peer dependencies, so each app loads one copy of each.
 
-A release tag points at a commit that holds only the built package: JavaScript, `.d.ts` files and source maps with their sources. Nothing builds at install time. pnpm blocks a git dependency's `prepare` script by default, and Node does not strip TypeScript types under `node_modules`. `effect` and the Alchemy packages are peer dependencies, so each app loads one copy of each.
-
-npm was the alternative. A public npm package is free too, but it adds an account, 2FA, trusted-publisher setup and npm's publishing rules for no gain over a tag.
+Releases before `0.5.0` were git dependencies on a release tag of this repository, under the old name `@mw10013/shopify-app-workers`. A tag push publishes through `.github/workflows/publish.yml` with npm trusted publishing, so the repository stores no npm token.
 
 ## Where the package is developed
 

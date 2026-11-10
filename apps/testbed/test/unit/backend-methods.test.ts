@@ -1,9 +1,13 @@
 import { fileURLToPath } from "node:url";
 
 import { assert, describe, it } from "@effect/vitest";
-import { ShopDomain, ShopGid } from "@mw10013/shopify-app-workers/backend";
-import { fakePlanSelectionUrl, mintIdToken, PartnerFake } from "@mw10013/shopify-app-workers/test";
-import { ShopifyAppTest } from "@mw10013/shopify-app-workers/test/node";
+import { ShopDomain, ShopGid } from "@mw10013/shopify-app-cloudflare/backend";
+import {
+  fakePlanSelectionUrl,
+  mintIdToken,
+  PartnerFake,
+} from "@mw10013/shopify-app-cloudflare/test";
+import { ShopifyAppTest } from "@mw10013/shopify-app-cloudflare/test/node";
 import * as Cause from "effect/Cause";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";

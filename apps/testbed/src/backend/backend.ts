@@ -17,7 +17,7 @@ import {
   ShopifyHooks,
   SubscriptionPlan,
   Webhooks,
-} from "@mw10013/shopify-app-workers/backend";
+} from "@mw10013/shopify-app-cloudflare/backend";
 import * as Effect from "effect/Effect";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";

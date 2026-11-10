@@ -12,18 +12,18 @@ import {
   checkShopifyLogin,
   ensureAgentChrome,
   loginAgentChrome,
-} from "@mw10013/shopify-app-workers/dev/agent-chrome";
-import { appHandle } from "@mw10013/shopify-app-workers/dev/app-handle";
-import * as Berth from "@mw10013/shopify-app-workers/dev/berth";
+} from "@mw10013/shopify-app-cloudflare/dev/agent-chrome";
+import { appHandle } from "@mw10013/shopify-app-cloudflare/dev/app-handle";
+import * as Berth from "@mw10013/shopify-app-cloudflare/dev/berth";
 import {
   appFrame,
   awaitHydration,
   closeDevConsole,
   gotoApp,
   prepareApp,
-} from "@mw10013/shopify-app-workers/dev/embedded-app";
-import { runningServer } from "@mw10013/shopify-app-workers/dev/server";
-import { storeNameOf } from "@mw10013/shopify-app-workers/dev/worktree";
+} from "@mw10013/shopify-app-cloudflare/dev/embedded-app";
+import { runningServer } from "@mw10013/shopify-app-cloudflare/dev/server";
+import { storeNameOf } from "@mw10013/shopify-app-cloudflare/dev/worktree";
 import * as Argument from "effect/cli/Argument";
 import * as CliError from "effect/cli/CliError";
 import * as Command from "effect/cli/Command";

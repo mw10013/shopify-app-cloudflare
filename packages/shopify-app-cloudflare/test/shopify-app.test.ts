@@ -64,7 +64,7 @@ automatically_update_urls_on_dev = true
 `;
 
 const tomlFile = (contents: string) => {
-  const file = path.join(mkdtempSync(path.join(tmpdir(), "swa-toml-")), "shopify.app.toml");
+  const file = path.join(mkdtempSync(path.join(tmpdir(), "sac-toml-")), "shopify.app.toml");
   writeFileSync(file, contents);
   return file;
 };

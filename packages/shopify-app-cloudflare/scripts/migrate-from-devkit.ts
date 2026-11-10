@@ -32,7 +32,7 @@ export const sourceRules = (self: boolean): readonly Rule[] => [
   ...RIGGING_SPECIFIERS,
   [
     SHOPIFY_SPECIFIER,
-    self ? "$<q>#dev/$<module>.ts$<q>" : "$<q>@mw10013/shopify-app-workers/dev/$<module>$<q>",
+    self ? "$<q>#dev/$<module>.ts$<q>" : "$<q>@mw10013/shopify-app-cloudflare/dev/$<module>$<q>",
   ],
   ENDPOINT,
 ];

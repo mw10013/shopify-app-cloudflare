@@ -1,12 +1,12 @@
 {
-  "name": "@mw10013/shopify-app-workers",
-  "version": "0.6.0",
+  "name": "@mw10013/shopify-app-cloudflare",
+  "version": "0.7.0",
   "private": true,
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mw10013/shopify-app-workers.git",
-    "directory": "packages/shopify-app-workers"
+    "url": "git+https://github.com/mw10013/shopify-app-cloudflare.git",
+    "directory": "packages/shopify-app-cloudflare"
   },
   "files": [
     "src",

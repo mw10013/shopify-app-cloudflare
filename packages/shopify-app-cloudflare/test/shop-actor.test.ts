@@ -8,13 +8,13 @@ import {
   ShopActors,
   type ShopActorShape,
   type SocketIdentity,
-} from "@mw10013/shopify-app-workers/backend";
-import { makeNoticesAtom, shopActorProtocol } from "@mw10013/shopify-app-workers/client";
+} from "@mw10013/shopify-app-cloudflare/backend";
+import { makeNoticesAtom, shopActorProtocol } from "@mw10013/shopify-app-cloudflare/client";
 import {
   CONNECTION_CLOSE_NOT_A_MEMBER,
   ConnectionMiddleware,
   RequireMerchant,
-} from "@mw10013/shopify-app-workers/contract";
+} from "@mw10013/shopify-app-cloudflare/contract";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";

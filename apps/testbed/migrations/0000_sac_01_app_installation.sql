@@ -1,4 +1,4 @@
--- @mw10013/shopify-app-workers: the AppInstallation table. Shipped by the package; an app keeps a
+-- @mw10013/shopify-app-cloudflare: the AppInstallation table. Shipped by the package; an app keeps a
 -- byte-identical copy in its own migrations/ folder, which `expectMigrationsSynced` checks.
 --
 -- The contract an app builds on: the table is named AppInstallation, its primary key is `shop`,
@@ -21,6 +21,10 @@
 --
 -- Instants are integers of epoch milliseconds. Apps never add columns here: their per-shop data
 -- lives in their own tables.
+--
+-- `installedAt` is when the app was installed on the shop. The insert of a shop's row (its first
+-- token exchange, or the first after an uninstall deleted the row) stamps it; an exchange on an
+-- existing row leaves it.
 
 create table if not exists AppInstallation (
   shop text primary key,
@@ -32,5 +36,6 @@ create table if not exists AppInstallation (
   refreshTokenExpiresAt integer,
   planHandle text,
   planHandleExpiresAt integer,
-  planBoundaryAt integer
+  planBoundaryAt integer,
+  installedAt integer
 );

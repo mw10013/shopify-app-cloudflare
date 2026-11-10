@@ -1,4 +1,4 @@
-import { POLARIS_URL } from "@mw10013/shopify-app-workers/website";
+import { POLARIS_URL } from "@mw10013/shopify-app-cloudflare/website";
 import {
   createRootRouteWithContext,
   HeadContent,

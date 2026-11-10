@@ -6,7 +6,7 @@
  * @module
  */
 
-import { hasBearer, readEmbeddedIdToken } from "@mw10013/shopify-app-workers/website";
+import { hasBearer, readEmbeddedIdToken } from "@mw10013/shopify-app-cloudflare/website";
 import { redirect } from "@tanstack/react-router";
 import { createIsomorphicFn, createMiddleware, createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";

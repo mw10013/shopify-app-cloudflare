@@ -1,6 +1,6 @@
 import { RegistryContext, scheduleTask } from "@effect/atom-react";
-import { liveRoutesAtom } from "@mw10013/shopify-app-workers/client";
-import { makeLiveRoutes } from "@mw10013/shopify-app-workers/website/react";
+import { liveRoutesAtom } from "@mw10013/shopify-app-cloudflare/client";
+import { makeLiveRoutes } from "@mw10013/shopify-app-cloudflare/website/react";
 import { createRouter } from "@tanstack/react-router";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import { StrictMode } from "react";

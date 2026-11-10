@@ -14,7 +14,7 @@ import {
   partnerBindingFromConfig,
   type ShopifyAppBinding,
   shopifyCliApp,
-} from "@mw10013/shopify-app-workers/stack";
+} from "@mw10013/shopify-app-cloudflare/stack";
 import * as Alchemy from "alchemy";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";

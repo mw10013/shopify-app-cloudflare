@@ -8,7 +8,7 @@
  * @module
  */
 
-import { PartnerConfig } from "@mw10013/shopify-app-workers/stack";
+import { PartnerConfig } from "@mw10013/shopify-app-cloudflare/stack";
 import * as Schema from "effect/Schema";
 
 export default Schema.Struct({

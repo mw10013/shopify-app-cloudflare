@@ -10,7 +10,7 @@ import {
   shopActorProtocol,
   socketStateAtom,
   type Visibility,
-} from "@mw10013/shopify-app-workers/client";
+} from "@mw10013/shopify-app-cloudflare/client";
 import {
   CONNECTION_CLOSE_DISPLACED,
   CONNECTION_CLOSE_FORBIDDEN,
@@ -20,7 +20,7 @@ import {
   CONNECTION_CLOSE_UNAUTHENTICATED,
   CONNECTION_CLOSE_UNINSTALLED,
   ShopDomain,
-} from "@mw10013/shopify-app-workers/contract";
+} from "@mw10013/shopify-app-cloudflare/contract";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";

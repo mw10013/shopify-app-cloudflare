@@ -19,10 +19,10 @@ jobs:
       - run: echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
       - run: vp check
       - run: vp test run
-        working-directory: packages/shopify-app-workers
+        working-directory: packages/shopify-app-cloudflare
       - run: vp test run --project unit
         working-directory: apps/testbed
       - run: vp test run --project integ
         working-directory: apps/testbed
       - run: vp run build
-        working-directory: packages/shopify-app-workers
+        working-directory: packages/shopify-app-cloudflare

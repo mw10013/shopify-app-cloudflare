@@ -11,8 +11,8 @@ import {
   type OwnNotice,
   ShopDomain,
   ShopGid,
-} from "@mw10013/shopify-app-workers/contract";
-import { deliverWebhook, mintIdToken } from "@mw10013/shopify-app-workers/test";
+} from "@mw10013/shopify-app-cloudflare/contract";
+import { deliverWebhook, mintIdToken } from "@mw10013/shopify-app-cloudflare/test";
 import * as Arr from "effect/Array";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";

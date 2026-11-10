@@ -5,7 +5,7 @@ import {
   PlanUnsubscribedError,
   serve,
   serveAll,
-} from "@mw10013/shopify-app-workers/backend";
+} from "@mw10013/shopify-app-cloudflare/backend";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";

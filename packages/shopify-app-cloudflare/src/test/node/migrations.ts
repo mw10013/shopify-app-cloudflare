@@ -19,9 +19,9 @@ export const PACKAGE_MIGRATIONS_DIR = fileURLToPath(
 /**
  * The name prefix of every package migration. Alchemy applies pending migrations in name order
  * and keys applied history by name, so `0000_` runs before an app's `0001_` on a fresh database
- * (an app table's foreign key finds its parent), and `swa` marks the file as the package's.
+ * (an app table's foreign key finds its parent), and `sac` marks the file as the package's.
  */
-export const PACKAGE_MIGRATION_PREFIX = "0000_swa_";
+export const PACKAGE_MIGRATION_PREFIX = "0000_sac_";
 
 const packageMigrationNames = (migrationsDir: string) =>
   readdirSync(migrationsDir)
@@ -68,7 +68,7 @@ export const expectMigrationsSynced = (options: { readonly migrationsDir: string
   ];
   assert.ok(
     problems.length === 0,
-    `${migrationsDir} is out of sync with @mw10013/shopify-app-workers:\n${problems.join("\n")}`,
+    `${migrationsDir} is out of sync with @mw10013/shopify-app-cloudflare:\n${problems.join("\n")}`,
   );
 };
 

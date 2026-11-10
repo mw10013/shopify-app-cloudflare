@@ -1,6 +1,6 @@
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import { workerNameOf } from "@mw10013/rigging/cloudflare/stage";
-import { withE2eRoutes } from "@mw10013/shopify-app-workers/test/e2e/backend";
+import { withE2eRoutes } from "@mw10013/shopify-app-cloudflare/test/e2e/backend";
 import * as Alchemy from "alchemy";
 import * as Output from "alchemy/Output";
 import * as Effect from "effect/Effect";
