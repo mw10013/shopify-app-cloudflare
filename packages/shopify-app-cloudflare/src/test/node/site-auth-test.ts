@@ -7,7 +7,11 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
-import { type SignInCodeDeliveryMode, SITE_AUTH_ENV } from "#internal/bindings.ts";
+import {
+  type SignInCodeDailyCap,
+  type SignInCodeDeliveryMode,
+  SITE_AUTH_ENV,
+} from "#internal/bindings.ts";
 import { Mailer, SignInCodeDelivery, SignInLimiter, signInMethods } from "#internal/sign-in.ts";
 import { AUTH_BASE_PATH, type Email, SignInCodeRequested } from "#internal/site-auth-contract.ts";
 import { Auth, type AuthOptions, SIGN_UP_CLOSED } from "#internal/site-auth.ts";
@@ -75,8 +79,9 @@ export const SiteAuthTest = {
   /**
    * Site auth over a fresh `D1Test` migrated from `migrationsDir` (the package's by default),
    * with `users` seeded as the stage's seed writes them, codes delivered by `delivery` (inline
-   * by default) over `Mailer.layerTest`, and `limiter` (open by default). Everything it builds
-   * stays in its output, so a test reaches `SentMail` and the database too.
+   * by default) over `Mailer.layerTest`, `limiter` (open by default) and `dailyCap` (off by
+   * default, as on the `test` stage). Everything it builds stays in its output, so a test reaches
+   * `SentMail` and the database too.
    */
   layer: <R = never>(
     options: {
@@ -85,6 +90,7 @@ export const SiteAuthTest = {
       readonly users?: readonly SiteUserSeed[];
       readonly delivery?: SignInCodeDeliveryMode;
       readonly limiter?: Layer.Layer<SignInLimiter>;
+      readonly dailyCap?: SignInCodeDailyCap;
       readonly migrationsDir?: string;
     } = {},
   ) =>
@@ -117,7 +123,10 @@ export const SiteAuthTest = {
       Layer.provideMerge(D1Test.layer({ migrationsDir: options.migrationsDir })),
       Layer.provide(
         ConfigProvider.layer(
-          ConfigProvider.fromUnknown({ [SITE_AUTH_ENV.authOrigin]: SITE_AUTH_TEST_ORIGIN }),
+          ConfigProvider.fromUnknown({
+            [SITE_AUTH_ENV.authOrigin]: SITE_AUTH_TEST_ORIGIN,
+            [SITE_AUTH_ENV.dailyCap]: options.dailyCap ?? "off",
+          }),
         ),
       ),
     ),

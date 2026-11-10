@@ -31,6 +31,7 @@ export const SITE_AUTH_BINDING = "SiteAuth";
 export const SITE_AUTH_ENV = {
   authOrigin: "AUTH_ORIGIN",
   delivery: "SIGN_IN_CODE_DELIVERY",
+  dailyCap: "SIGN_IN_CODE_DAILY_CAP",
 } as const;
 
 /**
@@ -40,6 +41,10 @@ export const SITE_AUTH_ENV = {
  */
 export const SignInCodeDeliveryMode = Schema.Literals(["inline", "mailed"]);
 export type SignInCodeDeliveryMode = typeof SignInCodeDeliveryMode.Type;
+
+/** Whether a stage holds each address to `SIGN_IN_CODES_PER_DAY` codes from the sign-in page. */
+export const SignInCodeDailyCap = Schema.Literals(["on", "off"]);
+export type SignInCodeDailyCap = typeof SignInCodeDailyCap.Type;
 
 export const SHOP_ACTOR_OBJECTS_ENV = {
   accountId: "CLOUDFLARE_ACCOUNT_ID",

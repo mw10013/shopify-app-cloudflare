@@ -41,7 +41,7 @@ export type AdminServed<M, F extends { readonly [K in keyof M]: Failures }> = {
  *
  * @example
  * ```ts
- * yield* serveAdmin(yield* shopActorObjectMethods, shopActorObjectFailures);
+ * yield* serveAdmin({ refreshPlan }, { refreshPlan: Schema.Never });
  * ```
  */
 export const serveAdmin = <

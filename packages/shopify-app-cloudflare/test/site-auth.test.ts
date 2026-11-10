@@ -11,6 +11,7 @@ import {
 } from "@mw10013/shopify-app-cloudflare/backend";
 import {
   Email,
+  SIGN_IN_CODES_PER_DAY,
   SignInCodeRequested,
   SiteAuthControlRpcs,
 } from "@mw10013/shopify-app-cloudflare/contract";
@@ -19,12 +20,14 @@ import { D1Test, SiteAuthTest } from "@mw10013/shopify-app-cloudflare/test/node"
 import { getMigrations } from "better-auth/db/migration";
 import { admin, emailOTP } from "better-auth/plugins";
 import * as Cause from "effect/Cause";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as RpcTest from "effect/rpc/RpcTest";
 import * as Schema from "effect/Schema";
+import * as TestClock from "effect/testing/TestClock";
 
 const email = Schema.decodeUnknownSync(Email);
 const decodeRequested = Schema.decodeUnknownSync(SignInCodeRequested);
@@ -166,10 +169,10 @@ describe("sign-up by an effectful rule", () => {
 describe("the sign-in code", () => {
   const layer = () => SiteAuthTest.layer({ users: SEEDED });
 
-  it.live("is eight digits and stored hashed", () =>
+  it.live("is six digits and stored hashed", () =>
     Effect.gen(function* () {
       const code = Option.getOrThrow(codeOf(yield* requestCode(ADMIN)));
-      assert.match(code, /^[0-9]{8}$/u);
+      assert.match(code, /^[0-9]{6}$/u);
       const { sqlite } = yield* D1Test;
       const values = sqlite.prepare("select value from verification").all();
       assert.lengthOf(values, 1);
@@ -180,7 +183,7 @@ describe("the sign-in code", () => {
   it.live("a wrong code is refused, and after three wrong guesses the right one is spent too", () =>
     Effect.gen(function* () {
       const code = Option.getOrThrow(codeOf(yield* requestCode(ADMIN)));
-      const wrong = code === "00000000" ? "11111111" : "00000000";
+      const wrong = code === "000000" ? "111111" : "000000";
       for (const _ of [1, 2, 3])
         assert.strictEqual((yield* SiteAuthTest.verify(ADMIN, wrong)).status, 400);
       const last = yield* SiteAuthTest.verify(ADMIN, code);
@@ -238,7 +241,7 @@ describe("code delivery", () => {
       const mails = yield* Ref.get(yield* SentMail);
       assert.lengthOf(mails, 1);
       assert.strictEqual(mails[0]?.to, ADMIN);
-      const code = /\b(?<code>[0-9]{8})\b/u.exec(mails[0]?.text ?? "")?.groups?.code ?? "";
+      const code = /\b(?<code>[0-9]{6})\b/u.exec(mails[0]?.text ?? "")?.groups?.code ?? "";
       assert.isTrue((yield* SiteAuthTest.verify(ADMIN, code)).ok);
     }).pipe(Effect.provide(SiteAuthTest.layer({ users: SEEDED, delivery: "mailed" }))),
   );
@@ -251,13 +254,13 @@ describe("code delivery", () => {
   );
 });
 
-describe("the control door's IssueSignInCode", () => {
-  const issue = (address: Email) =>
-    Effect.gen(function* () {
-      const client = yield* RpcTest.makeClient(SiteAuthControlRpcs);
-      return yield* client.IssueSignInCode({ email: address });
-    }).pipe(Effect.provide(siteAuthControlHandlers), Effect.scoped);
+const issue = (address: Email) =>
+  Effect.gen(function* () {
+    const client = yield* RpcTest.makeClient(SiteAuthControlRpcs);
+    return yield* client.IssueSignInCode({ email: address });
+  }).pipe(Effect.provide(siteAuthControlHandlers), Effect.scoped);
 
+describe("the control door's IssueSignInCode", () => {
   it.live(
     "under mailed delivery answers a code in the same call, mails nothing, and the code signs in",
     () =>
@@ -327,6 +330,62 @@ describe("the sign-in limiter", () => {
       yield* Effect.exit(requestCode(ADMIN));
       assert.strictEqual(codes(), before);
     }).pipe(Effect.provide(layer())),
+  );
+});
+
+const tagOf = (failure: unknown) => (failure as { readonly _tag: string })._tag;
+
+describe("the daily cap", () => {
+  const capped = () => SiteAuthTest.layer({ users: SEEDED, dailyCap: "on" });
+
+  const allowance = (address: Email) =>
+    Effect.gen(function* () {
+      for (let request = 0; request < SIGN_IN_CODES_PER_DAY; request++)
+        assert.isTrue(Option.isSome(codeOf(yield* requestCode(address))));
+    });
+
+  it.effect(
+    "refuses an address's request past the day's allowance, and admits it the next day",
+    () =>
+      Effect.gen(function* () {
+        yield* TestClock.setTime(Date.UTC(2026, 10, 10, 23, 0));
+        yield* allowance(ADMIN);
+        assert.strictEqual(tagOf(yield* crossed(requestCode(ADMIN))), "TooManyRequestsError");
+        assert.isTrue(Option.isSome(codeOf(yield* requestCode(USER))));
+        yield* TestClock.adjust(Duration.hours(1));
+        assert.isTrue(Option.isSome(codeOf(yield* requestCode(ADMIN))));
+        const { sqlite } = yield* D1Test;
+        assert.deepStrictEqual(sqlite.prepare("select email, count from SignInCodeCount").all(), [
+          { email: ADMIN, count: 1 },
+        ]);
+      }).pipe(Effect.provide(capped())),
+  );
+
+  it.effect(
+    "counts an address that may not sign in alike, so the cap says nothing of who may",
+    () =>
+      Effect.gen(function* () {
+        for (let request = 0; request < SIGN_IN_CODES_PER_DAY; request++)
+          yield* requestCode(STRANGER);
+        assert.strictEqual(tagOf(yield* crossed(requestCode(STRANGER))), "TooManyRequestsError");
+      }).pipe(Effect.provide(capped())),
+  );
+
+  it.effect("does not count the control door's codes, nor cap the door", () =>
+    Effect.gen(function* () {
+      for (let request = 0; request <= SIGN_IN_CODES_PER_DAY; request++) yield* issue(ADMIN);
+      yield* allowance(ADMIN);
+      assert.isTrue((yield* SiteAuthTest.verify(ADMIN, (yield* issue(ADMIN)).code)).ok);
+    }).pipe(Effect.provide(capped())),
+  );
+
+  it.effect("is off unless the stage binds it, as on the test stage", () =>
+    Effect.gen(function* () {
+      yield* allowance(ADMIN);
+      assert.isTrue(Option.isSome(codeOf(yield* requestCode(ADMIN))));
+      const { sqlite } = yield* D1Test;
+      assert.deepStrictEqual(sqlite.prepare("select * from SignInCodeCount").all(), []);
+    }).pipe(Effect.provide(SiteAuthTest.layer({ users: SEEDED }))),
   );
 });
 

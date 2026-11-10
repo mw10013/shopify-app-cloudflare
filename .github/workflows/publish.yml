@@ -30,6 +30,8 @@ jobs:
             exit 1
           }
       - run: vp check
+      - run: vp exec playwright install chromium --only-shell
+        working-directory: packages/shopify-app-cloudflare
       - run: vp test run
         working-directory: packages/shopify-app-cloudflare
       - run: vp test run --project unit

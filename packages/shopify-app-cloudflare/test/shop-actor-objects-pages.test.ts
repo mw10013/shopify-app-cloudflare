@@ -17,7 +17,7 @@ const orphanPage = (data: OrphanShopActorObjectsPageProps["data"]) =>
     createElement(OrphanShopActorObjectsPage, {
       data,
       cursor: undefined,
-      adminLink: { onClick: Function.constVoid },
+      adminLink: { href: "/admin", onClick: Function.constVoid },
       onNavigate: Function.constVoid,
       onDestroy: () => Promise.resolve<DestroyOutcome>("Destroyed"),
     }),
@@ -30,7 +30,7 @@ const inventoryPage = (
     createElement(ShopActorObjectsPage, {
       cursor: undefined,
       page: 0,
-      adminLink: { onClick: Function.constVoid },
+      adminLink: { href: "/admin", onClick: Function.constVoid },
       onNavigate: Function.constVoid,
       ...props,
     }),
@@ -51,6 +51,7 @@ describe("OrphanShopActorObjectsPage", () => {
   it("is titled and has its four columns", () => {
     const html = orphanPage(batch);
     assert.include(html, 'heading="Orphan Shop Actor Objects"');
+    assert.include(html, '<s-link slot="breadcrumb-actions" href="/admin">Admin</s-link>');
     for (const column of ["Object ID", "Name", "Stored data", "Action"])
       assert.include(html, `>${column}</s-table-header>`);
   });
@@ -94,6 +95,7 @@ describe("ShopActorObjectsPage", () => {
       },
     });
     assert.include(html, 'heading="Shop Actor Objects"');
+    assert.include(html, '<s-link slot="breadcrumb-actions" href="/admin">Admin</s-link>');
     assert.include(html, '<s-badge tone="success">Yes</s-badge>');
     assert.include(html, '<s-text tone="neutral">undefined</s-text>');
     assert.notInclude(html, "Destroy");

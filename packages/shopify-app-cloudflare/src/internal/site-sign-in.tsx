@@ -2,7 +2,7 @@ import * as Duration from "effect/Duration";
 import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
-import { useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 
 import type { SignInCodeResult } from "./sign-in-code-result.ts";
 import { AUTH_BASE_PATH, Email, SIGN_IN_CODE_TTL } from "./site-auth-contract.ts";
@@ -56,7 +56,7 @@ export const signOut = async (): Promise<void> => {
 const decodeEmail = Schema.decodeUnknownOption(Email);
 
 const SOMETHING_WENT_WRONG = "Something went wrong. Try again.";
-const TOO_MANY_REQUESTS = "Too many attempts. Try again in a minute.";
+const TOO_MANY_REQUESTS = "Too many attempts. Try again later.";
 const ENTER_EMAIL = "Enter an email address";
 
 type Step =
@@ -79,6 +79,8 @@ export interface SignInPageProps {
   }) => Promise<VerifyCodeResult>;
   /** Where to go once the session cookie is set: the app's route, read again. */
   readonly onSignedIn: () => void;
+  /** Below the form on both steps. */
+  readonly footer?: ReactNode;
 }
 
 /**
@@ -227,6 +229,7 @@ export function SignInPage(props: SignInPageProps) {
           </s-stack>
         </s-section>
       )}
+      {props.footer}
     </s-page>
   );
 }

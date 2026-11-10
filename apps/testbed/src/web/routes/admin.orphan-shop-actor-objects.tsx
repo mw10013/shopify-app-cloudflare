@@ -34,6 +34,7 @@ function OrphanShopActorObjectsRoute() {
       data={Route.useLoaderData()}
       cursor={cursor}
       adminLink={{
+        href: "/admin",
         onClick: () => {
           void router.navigate({ to: "/admin" });
         },

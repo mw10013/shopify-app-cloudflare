@@ -95,7 +95,6 @@ export {
 export {
   ShopActorObjects,
   type ShopActorObjectsShape,
-  shopActorObjectFailures,
   shopActorObjectMethods,
 } from "#internal/shop-actor-objects.ts";
 export {

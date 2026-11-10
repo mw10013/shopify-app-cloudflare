@@ -46,6 +46,7 @@ export {
   SIGN_IN_CODE_ATTEMPTS,
   SIGN_IN_CODE_LENGTH,
   SIGN_IN_CODE_TTL,
+  SIGN_IN_CODES_PER_DAY,
   SignInCode,
   SignInCodeRequest,
   SignInCodeRequested,
