@@ -3,10 +3,12 @@ packages:
   - packages/*
 saveExact: true
 catalog:
+  "@alchemy.run/better-auth": 2.0.0-beta.85
   "@alchemy.run/cloudflare": 2.0.0-beta.85
   "@mw10013/rigging": 0.4.0
   "@types/node": 26.6.4
   alchemy: 2.0.0-beta.85
+  better-auth: 1.7.7
   effect: 4.1.2
   typescript: 7.0.2
   vite: npm:@voidzero-dev/vite-plus-core@1.4.0

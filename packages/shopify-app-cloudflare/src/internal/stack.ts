@@ -11,6 +11,8 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import * as Cloudflare from "@alchemy.run/cloudflare";
+import * as Alchemy from "alchemy";
 import type * as Output from "alchemy/Output";
 import * as Config from "effect/Config";
 import * as ConfigProvider from "effect/ConfigProvider";
@@ -35,7 +37,11 @@ import {
   SHOP_ACTOR_OBJECTS_ENV,
   SHOPIFY_BINDING,
   SHOPIFY_PARTNER_BINDING,
+  type SignInCodeDeliveryMode,
+  SITE_AUTH_BINDING,
+  SITE_AUTH_ENV,
 } from "./bindings.ts";
+import { Email, type Role } from "./site-auth-contract.ts";
 
 /** The Shopify app a stage's Backend serves, as the stack binds it. */
 export interface ShopifyAppBinding {
@@ -255,4 +261,89 @@ export const bindE2eSession = Effect.fn("Stack.bindE2eSession")(function* (
   if (!existsSync(file)) return;
   const session = yield* decodeE2eSession(readFileSync(file, "utf8"));
   yield* backend.bind(E2E_SESSION_BINDING, { env: e2eSessionEnv(session) });
+});
+
+/** A stage's environment, as rigging's `environmentOf` names it. */
+export type SiteAuthEnvironment = "dev" | "test" | "e2e" | "staging" | "production";
+
+/** Where an environment's sign-in codes go: back to the page on a local stage, by mail on a deployed one. */
+const deliveryOf = (environment: SiteAuthEnvironment): SignInCodeDeliveryMode =>
+  environment === "staging" || environment === "production" ? "mailed" : "inline";
+
+/**
+ * Binds what `Auth` and `SignInCodeDelivery.layerConfig` read: `authOrigin`, the Website's URL,
+ * which Better Auth serves its endpoints and sets its cookie on, and the delivery the
+ * `environment` takes, `mailed` on staging and production and `inline` elsewhere.
+ */
+export const bindSiteAuth = Effect.fn("Stack.bindSiteAuth")(function* (
+  backend: BindableWorker,
+  options: {
+    readonly authOrigin: string | Output.Output<string | undefined>;
+    readonly environment: SiteAuthEnvironment;
+  },
+) {
+  yield* backend.bind(SITE_AUTH_BINDING, {
+    env: {
+      [SITE_AUTH_ENV.authOrigin]: options.authOrigin,
+      [SITE_AUTH_ENV.delivery]: deliveryOf(options.environment),
+    },
+  });
+});
+
+/** A site user the stage's seed writes: an admin, or a `user` a test signs in as. */
+export interface SiteUserSeed {
+  readonly email: string;
+  readonly role: Role;
+}
+
+/** Fixed, so the seed's SQL, which the Action's input carries, stays the same across deploys. */
+const SEEDED_AT = "2026-01-01T00:00:00.000Z";
+
+const decodeEmail = Schema.decodeUnknownSync(Email);
+const sqlText = (value: string) => `'${value.replaceAll("'", "''")}'`;
+
+/**
+ * The SQL that writes `users` into Better Auth's `user` table as Better Auth stores a row (ISO
+ * text instants, 0 or 1 booleans), one statement each. A user whose address is already there
+ * keeps its id and takes the seed's role, and an admin the seed no longer lists becomes a `user`,
+ * so the seed alone decides who is an admin.
+ */
+export const siteUserSeedSql = (users: readonly SiteUserSeed[]): string => {
+  const admins = users
+    .filter(({ role }) => role === "admin")
+    .map(({ email }) => sqlText(decodeEmail(email)));
+  return [
+    `update user set role = 'user' where role = 'admin'${admins.length === 0 ? "" : ` and email not in (${admins.join(", ")})`};`,
+    ...users.map(({ email, role }) => {
+      const address = sqlText(decodeEmail(email));
+      return `insert into user (id, name, email, emailVerified, role, banned, createdAt, updatedAt) values (${sqlText(`seed:${decodeEmail(email)}`)}, ${address}, ${address}, 1, ${sqlText(role)}, 0, '${SEEDED_AT}', '${SEEDED_AT}') on conflict (email) do update set role = excluded.role;`;
+    }),
+  ].join("\n");
+};
+
+const SiteUsersSeed = (database: Cloudflare.D1.Database) =>
+  Alchemy.Action(
+    "SiteUsersSeed",
+    Effect.gen(function* () {
+      const d1 = yield* Cloudflare.D1.QueryDatabase(database);
+      return Effect.fn("SiteUsersSeed.run")(function* (input: {
+        readonly databaseId: string;
+        readonly sql: string;
+      }) {
+        yield* d1.exec(input.sql);
+      });
+    }).pipe(Effect.provide(Cloudflare.D1.QueryDatabaseLocal)),
+  );
+
+/**
+ * Seeds the stage's site users into `database` after its migrations, the package's
+ * `0000_sac_02_better_auth.sql` among them: an Action whose input is the SQL and the database's
+ * id, so an edited list runs again and a recreated database is seeded again. Sign-in never
+ * creates an admin; this is the one place one is made.
+ */
+export const seedSiteUsers = Effect.fn("Stack.seedSiteUsers")(function* (
+  database: Cloudflare.D1.Database,
+  users: readonly SiteUserSeed[],
+) {
+  yield* SiteUsersSeed(database)({ databaseId: database.databaseId, sql: siteUserSeedSql(users) });
 });

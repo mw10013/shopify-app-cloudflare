@@ -29,10 +29,12 @@ import * as Socket from "effect/socket/Socket";
 
 import { catalog } from "#backend/app.ts";
 import { COUNT_KEY, CounterRpcs } from "#contract/counter.ts";
+import { TEST_ADMIN } from "#root/stacks/site-auth.ts";
 
 import { call } from "./call.ts";
 import { door } from "./door.ts";
 import { fileStage } from "./file-stage.ts";
+import { signIn } from "./site-session.ts";
 import Stack from "./stack.ts";
 
 /**
@@ -268,10 +270,11 @@ test(
     const shop = shopNamed("orphan-installed");
     yield* install(backendUrl, shop);
     const id = yield* objectIdOf(websiteUrl, shop);
+    const admin = { cookie: yield* signIn({ backendUrl, websiteUrl }, TEST_ADMIN) };
     yield* Effect.gen(function* () {
       const socket = yield* connect(backendUrl, shop, yield* mintIdToken({ shop }));
       assert.strictEqual(yield* socket.client.MerchantIncrement(), 1);
-      assert.deepStrictEqual(yield* call(websiteUrl, "destroyOrphan", { id }), {
+      assert.deepStrictEqual(yield* call(websiteUrl, "destroyOrphan", admin, { id }), {
         _tag: "Threw",
         value: { _tag: "OrphanInstalledError" },
       });
@@ -288,15 +291,16 @@ test(
     yield* install(backendUrl, shop);
     const token = yield* mintIdToken({ shop });
     const id = yield* objectIdOf(websiteUrl, shop);
+    const admin = { cookie: yield* signIn({ backendUrl, websiteUrl }, TEST_ADMIN) };
     yield* Effect.gen(function* () {
       const socket = yield* connect(backendUrl, shop, token);
       assert.strictEqual(yield* socket.client.MerchantIncrement(), 1);
     }).pipe(Effect.scoped);
     yield* door(backendUrl, (client) => client.Reset({}));
 
-    const destroyed = yield* call(websiteUrl, "destroyOrphan", { id });
+    const destroyed = yield* call(websiteUrl, "destroyOrphan", admin, { id });
     assert.strictEqual(destroyed._tag, "Returned");
-    const repeated = yield* call(websiteUrl, "destroyOrphan", { id });
+    const repeated = yield* call(websiteUrl, "destroyOrphan", admin, { id });
     assert.strictEqual(repeated._tag, "Returned");
 
     yield* install(backendUrl, shop);

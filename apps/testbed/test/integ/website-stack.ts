@@ -7,6 +7,7 @@ import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 
 import { backendProps } from "#backend/backend.ts";
+import { wireSiteAuth } from "#root/stacks/site-auth.ts";
 
 import TestBackend from "./backend.ts";
 
@@ -31,6 +32,7 @@ export default Alchemy.Stack(
       },
     });
     yield* bindShopifyApp(backend, { app: fakeShopifyApp(website.url), partner: Option.none() });
+    yield* wireSiteAuth(backend, website.url);
     return {
       backendUrl: backend.url.as<string>(),
       websiteUrl: website.url.as<string>(),

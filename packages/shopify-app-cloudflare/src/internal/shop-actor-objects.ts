@@ -261,12 +261,12 @@ const encodeOrphanShopActorObjectsData = Schema.encodeEffect(OrphanShopActorObje
 /**
  * The three as the Backend's binding methods, each taking the page's plain payload and answering
  * plain data: a payload that does not decode is a defect, as the Website's server function
- * already validated it. They guard nothing: an app guards before calling them, in its Website's
- * middleware or in its own methods around these. Serve them with {@link shopActorObjectFailures}.
+ * already validated it. They check no session themselves: serve them through `serveAdmin`, which
+ * runs the admin gate before each, with {@link shopActorObjectFailures}.
  *
  * @example
  * ```ts
- * serveAll(yield* shopActorObjectMethods, shopActorObjectFailures);
+ * yield* serveAdmin(yield* shopActorObjectMethods, shopActorObjectFailures);
  * ```
  */
 export const shopActorObjectMethods = Effect.gen(function* () {

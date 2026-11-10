@@ -43,6 +43,26 @@ export {
 } from "#internal/subscription-plan.ts";
 export { type Failures, type Served, serve, serveAll } from "#internal/serve.ts";
 export {
+  Auth,
+  type AuthOptions,
+  type AuthShape,
+  type RunHook,
+  SIGN_UP_CLOSED,
+  type SignUpRule,
+  type SiteSession,
+} from "#internal/site-auth.ts";
+export {
+  type Mail,
+  Mailer,
+  SentMail,
+  SignInCodeDelivery,
+  signInFailures,
+  SignInLimiter,
+  signInMethods,
+  siteAuthControlHandlers,
+} from "#internal/sign-in.ts";
+export { type AdminServed, requireAdmin, serveAdmin } from "#internal/site-admin.ts";
+export {
   type CallerSchema,
   ConnectionIdentity,
   DispatchingSocket,
