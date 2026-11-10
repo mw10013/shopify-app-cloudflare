@@ -15,7 +15,7 @@ A production stage, to rehearse production deploys and migrations without custom
 
 ## Steps
 
-1. Scaffold the repository: the pnpm workspace, Vite+, `packages/shopify-app-workers` and `apps/testbed` with its `shopify.app.toml`. Check: `vp check` passes and the testbed opens in a pool store's admin.
+1. Scaffold the repository: the pnpm workspace, Vite+, `packages/shopify-app-cloudflare` and `apps/testbed` with its `shopify.app.toml`. Check: `vp check` passes and the testbed opens in a pool store's admin.
 2. Move authentication, billing and webhooks into the package, starting from baton's code with the drift resolved. Check: the unit and integ suites pass against the Shopify fakes, and an edit to the package shows up in the running testbed.
 
    The live-edit check, run on 2026-11-08 in `apps/testbed`:
@@ -30,7 +30,7 @@ A production stage, to rehearse production deploys and migrations without custom
       ```
 
       `vp run dev:logs` shows `Webhooks.handle: shop=shop.myshopify.com topic=products/create: no handler`.
-   3. Edit that message in `packages/shopify-app-workers/src/internal/webhooks.ts`. The log shows `[Backend] Rebuilding`, then `[Backend] Updated`.
+   3. Edit that message in `packages/shopify-app-cloudflare/src/internal/webhooks.ts`. The log shows `[Backend] Rebuilding`, then `[Backend] Updated`.
    4. Deliver again; the log shows the edited message.
    5. Revert the edit, then `vp run dev:stop`.
 
@@ -40,7 +40,7 @@ A production stage, to rehearse production deploys and migrations without custom
 
    ```sh
    vp check                                        # at the root
-   vp -C packages/shopify-app-workers test run     # the package's unit suite
+   vp -C packages/shopify-app-cloudflare test run     # the package's unit suite
    vp -C apps/testbed run test:unit                # the testbed's unit suite, in process
    vp -C apps/testbed run test:integ               # the testbed's integ suite, in workerd
    ```
@@ -60,7 +60,7 @@ A production stage, to rehearse production deploys and migrations without custom
 
    Results: 4 passed in 2.3 min, then 4 passed in 2.1 min on a second run in a row, on `mw10013-pool-15`. Before them, the package's unit suite 239 passed, the testbed's unit suite 125 passed, and the integ suite 98 passed and 5 skipped, the same in-process-only cases as step 2.
 
-   The pack is `@mw10013/shopify-app-workers/test/e2e`; an app supplies an `E2eApp` and registers `e2eProjects(app, root)`. It runs on one worker, because every spec shares the leased store, in three projects, each after the one before:
+   The pack is `@mw10013/shopify-app-cloudflare/test/e2e`; an app supplies an `E2eApp` and registers `e2eProjects(app, root)`. It runs on one worker, because every spec shares the leased store, in three projects, each after the one before:
 
    1. `shopify admin auth` exports the agent Chrome's Shopify login on every run. A lapsed login fails here; sign in to the agent Chrome and run again.
    2. The lifecycle spec installs the app, picks Testbed Basic, switches to Testbed Pro, uninstalls from the admin and waits for the e2e status route to show the installation gone, then reinstalls and picks Testbed Basic again. It is a project of its own because uninstalling ends the CLI's dev preview, so the spec restarts the server (`vpx scripts/e2e.ts reinstall`).
