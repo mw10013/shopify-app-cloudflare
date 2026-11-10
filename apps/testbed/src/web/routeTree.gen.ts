@@ -10,11 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/app'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminOrphanShopActorObjectsRouteImport } from './routes/admin.orphan-shop-actor-objects'
+import { Route as AdminShopActorObjectsRouteImport } from './routes/admin.shop-actor-objects'
+import { Route as AdminSignInRouteImport } from './routes/admin_.sign-in'
+import { Route as ApiControlRouteImport } from './routes/api.control'
 import { Route as AuthExitIframeRouteImport } from './routes/auth.exit-iframe'
 import { Route as AuthSessionTokenRouteImport } from './routes/auth.session-token'
 import { Route as WebhooksSplatRouteImport } from './routes/webhooks.$'
 import { Route as ApiActorKeyRouteImport } from './routes/api.actor.$key'
+import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 import { Route as ApiE2eStatusRouteImport } from './routes/api.e2e.status'
 import { Route as ApiE2eWebhooksRouteImport } from './routes/api.e2e.webhooks'
 
@@ -23,9 +30,40 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/app',
   path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOrphanShopActorObjectsRoute =
+  AdminOrphanShopActorObjectsRouteImport.update({
+    id: '/orphan-shop-actor-objects',
+    path: '/orphan-shop-actor-objects',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminShopActorObjectsRoute = AdminShopActorObjectsRouteImport.update({
+  id: '/shop-actor-objects',
+  path: '/shop-actor-objects',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSignInRoute = AdminSignInRouteImport.update({
+  id: '/admin_/sign-in',
+  path: '/admin/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiControlRoute = ApiControlRouteImport.update({
+  id: '/api/control',
+  path: '/api/control',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthExitIframeRoute = AuthExitIframeRouteImport.update({
@@ -48,6 +86,11 @@ const ApiActorKeyRoute = ApiActorKeyRouteImport.update({
   path: '/api/actor/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiE2eStatusRoute = ApiE2eStatusRouteImport.update({
   id: '/api/e2e/status',
   path: '/api/e2e/status',
@@ -61,32 +104,52 @@ const ApiE2eWebhooksRoute = ApiE2eWebhooksRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/app': typeof AppRoute
+  '/admin/orphan-shop-actor-objects': typeof AdminOrphanShopActorObjectsRoute
+  '/admin/shop-actor-objects': typeof AdminShopActorObjectsRoute
+  '/admin/sign-in': typeof AdminSignInRoute
+  '/api/control': typeof ApiControlRoute
   '/auth/exit-iframe': typeof AuthExitIframeRoute
   '/auth/session-token': typeof AuthSessionTokenRoute
   '/webhooks/$': typeof WebhooksSplatRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/actor/$key': typeof ApiActorKeyRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/e2e/status': typeof ApiE2eStatusRoute
   '/api/e2e/webhooks': typeof ApiE2eWebhooksRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/admin/orphan-shop-actor-objects': typeof AdminOrphanShopActorObjectsRoute
+  '/admin/shop-actor-objects': typeof AdminShopActorObjectsRoute
+  '/admin/sign-in': typeof AdminSignInRoute
+  '/api/control': typeof ApiControlRoute
   '/auth/exit-iframe': typeof AuthExitIframeRoute
   '/auth/session-token': typeof AuthSessionTokenRoute
   '/webhooks/$': typeof WebhooksSplatRoute
+  '/admin': typeof AdminIndexRoute
   '/api/actor/$key': typeof ApiActorKeyRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/e2e/status': typeof ApiE2eStatusRoute
   '/api/e2e/webhooks': typeof ApiE2eWebhooksRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/app': typeof AppRoute
+  '/admin/orphan-shop-actor-objects': typeof AdminOrphanShopActorObjectsRoute
+  '/admin/shop-actor-objects': typeof AdminShopActorObjectsRoute
+  '/admin_/sign-in': typeof AdminSignInRoute
+  '/api/control': typeof ApiControlRoute
   '/auth/exit-iframe': typeof AuthExitIframeRoute
   '/auth/session-token': typeof AuthSessionTokenRoute
   '/webhooks/$': typeof WebhooksSplatRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/actor/$key': typeof ApiActorKeyRoute
+  '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/e2e/status': typeof ApiE2eStatusRoute
   '/api/e2e/webhooks': typeof ApiE2eWebhooksRoute
 }
@@ -94,42 +157,66 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/app'
+    | '/admin/orphan-shop-actor-objects'
+    | '/admin/shop-actor-objects'
+    | '/admin/sign-in'
+    | '/api/control'
     | '/auth/exit-iframe'
     | '/auth/session-token'
     | '/webhooks/$'
+    | '/admin/'
     | '/api/actor/$key'
+    | '/api/auth/$'
     | '/api/e2e/status'
     | '/api/e2e/webhooks'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/app'
+    | '/admin/orphan-shop-actor-objects'
+    | '/admin/shop-actor-objects'
+    | '/admin/sign-in'
+    | '/api/control'
     | '/auth/exit-iframe'
     | '/auth/session-token'
     | '/webhooks/$'
+    | '/admin'
     | '/api/actor/$key'
+    | '/api/auth/$'
     | '/api/e2e/status'
     | '/api/e2e/webhooks'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/app'
+    | '/admin/orphan-shop-actor-objects'
+    | '/admin/shop-actor-objects'
+    | '/admin_/sign-in'
+    | '/api/control'
     | '/auth/exit-iframe'
     | '/auth/session-token'
     | '/webhooks/$'
+    | '/admin/'
     | '/api/actor/$key'
+    | '/api/auth/$'
     | '/api/e2e/status'
     | '/api/e2e/webhooks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   AppRoute: typeof AppRoute
+  AdminSignInRoute: typeof AdminSignInRoute
+  ApiControlRoute: typeof ApiControlRoute
   AuthExitIframeRoute: typeof AuthExitIframeRoute
   AuthSessionTokenRoute: typeof AuthSessionTokenRoute
   WebhooksSplatRoute: typeof WebhooksSplatRoute
   ApiActorKeyRoute: typeof ApiActorKeyRoute
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiE2eStatusRoute: typeof ApiE2eStatusRoute
   ApiE2eWebhooksRoute: typeof ApiE2eWebhooksRoute
 }
@@ -143,11 +230,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app': {
       id: '/app'
       path: '/app'
       fullPath: '/app'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/orphan-shop-actor-objects': {
+      id: '/admin/orphan-shop-actor-objects'
+      path: '/orphan-shop-actor-objects'
+      fullPath: '/admin/orphan-shop-actor-objects'
+      preLoaderRoute: typeof AdminOrphanShopActorObjectsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/shop-actor-objects': {
+      id: '/admin/shop-actor-objects'
+      path: '/shop-actor-objects'
+      fullPath: '/admin/shop-actor-objects'
+      preLoaderRoute: typeof AdminShopActorObjectsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin_/sign-in': {
+      id: '/admin_/sign-in'
+      path: '/admin/sign-in'
+      fullPath: '/admin/sign-in'
+      preLoaderRoute: typeof AdminSignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/control': {
+      id: '/api/control'
+      path: '/api/control'
+      fullPath: '/api/control'
+      preLoaderRoute: typeof ApiControlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/exit-iframe': {
@@ -178,6 +307,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiActorKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/e2e/status': {
       id: '/api/e2e/status'
       path: '/api/e2e/status'
@@ -195,13 +331,31 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteChildren {
+  AdminOrphanShopActorObjectsRoute: typeof AdminOrphanShopActorObjectsRoute
+  AdminShopActorObjectsRoute: typeof AdminShopActorObjectsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminOrphanShopActorObjectsRoute: AdminOrphanShopActorObjectsRoute,
+  AdminShopActorObjectsRoute: AdminShopActorObjectsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   AppRoute: AppRoute,
+  AdminSignInRoute: AdminSignInRoute,
+  ApiControlRoute: ApiControlRoute,
   AuthExitIframeRoute: AuthExitIframeRoute,
   AuthSessionTokenRoute: AuthSessionTokenRoute,
   WebhooksSplatRoute: WebhooksSplatRoute,
   ApiActorKeyRoute: ApiActorKeyRoute,
+  ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiE2eStatusRoute: ApiE2eStatusRoute,
   ApiE2eWebhooksRoute: ApiE2eWebhooksRoute,
 }

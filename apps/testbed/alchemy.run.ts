@@ -23,6 +23,7 @@ import * as Option from "effect/Option";
 
 import { backendWorkerFor } from "#e2e/backend-worker.ts";
 
+import { wireSiteAuth } from "./stacks/site-auth.ts";
 import StageEnv from "./stacks/stage-env.ts";
 
 /** The Backend Worker this stage deploys ({@link backendWorkerFor}). */
@@ -120,6 +121,7 @@ export default Alchemy.Stack(
       app: yield* shopifyAppFor(website.url),
       partner: yield* partnerFor,
     });
+    yield* wireSiteAuth(backend, website.url);
     // The session `vp run e2e:start` wrote, which gates the e2e routes only `e2e` serves.
     if ((yield* environmentOf(yield* Alchemy.Stage)) === "e2e")
       yield* bindE2eSession(backend, new URL(".", import.meta.url));

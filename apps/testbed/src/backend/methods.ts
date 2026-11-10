@@ -12,10 +12,13 @@ import {
   MerchantAuthenticated,
   MerchantGate,
   PlanHandle,
+  serveAdmin,
   serveAll,
   shopActorObjectFailures,
   shopActorObjectMethods,
   ShopDomain,
+  signInFailures,
+  signInMethods,
 } from "@mw10013/shopify-app-cloudflare/backend";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
@@ -97,6 +100,15 @@ export const counterMethods = Effect.gen(function* () {
   return serveAll({ count }, { count: AuthenticateMerchantFailure });
 });
 
-export const orphanMethods = Effect.gen(function* () {
-  return serveAll(yield* shopActorObjectMethods, shopActorObjectFailures);
+/** The admin sign-in page's methods: requesting a code, and who is signed in. */
+export const siteMethods = Effect.gen(function* () {
+  return serveAll(yield* signInMethods, signInFailures);
+});
+
+/**
+ * The `/admin` pages' methods, the orphan sweep's, each behind the package's admin gate: a
+ * signed-out request is `UnauthorizedError` and anyone but an admin `ForbiddenError`.
+ */
+export const adminMethods = Effect.gen(function* () {
+  return yield* serveAdmin(yield* shopActorObjectMethods, shopActorObjectFailures);
 });
