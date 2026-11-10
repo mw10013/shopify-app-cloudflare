@@ -48,7 +48,9 @@ describe("stores", () => {
       status: 0,
       json: { format: 1, lease: null },
     });
-    expect(fs.existsSync(path.join(scratch, "state", "berth"))).toBe(false);
+    expect(
+      fs.existsSync(path.join(scratch, "state", "shopify-app-cloudflare", "stores", "ledger")),
+    ).toBe(false);
   });
 
   it("acquires idempotently, shows the same lease, and releases it", () => {
