@@ -2,7 +2,7 @@ import { assert, describe, it } from "@effect/vitest";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
-import { StoreName, storeNameOf } from "#dev/worktree.ts";
+import { StoreName, storeNameOf } from "#dev/stores.ts";
 
 const decode = Schema.decodeUnknownOption(StoreName);
 

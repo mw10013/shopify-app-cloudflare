@@ -22,7 +22,7 @@ import * as SchemaTransformation from "effect/SchemaTransformation";
 import { chromium } from "playwright";
 
 import { AGENT_CDP, checkShopifyLogin, ensureAgentChrome } from "#dev/agent-chrome.ts";
-import { StoreFor } from "#dev/worktree.ts";
+import { StoreFor } from "#dev/stores.ts";
 
 export class StoreAuthError extends Schema.TaggedError<StoreAuthError>()("StoreAuthError", {
   message: Schema.String,

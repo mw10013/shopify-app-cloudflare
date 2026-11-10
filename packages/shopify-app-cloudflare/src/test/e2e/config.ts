@@ -9,13 +9,15 @@
 import { chmodSync, readFileSync } from "node:fs";
 import path from "node:path";
 
+import * as NodeServices from "@effect/platform-node/NodeServices";
 import { app as checkout } from "@mw10013/rigging/core/app";
 import { e2eConfig, runningServer } from "@mw10013/rigging/core/test";
+import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import type { PlaywrightTestConfig, PlaywrightTestProject } from "playwright/test";
 
 import { appHandle } from "#dev/app-handle.ts";
-import { acquireSync } from "#dev/berth.ts";
+import { storeOf } from "#dev/stores.ts";
 
 import {
   E2E_PREFLIGHT,
@@ -57,9 +59,9 @@ export interface ShopifyE2e {
 }
 
 /**
- * The app as the pack drives it and the run's config. Synchronous, because Playwright loads its
- * config synchronously; each worker loads it again, so a project after the lifecycle reads the
- * server the lifecycle restarted. It throws, naming the fix, when the lease, the server, its
+ * The app as the pack drives it and the run's config. A config awaits it at its top level; each
+ * worker loads the config again, so a project after the lifecycle reads the server the lifecycle
+ * restarted. It rejects, naming the fix, when the lease, the server, its
  * tunnel or the e2e session is missing, or when `shopify.app.e2e.toml` names another app than
  * `shopify.app.toml`, since Shopify would then sign the e2e webhooks with a secret the server
  * does not check.
@@ -69,14 +71,16 @@ export interface ShopifyE2e {
  * under the exported login holds it. The run's directory is readable by this user alone: a
  * failure's error context can name the store's data.
  */
-export const shopifyE2eConfig = ({
+export const shopifyE2eConfig = async ({
   root,
   plans,
   webhookTopics = [],
   storeScopes = [],
   restart = ["vpx", "scripts/e2e.ts", "reinstall"],
-}: ShopifyE2eOptions): ShopifyE2e => {
-  const store = acquireSync("e2e", checkout(root)).store;
+}: ShopifyE2eOptions): Promise<ShopifyE2e> => {
+  const { store } = await Effect.runPromise(
+    storeOf("e2e", checkout(root)).pipe(Effect.provide(NodeServices.layer)),
+  );
   const server = runningServer("e2e", root);
   if (server.url === null || server.url === "")
     throw new Error(`the e2e server published no tunnel (no APP_URL): ${RESTART}`);

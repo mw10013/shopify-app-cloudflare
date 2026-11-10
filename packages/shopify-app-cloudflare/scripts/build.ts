@@ -33,10 +33,8 @@ export const E2E_ENTRIES = [
   "src/test/e2e/preflight.ts",
 ] as const;
 
-const Source = Schema.Struct({
-  version: Schema.String,
-  exports: Schema.Record(Schema.String, Schema.String),
-});
+const Targets = Schema.Record(Schema.String, Schema.String);
+const Source = Schema.Struct({ version: Schema.String, exports: Targets, bin: Targets });
 const decodeSource = Schema.decodeUnknownSync(Source);
 
 const JsonObject = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown));
@@ -52,17 +50,18 @@ const built = (target: string, extension: ".d.mts" | ".mjs") =>
   `./dist/${target.replace(/^\.\/src\//u, "").replace(/\.ts$/u, extension)}`;
 
 /**
- * The entries {@link build} compiles, relative to the package: every `exports` target, then
- * {@link E2E_ENTRIES}.
+ * The entries {@link build} compiles, relative to the package: every `exports` and `bin` target,
+ * then {@link E2E_ENTRIES}.
  */
-export const entriesOf = (source: unknown): readonly string[] => [
-  ...Object.values(decodeSource(source).exports),
-  ...E2E_ENTRIES,
-];
+export const entriesOf = (source: unknown): readonly string[] => {
+  const { exports, bin } = decodeSource(source);
+  return [...Object.values(exports), ...Object.values(bin), ...E2E_ENTRIES];
+};
 
 /**
  * The manifest npm publishes: the source's, with each export mapped to its types and its code in
- * `dist/` and `files` limited to `dist/` and the migrations an app copies. `imports` serves the
+ * `dist/`, each bin to its code, and `files` limited to `dist/` and the migrations an app copies. A
+ * bin path has no leading `./`: npm 12 drops such a bin from the package it publishes. `imports` serves the
  * source tree alone, `private` keeps the source from being published by accident, and
  * `devDependencies` and `scripts` serve this workspace.
  */
@@ -72,8 +71,9 @@ export const builtManifest = (
   readonly version: string;
   readonly files: readonly string[];
   readonly exports: Record<string, { readonly types: string; readonly default: string }>;
+  readonly bin: Record<string, string>;
 } => {
-  const { version, exports } = decodeSource(source);
+  const { version, exports, bin } = decodeSource(source);
   const {
     imports: _imports,
     private: _private,
@@ -89,6 +89,12 @@ export const builtManifest = (
       Object.entries(exports).map(([key, target]) => [
         key,
         { types: built(target, ".d.mts"), default: built(target, ".mjs") },
+      ]),
+    ),
+    bin: Object.fromEntries(
+      Object.entries(bin).map(([key, target]) => [
+        key,
+        built(target, ".mjs").replace(/^\.\//u, ""),
       ]),
     ),
   };
@@ -126,6 +132,8 @@ export const build = Effect.fn("Build.build")(function* (outDirectory: string = 
     path.join(outDirectory, "package.json"),
     `${JSON.stringify(manifest, undefined, 2)}\n`,
   );
+  for (const target of Object.values(manifest.bin))
+    yield* fs.chmod(path.join(outDirectory, target), 0o755);
   return { directory: outDirectory, version: manifest.version, entries: entries.length };
 });
 

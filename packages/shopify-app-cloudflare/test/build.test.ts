@@ -6,6 +6,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -106,6 +107,7 @@ describe("builtManifest", () => {
         scripts: { build: "vpx scripts/build.ts" },
         imports: { "#internal/*": "./src/internal/*" },
         exports: { "./backend": "./src/backend.ts", "./test/node": "./src/test-node.ts" },
+        bin: { stores: "./src/dev/stores/bin.ts" },
         dependencies: { "@shopify/shopify-api": "15.0.1" },
         devDependencies: { vitest: "catalog:" },
         peerDependencies: { effect: "^4.1.2" },
@@ -119,6 +121,7 @@ describe("builtManifest", () => {
           "./backend": { types: "./dist/backend.d.mts", default: "./dist/backend.mjs" },
           "./test/node": { types: "./dist/test-node.d.mts", default: "./dist/test-node.mjs" },
         },
+        bin: { stores: "dist/dev/stores/bin.mjs" },
         dependencies: { "@shopify/shopify-api": "15.0.1" },
         peerDependencies: { effect: "^4.1.2" },
       },
@@ -148,6 +151,15 @@ describe("the built package", () => {
     for (const [key, target] of Object.entries(manifest.exports)) {
       assert.include(builtFiles(), inScratch(target.default), key);
       assert.include(builtFiles(), inScratch(target.types), key);
+    }
+  });
+
+  it("ships each bin as an executable script with its shebang", () => {
+    assert.deepStrictEqual(Object.keys(manifest.bin), ["stores"]);
+    for (const target of Object.values(manifest.bin)) {
+      assert.include(builtFiles(), inScratch(target));
+      assert.isTrue(readFileSync(inScratch(target), "utf8").startsWith("#!/usr/bin/env node\n"));
+      assert.notStrictEqual(statSync(inScratch(target)).mode & 0o111, 0);
     }
   });
 

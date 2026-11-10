@@ -23,7 +23,7 @@ if (PLANS.map(({ handle }) => handle).join(",") !== catalog.handles.join(","))
     `playwright.config.ts names plans the catalog does not sell: ${catalog.handles.join(", ")}`,
   );
 
-const { app: testbed, config } = shopifyE2eConfig({
+const { app: testbed, config } = await shopifyE2eConfig({
   root,
   plans: PLANS,
   // shop/update only logs, so Shopify's sample of it is safe to deliver.

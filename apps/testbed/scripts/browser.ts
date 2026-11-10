@@ -13,8 +13,6 @@ import {
   ensureAgentChrome,
   loginAgentChrome,
 } from "@mw10013/shopify-app-cloudflare/dev/agent-chrome";
-import { appHandle } from "@mw10013/shopify-app-cloudflare/dev/app-handle";
-import * as Berth from "@mw10013/shopify-app-cloudflare/dev/berth";
 import {
   appFrame,
   awaitHydration,
@@ -23,7 +21,7 @@ import {
   prepareApp,
 } from "@mw10013/shopify-app-cloudflare/dev/embedded-app";
 import { runningServer } from "@mw10013/shopify-app-cloudflare/dev/server";
-import { storeNameOf } from "@mw10013/shopify-app-cloudflare/dev/worktree";
+import { adminUrlOf, storeOf } from "@mw10013/shopify-app-cloudflare/dev/stores";
 import * as Argument from "effect/cli/Argument";
 import * as CliError from "effect/cli/CliError";
 import * as Command from "effect/cli/Command";
@@ -83,7 +81,7 @@ const ready = Effect.gen(function* () {
   yield* runCLI(["snapshot", "--filename=.playwright-cli/dev-ready.yml"]);
 });
 
-const devStore = Berth.acquire("dev").pipe(Effect.map((lease) => lease.store));
+const devStore = storeOf("dev").pipe(Effect.map(({ store }) => store));
 
 /**
  * The chrome-devtools server's session id comes from the checkout's path, so a restart here never
@@ -193,16 +191,10 @@ const targetFlag = Flag.Literals("stage", Target.literals).pipe(
   Flag.withDefault("dev"),
 );
 
-const adminUrl = Effect.fn("Browser.adminUrl")(function* (target: Target, path: string) {
-  const store = target === "dev" ? yield* devStore : storeNameOf(target, 0);
-  const tomlFile = target === "dev" ? "shopify.app.toml" : `shopify.app.${target}.toml`;
-  const handle = yield* Effect.try({
-    try: () => appHandle(tomlFile),
-    catch: (cause) =>
-      new BrowserError({ message: cause instanceof Error ? cause.message : String(cause) }),
-  });
-  return `https://admin.shopify.com/store/${store}/apps/${handle}/${path}`;
-});
+const adminUrl = (target: Target, path: string) =>
+  adminUrlOf(target, path).pipe(
+    Effect.mapError((error) => new BrowserError({ message: error.message })),
+  );
 
 const checkDevServer = runningServer("dev").pipe(
   Effect.mapError((error) => new BrowserError({ message: error.message })),
