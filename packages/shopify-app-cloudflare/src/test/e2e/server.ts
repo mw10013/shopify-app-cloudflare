@@ -40,7 +40,7 @@ import {
   stopServer,
 } from "#dev/server.ts";
 import { destroyStage, recordStore, resetStaleStage } from "#dev/stage-store.ts";
-import { StoreFor } from "#dev/worktree.ts";
+import { StoreFor } from "#dev/stores.ts";
 import { E2E_SESSION_FILE, E2eSession, E2eSessionJson } from "#test/e2e-session.ts";
 
 import { authorizeStore } from "./store-auth.ts";

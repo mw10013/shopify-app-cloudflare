@@ -68,7 +68,7 @@ const toml = (file: string) => new URL(file, import.meta.url);
  * The Shopify app this stage's Backend serves, served at `appUrl` unless the CLI's tunnel is.
  * Each environment's toml holds its app's handle and client ID; only the secret comes from the
  * environment. `dev` and `e2e` serve Shopify CLI's app under `shopify app dev`, from the toml
- * `berth.json` gives it, and the fake app otherwise (a bare `alchemy destroy`); a deployed stage
+ * `tomlOf` (`/dev/stores`) names, and the fake app otherwise (a bare `alchemy destroy`); a deployed stage
  * reads its toml and its deploy's `SHOPIFY_API_SECRET`, so a missing one fails the plan; `test`
  * always serves the fake app.
  */

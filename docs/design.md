@@ -45,7 +45,7 @@ Releases before `0.5.0` were git dependencies on a release tag of this repositor
 
 ## Where the package is developed
 
-The package is developed in `apps/testbed`, a minimal embedded app with its own Shopify app and no customers. The testbed consumes the package as a workspace package, so Vite and the Backend's rolldown watch the package's source and an edit shows up in the running app. Stores come from the berth pool like every other app's.
+The package is developed in `apps/testbed`, a minimal embedded app with its own Shopify app and no customers. The testbed consumes the package as a workspace package, so Vite and the Backend's rolldown watch the package's source and an edit shows up in the running app. Its dev and e2e stores come from the package's store pool (`/dev/stores`) like every other app's.
 
 The testbed can exercise paths that product apps cannot run lightly: uninstall and reinstall, token expiry, plan changes and bad HMACs. Its staging stage proves the deploy path through Workers Builds before any app takes a release. New apps start from it.
 

@@ -18,7 +18,7 @@ const source = [
   "// See `@mw10013/devkit/core/test-runs`.",
   `globalSetup: ["@mw10013/devkit/cloudflare/integ-setup"],`,
   `const endpoint = process.env.BOSUN_ENDPOINT;`,
-  `import { Berth } from "./berth.ts";`,
+  `import { Local } from "./local.ts";`,
 ].join("\n");
 
 describe("sourceRules", () => {
@@ -35,7 +35,7 @@ describe("sourceRules", () => {
         "// See `@mw10013/rigging/core/test-runs`.",
         `globalSetup: ["@mw10013/rigging/cloudflare/integ-setup"],`,
         `const endpoint = process.env.RIGGING_ENDPOINT;`,
-        `import { Berth } from "./berth.ts";`,
+        `import { Local } from "./local.ts";`,
       ].join("\n"),
     );
   });

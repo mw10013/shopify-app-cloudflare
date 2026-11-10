@@ -45,11 +45,11 @@ const SUBPATHS = [
   "test/e2e/config",
   "dev/agent-chrome",
   "dev/app-handle",
-  "dev/berth",
   "dev/embedded-app",
   "dev/local-route",
   "dev/server",
   "dev/stage-store",
+  "dev/stores",
   "dev/web",
   "dev/worktree",
 ] as const;
@@ -410,6 +410,16 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
         if (NODE_REQUIRED.some((entry) => !loaded.has(entry)))
           return yield* new CheckFailedError({ message: report });
         return report;
+      }),
+    },
+    {
+      name: "the stores bin lists an empty pool",
+      gates: false,
+      check: Effect.gen(function* () {
+        const output = yield* succeeded(yield* inProject(bin("stores"), ["list"]));
+        if (!output.includes("stores: 0 pooled"))
+          return yield* new CheckFailedError({ message: output });
+        return output.trim().split("\n").at(-1) ?? "";
       }),
     },
     {

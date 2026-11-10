@@ -24,7 +24,7 @@ import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 
-import * as Berth from "./berth.ts";
+import { type EnvironmentStore, storeOf } from "./stores.ts";
 import type { WebEnvironment } from "./web.ts";
 import { stage } from "./worktree.ts";
 
@@ -165,18 +165,16 @@ const notRunning = (environment: WebEnvironment) =>
     message: `the ${environment} server is not running: ${START[environment]}`,
   });
 
-export interface Server extends Berth.Lease {
+export interface Server extends EnvironmentStore {
   readonly environment: WebEnvironment;
   readonly stage: string;
 }
 
 export const loadServer = Effect.fn("Server.loadServer")(function* (environment: WebEnvironment) {
-  const lease = yield* Berth.acquire(environment).pipe(
-    Effect.mapError((error) => fail(error.message)),
-  );
+  const leased = yield* storeOf(environment).pipe(Effect.mapError((error) => fail(error.message)));
   return {
     environment,
-    ...lease,
+    ...leased,
     stage: yield* stage(environment).pipe(Effect.mapError((error) => fail(error.message))),
   } satisfies Server;
 });
