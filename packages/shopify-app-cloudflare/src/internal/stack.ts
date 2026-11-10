@@ -37,6 +37,7 @@ import {
   SHOP_ACTOR_OBJECTS_ENV,
   SHOPIFY_BINDING,
   SHOPIFY_PARTNER_BINDING,
+  type SignInCodeDailyCap,
   type SignInCodeDeliveryMode,
   SITE_AUTH_BINDING,
   SITE_AUTH_ENV,
@@ -266,14 +267,18 @@ export const bindE2eSession = Effect.fn("Stack.bindE2eSession")(function* (
 /** A stage's environment, as rigging's `environmentOf` names it. */
 export type SiteAuthEnvironment = "dev" | "test" | "e2e" | "staging" | "production";
 
-/** Where an environment's sign-in codes go: back to the page on a local stage, by mail on a deployed one. */
-const deliveryOf = (environment: SiteAuthEnvironment): SignInCodeDeliveryMode =>
-  environment === "staging" || environment === "production" ? "mailed" : "inline";
+const siteAuthOf = (
+  environment: SiteAuthEnvironment,
+): { readonly delivery: SignInCodeDeliveryMode; readonly dailyCap: SignInCodeDailyCap } =>
+  environment === "staging" || environment === "production"
+    ? { delivery: "mailed", dailyCap: "on" }
+    : { delivery: "inline", dailyCap: "off" };
 
 /**
  * Binds what `Auth` and `SignInCodeDelivery.layerConfig` read: `authOrigin`, the Website's URL,
- * which Better Auth serves its endpoints and sets its cookie on, and the delivery the
- * `environment` takes, `mailed` on staging and production and `inline` elsewhere.
+ * which Better Auth serves its endpoints and sets its cookie on, and what the `environment`
+ * takes: on staging and production `mailed` delivery and the daily cap, elsewhere `inline`
+ * delivery and no cap.
  */
 export const bindSiteAuth = Effect.fn("Stack.bindSiteAuth")(function* (
   backend: BindableWorker,
@@ -282,10 +287,12 @@ export const bindSiteAuth = Effect.fn("Stack.bindSiteAuth")(function* (
     readonly environment: SiteAuthEnvironment;
   },
 ) {
+  const { delivery, dailyCap } = siteAuthOf(options.environment);
   yield* backend.bind(SITE_AUTH_BINDING, {
     env: {
       [SITE_AUTH_ENV.authOrigin]: options.authOrigin,
-      [SITE_AUTH_ENV.delivery]: deliveryOf(options.environment),
+      [SITE_AUTH_ENV.delivery]: delivery,
+      [SITE_AUTH_ENV.dailyCap]: dailyCap,
     },
   });
 });
@@ -337,13 +344,18 @@ const SiteUsersSeed = (database: Cloudflare.D1.Database) =>
 
 /**
  * Seeds the stage's site users into `database` after its migrations, the package's
- * `0000_sac_02_better_auth.sql` among them: an Action whose input is the SQL and the database's
- * id, so an edited list runs again and a recreated database is seeded again. Sign-in never
- * creates an admin; this is the one place one is made.
+ * `0000_sac_02_better_auth.sql` among them, then runs the app's own seed `sql`, when given, in
+ * the same Action. The Action's input is the SQL and the database's id, so an edited list or seed
+ * runs again and a recreated database is seeded again. Sign-in never creates an admin; this is
+ * the one place one is made.
  */
 export const seedSiteUsers = Effect.fn("Stack.seedSiteUsers")(function* (
   database: Cloudflare.D1.Database,
   users: readonly SiteUserSeed[],
+  options: { readonly sql?: string } = {},
 ) {
-  yield* SiteUsersSeed(database)({ databaseId: database.databaseId, sql: siteUserSeedSql(users) });
+  yield* SiteUsersSeed(database)({
+    databaseId: database.databaseId,
+    sql: [siteUserSeedSql(users), ...(options.sql === undefined ? [] : [options.sql])].join("\n"),
+  });
 });

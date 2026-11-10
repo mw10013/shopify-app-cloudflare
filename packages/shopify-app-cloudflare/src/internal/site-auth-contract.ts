@@ -51,12 +51,18 @@ export const RequestInfo = Schema.Struct({
 });
 export type RequestInfo = typeof RequestInfo.Type;
 
-export const SIGN_IN_CODE_LENGTH = 8;
+export const SIGN_IN_CODE_LENGTH = 6;
 
 export const SIGN_IN_CODE_TTL = Duration.minutes(5);
 
 /** How many wrong guesses one sign-in code survives before it is spent. */
 export const SIGN_IN_CODE_ATTEMPTS = 3;
+
+/**
+ * How many codes one address may request through the sign-in page in a UTC day, on a stage that
+ * caps them.
+ */
+export const SIGN_IN_CODES_PER_DAY = 10;
 
 /** A sign-in code as Better Auth's email OTP plugin makes it. */
 export const SignInCode = Schema.String.check(
@@ -84,13 +90,16 @@ export class UnauthorizedError extends Schema.TaggedError<UnauthorizedError>()(
   }
 }
 
-/** The sign-in rate limit refused the request, for the address or for the client. */
+/**
+ * The sign-in rate limit refused the request, for the address or for the client, or the address
+ * has had {@link SIGN_IN_CODES_PER_DAY} codes today.
+ */
 export class TooManyRequestsError extends Schema.TaggedError<TooManyRequestsError>()(
   "TooManyRequestsError",
   {},
 ) {
   override get message() {
-    return "Too many attempts. Try again in a minute.";
+    return "Too many attempts. Try again later.";
   }
 }
 

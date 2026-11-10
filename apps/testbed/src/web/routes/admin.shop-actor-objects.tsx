@@ -34,6 +34,7 @@ function ShopActorObjectsRoute() {
       cursor={cursor}
       page={page}
       adminLink={{
+        href: "/admin",
         onClick: () => {
           void router.navigate({ to: "/admin" });
         },

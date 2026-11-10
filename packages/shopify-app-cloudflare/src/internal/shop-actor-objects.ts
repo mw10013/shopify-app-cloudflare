@@ -31,6 +31,7 @@ import {
 } from "./shop-actor-objects-contract.ts";
 import { ShopActors } from "./shop-actors.ts";
 import { AppInstallations } from "./shopify-access.ts";
+import { serveAdmin } from "./site-admin.ts";
 
 const NamespacesResponse = Schema.Struct({
   result: Schema.Array(
@@ -258,20 +259,21 @@ const decodeDestroyOrphanRequest = Schema.decodeUnknownEffect(DestroyOrphanReque
 const encodeShopActorObjectsData = Schema.encodeEffect(ShopActorObjectsData);
 const encodeOrphanShopActorObjectsData = Schema.encodeEffect(OrphanShopActorObjectsData);
 
+const failures = {
+  shopActorObjects: Schema.Never,
+  orphanShopActorObjects: Schema.Never,
+  destroyOrphan: OrphanInstalledError,
+};
+
 /**
- * The three as the Backend's binding methods, each taking the page's plain payload and answering
- * plain data: a payload that does not decode is a defect, as the Website's server function
- * already validated it. They check no session themselves: serve them through `serveAdmin`, which
- * runs the admin gate before each, with {@link shopActorObjectFailures}.
- *
- * @example
- * ```ts
- * yield* serveAdmin(yield* shopActorObjectMethods, shopActorObjectFailures);
- * ```
+ * The three as the admin's Backend binding methods, each served through {@link serveAdmin}: it
+ * takes the request's `RequestInfo` first, then the page's plain payload, answers plain data, and
+ * declares `UnauthorizedError` and `ForbiddenError` beside its own failure. A payload that does
+ * not decode is a defect, as the Website's server function already validated it.
  */
 export const shopActorObjectMethods = Effect.gen(function* () {
   const objects = yield* ShopActorObjects;
-  return {
+  const methods = {
     shopActorObjects: Effect.fn("Backend.shopActorObjects")(function* (
       payload: ShopActorObjectsRequest,
     ) {
@@ -293,11 +295,5 @@ export const shopActorObjectMethods = Effect.gen(function* () {
       yield* objects.destroyOrphan(id);
     }),
   };
+  return yield* serveAdmin(methods, failures);
 });
-
-/** The failures {@link shopActorObjectMethods} declares, for `serveAll`'s table. */
-export const shopActorObjectFailures = {
-  shopActorObjects: Schema.Never,
-  orphanShopActorObjects: Schema.Never,
-  destroyOrphan: OrphanInstalledError,
-};

@@ -55,7 +55,6 @@ describe("/backend", () => {
       "scheduledJob",
       "ShopActorObjects",
       "shopActorObjectMethods",
-      "shopActorObjectFailures",
       "OrphanInstalledError",
       "SHOP_ACTOR_OBJECTS_LIMIT",
       "Auth",

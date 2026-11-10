@@ -15,6 +15,7 @@ import {
   Mailer,
   scheduledJob,
   shopActorHooks,
+  shopActorObjectMethods,
   ShopActorObjects,
   ShopActors,
   ShopifyAccess,
@@ -33,7 +34,7 @@ import * as Layer from "effect/Layer";
 
 import { testbedApp } from "./app.ts";
 import { control } from "./control.ts";
-import { adminMethods, backendMethods, counterMethods, siteMethods } from "./methods.ts";
+import { backendMethods, counterMethods, siteMethods } from "./methods.ts";
 import { Database, Email, SignInLimit } from "./resources.ts";
 import { ShopActor, ShopActorLive } from "./shop-actor.ts";
 
@@ -48,7 +49,7 @@ export const backendBody = Effect.gen(function* () {
   const methods = yield* backendMethods;
   const counter = yield* counterMethods;
   const site = yield* siteMethods;
-  const admin = yield* adminMethods;
+  const admin = yield* shopActorObjectMethods;
   const auth = yield* Auth;
   const door = yield* control;
   const upgrade = yield* actorUpgrade(ShopActor);

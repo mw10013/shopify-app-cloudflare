@@ -12,10 +12,7 @@ import {
   MerchantAuthenticated,
   MerchantGate,
   PlanHandle,
-  serveAdmin,
   serveAll,
-  shopActorObjectFailures,
-  shopActorObjectMethods,
   ShopDomain,
   signInFailures,
   signInMethods,
@@ -102,8 +99,4 @@ export const counterMethods = Effect.gen(function* () {
 
 export const siteMethods = Effect.gen(function* () {
   return serveAll(yield* signInMethods, signInFailures);
-});
-
-export const adminMethods = Effect.gen(function* () {
-  return yield* serveAdmin(yield* shopActorObjectMethods, shopActorObjectFailures);
 });

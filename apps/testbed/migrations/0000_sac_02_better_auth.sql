@@ -61,3 +61,12 @@ create table if not exists verification (
 );
 
 create index if not exists verification_identifier_idx on verification (identifier);
+
+-- The package's own: how many codes each address requested through the sign-in page on the UTC
+-- day starting at `dayStartAt` (epoch milliseconds).
+create table if not exists SignInCodeCount (
+  dayStartAt integer not null,
+  email text not null,
+  count integer not null,
+  primary key (dayStartAt, email)
+);

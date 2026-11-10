@@ -12,6 +12,7 @@ import {
   type BindableWorker,
   bindShopActorObjects,
   bindShopifyApp,
+  bindSiteAuth,
   deployedShopifyApp,
   fakeShopifyApp,
   partnerBindingFromConfig,
@@ -357,5 +358,31 @@ describe("/stack", () => {
         "https://api.cloudflare.com/client/v4/accounts/account/workers/durable_objects/namespaces/ns/objects Bearer cf_token",
       ]);
     }),
+  );
+
+  it.effect(
+    "bindSiteAuth mails and caps codes on staging and production, and on every other stage answers them inline uncapped",
+    () =>
+      Effect.gen(function* () {
+        for (const environment of ["dev", "test", "e2e", "staging", "production"] as const) {
+          const { bound, worker } = recordingWorker();
+          yield* bindSiteAuth(worker, { authOrigin: "https://site.test", environment });
+          const deployed = environment === "staging" || environment === "production";
+          assert.deepStrictEqual(
+            bound,
+            [
+              {
+                id: "SiteAuth",
+                env: {
+                  AUTH_ORIGIN: "https://site.test",
+                  SIGN_IN_CODE_DELIVERY: deployed ? "mailed" : "inline",
+                  SIGN_IN_CODE_DAILY_CAP: deployed ? "on" : "off",
+                },
+              },
+            ],
+            environment,
+          );
+        }
+      }),
   );
 });

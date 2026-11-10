@@ -218,9 +218,10 @@ const encodeSiteUser = Schema.encodeEffect(SiteUser);
  * that does not decode is a defect, as the server function already validated it. Serve them with
  * {@link signInFailures}.
  *
- * - `requestSignInCode` applies {@link SignInLimiter}, then issues a code only when the address
- *   may sign in and hands it to {@link SignInCodeDelivery}. Anyone else gets the same answer
- *   without a code, so the page never learns who may sign in.
+ * - `requestSignInCode` applies {@link SignInLimiter} and the address's daily cap
+ *   (`Auth.admitCodeRequest`), then issues a code only when the address may sign in and hands it
+ *   to {@link SignInCodeDelivery}. Anyone else gets the same answer without a code, so the page
+ *   never learns who may sign in; the cap counts every address alike for the same reason.
  * - `signedInUser` is the session's user, or `UnauthorizedError`.
  *
  * @example
@@ -242,6 +243,12 @@ export const signInMethods = Effect.gen(function* () {
       if (!(yield* limiter.admit({ ip, email }))) {
         yield* Effect.logInfo("Backend.requestSignInCode: status=limited").pipe(
           Effect.annotateLogs({ status: "limited" }),
+        );
+        return yield* new TooManyRequestsError();
+      }
+      if (!(yield* auth.admitCodeRequest(email))) {
+        yield* Effect.logInfo("Backend.requestSignInCode: status=capped").pipe(
+          Effect.annotateLogs({ status: "capped" }),
         );
         return yield* new TooManyRequestsError();
       }
@@ -272,7 +279,7 @@ export const signInFailures = {
  * {@link SiteAuthControlRpcs}' handlers, for an app's control door. `IssueSignInCode` issues a
  * code for an address that may sign in and answers it in the same call, never delivered: a test
  * runner on a stage that mails codes signs in with it through the same check a mailed code
- * takes. It skips the rate limit; an address that could not sign in is a defect.
+ * takes. It skips the rate limit and the daily cap; an address that could not sign in is a defect.
  */
 export const siteAuthControlHandlers = SiteAuthControlRpcs.toLayer(
   Effect.gen(function* () {

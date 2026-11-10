@@ -1,11 +1,12 @@
-import { BetterAuth, type Database as BetterAuthDatabase } from "@alchemy.run/better-auth";
+import { BetterAuth, Database as BetterAuthDatabase } from "@alchemy.run/better-auth";
+import type * as Workers from "@cloudflare/workers-types";
 import { RuntimeContext } from "alchemy";
 import type { BetterAuthOptions } from "better-auth";
 import { admin, emailOTP } from "better-auth/plugins";
 import * as Cause from "effect/Cause";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
-import type * as DateTime from "effect/DateTime";
+import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
@@ -16,7 +17,7 @@ import type * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 import type * as Scope from "effect/Scope";
 
-import { SITE_AUTH_ENV } from "./bindings.ts";
+import { SignInCodeDailyCap, SITE_AUTH_ENV } from "./bindings.ts";
 import { isAlchemyRuntime } from "./shopify-client.ts";
 import {
   AUTH_BASE_PATH,
@@ -25,6 +26,7 @@ import {
   SIGN_IN_CODE_ATTEMPTS,
   SIGN_IN_CODE_LENGTH,
   SIGN_IN_CODE_TTL,
+  SIGN_IN_CODES_PER_DAY,
   SignInCode,
   SiteUser,
   UnauthorizedError,
@@ -77,6 +79,12 @@ export interface AuthShape {
   readonly session: (cookie: string | undefined) => Effect.Effect<SiteSession, UnauthorizedError>;
   /** Whether a code for the address could sign anyone in: a user exists, or the rule admits one. */
   readonly maySignIn: (email: Email) => Effect.Effect<boolean>;
+  /**
+   * Counts a code request from the sign-in page against the address's UTC day, and answers
+   * whether it is within {@link SIGN_IN_CODES_PER_DAY}. Where `bindSiteAuth` binds no cap it
+   * counts nothing and admits every request.
+   */
+  readonly admitCodeRequest: (email: Email) => Effect.Effect<boolean>;
   /** A fresh sign-in code for the address, stored hashed. It is not delivered anywhere. */
   readonly issueSignInCode: (email: Email) => Effect.Effect<SignInCode>;
 }
@@ -99,6 +107,12 @@ const decodeEmail = Schema.decodeUnknownOption(Email);
 const decodeSiteUser = Schema.decodeUnknownEffect(SiteUser);
 const decodeSignInCode = Schema.decodeUnknownEffect(SignInCode);
 const decodeExpiresAt = Schema.decodeUnknownEffect(Schema.DateTimeUtcFromDate);
+const decodeCounted = Schema.decodeUnknownEffect(
+  Schema.Tuple([Schema.Struct({ count: Schema.Number })]),
+);
+
+const isD1Database = (input: unknown): input is Workers.D1Database =>
+  typeof input === "object" && input !== null && "prepare" in input && "batch" in input;
 
 const notFound = HttpServerResponse.text("Not Found", { status: 404 });
 
@@ -113,6 +127,13 @@ const make = <R>(options: AuthOptions<R>) =>
       return yield* Effect.die(
         new Error(`${SITE_AUTH_ENV.authOrigin} is not bound to the Backend`),
       );
+    const dailyCap = yield* Config.option(
+      Config.schema(SignInCodeDailyCap, SITE_AUTH_ENV.dailyCap),
+    ).pipe(Effect.orDie);
+    if (isAlchemyRuntime() && Option.isNone(dailyCap))
+      return yield* Effect.die(new Error(`${SITE_AUTH_ENV.dailyCap} is not bound to the Backend`));
+    const capped = Option.contains(dailyCap, "on");
+    const database = yield* BetterAuthDatabase;
     const context = yield* Effect.context<R>();
     const runPromise = Effect.runPromiseWith(context);
     const run: RunHook<R> = (effect) =>
@@ -238,7 +259,35 @@ const make = <R>(options: AuthOptions<R>) =>
       return yield* decodeSignInCode(code).pipe(Effect.orDie);
     });
 
-    return { serve, session, maySignIn, issueSignInCode } satisfies AuthShape;
+    const d1 = database.runtime.pipe(
+      Effect.flatMap((input) =>
+        isD1Database(input)
+          ? Effect.succeed(input)
+          : Effect.die(new Error("Auth's daily cap needs a D1 database")),
+      ),
+      Effect.provide(RuntimeContext.phantom),
+      Effect.scoped,
+    );
+
+    const admitCodeRequest = Effect.fn("Auth.admitCodeRequest")(function* (email: Email) {
+      if (!capped) return true;
+      const dayStartAt = DateTime.toEpochMillis(DateTime.startOf(yield* DateTime.now, "day"));
+      const db = yield* d1;
+      const [, counted] = yield* Effect.promise(() =>
+        db.batch<{ readonly count: number }>([
+          db.prepare("delete from SignInCodeCount where dayStartAt < ?").bind(dayStartAt),
+          db
+            .prepare(
+              "insert into SignInCodeCount (dayStartAt, email, count) values (?, ?, 1) on conflict (dayStartAt, email) do update set count = count + 1 returning count",
+            )
+            .bind(dayStartAt, email),
+        ]),
+      );
+      const [{ count }] = yield* decodeCounted(counted?.results).pipe(Effect.orDie);
+      return count <= SIGN_IN_CODES_PER_DAY;
+    });
+
+    return { serve, session, maySignIn, admitCodeRequest, issueSignInCode } satisfies AuthShape;
   });
 
 /**

@@ -2,15 +2,15 @@ import { assert, describe, it } from "@effect/vitest";
 import {
   AppInstallations,
   OrphanInstalledError,
-  serveAll,
   SHOP_ACTOR_OBJECTS_LIMIT,
   type ShopActorObject,
-  shopActorObjectFailures,
   shopActorObjectMethods,
   ShopActorObjects,
   ShopActors,
   type ShopDomain,
 } from "@mw10013/shopify-app-cloudflare/backend";
+import { Email } from "@mw10013/shopify-app-cloudflare/contract";
+import { SiteAuthTest } from "@mw10013/shopify-app-cloudflare/test/node";
 import * as Cause from "effect/Cause";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Effect from "effect/Effect";
@@ -18,6 +18,7 @@ import * as Exit from "effect/Exit";
 import * as HttpClient from "effect/http/HttpClient";
 import * as HttpClientResponse from "effect/http/HttpClientResponse";
 import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 
 import { shopDomain } from "./fixtures.ts";
 import { capturingLogs, type Logged } from "./logs.ts";
@@ -264,40 +265,80 @@ describe("ShopActorObjects.destroyOrphan", () => {
 });
 
 describe("shopActorObjectMethods", () => {
-  const served = Effect.gen(function* () {
-    return serveAll(yield* shopActorObjectMethods, shopActorObjectFailures);
-  });
+  const ADMIN = Schema.decodeUnknownSync(Email)("admin@site.test");
+  const USER = Schema.decodeUnknownSync(Email)("user@site.test");
+  const siteAuth = () =>
+    SiteAuthTest.layer({
+      users: [
+        { email: ADMIN, role: "admin" },
+        { email: USER, role: "user" },
+      ],
+    });
+  const signedIn = (email: Email) =>
+    Effect.map(SiteAuthTest.signIn(email), (cookie) => ({ cookie, ip: undefined }));
 
-  it.effect(
-    "serve the three over plain payloads, and a refusal crosses as its plain fields",
+  it.live(
+    "serve the three to an admin over plain payloads, and a refusal crosses as its plain fields",
     () => {
       const destroyedIds: string[] = [];
       return Effect.gen(function* () {
-        const methods = yield* served;
-        assert.deepStrictEqual(yield* methods.shopActorObjects({}), {
+        const methods = yield* shopActorObjectMethods;
+        const request = yield* signedIn(ADMIN);
+        assert.deepStrictEqual(yield* methods.shopActorObjects(request, {}), {
           objects: [{ id: "only" }],
           cursor: undefined,
         });
-        assert.deepStrictEqual(yield* methods.orphanShopActorObjects({ cursor: undefined }), {
-          orphans: [{ id: "only" }],
-          cursor: undefined,
-        });
-        const refused = yield* Effect.flip(methods.destroyOrphan({ id: idOf(LIVE) }));
+        assert.deepStrictEqual(
+          yield* methods.orphanShopActorObjects(request, { cursor: undefined }),
+          { orphans: [{ id: "only" }], cursor: undefined },
+        );
+        const refused = yield* Effect.flip(methods.destroyOrphan(request, { id: idOf(LIVE) }));
         assert.deepStrictEqual(refused, { _tag: "OrphanInstalledError" });
-        yield* methods.destroyOrphan({ id: "only" });
+        yield* methods.destroyOrphan(request, { id: "only" });
         assert.deepStrictEqual(destroyedIds, ["only"]);
       }).pipe(
         Effect.provide(ShopActorObjects.layerTest([[{ id: "only" }]])),
         Effect.provide(services(destroyedIds)),
+        Effect.provide(siteAuth()),
       );
     },
   );
 
-  it.effect("a payload that does not decode is a defect", () =>
+  it.live("refuse anyone signed out or not an admin, and destroy nothing", () => {
+    const destroyedIds: string[] = [];
+    return Effect.gen(function* () {
+      const methods = yield* shopActorObjectMethods;
+      const signedOut = { cookie: undefined, ip: undefined };
+      assert.deepStrictEqual(yield* Effect.flip(methods.destroyOrphan(signedOut, { id: "only" })), {
+        _tag: "UnauthorizedError",
+      });
+      assert.deepStrictEqual(
+        yield* Effect.flip(methods.destroyOrphan(yield* signedIn(USER), { id: "only" })),
+        { _tag: "ForbiddenError" },
+      );
+      assert.deepStrictEqual(yield* Effect.flip(methods.shopActorObjects(signedOut, {})), {
+        _tag: "UnauthorizedError",
+      });
+      assert.deepStrictEqual(destroyedIds, []);
+    }).pipe(
+      Effect.provide(ShopActorObjects.layerTest([[{ id: "only" }]])),
+      Effect.provide(services(destroyedIds)),
+      Effect.provide(siteAuth()),
+    );
+  });
+
+  it.live("a payload that does not decode is a defect", () =>
     Effect.gen(function* () {
-      const methods = yield* served;
-      const exit = yield* Effect.exit(methods.destroyOrphan({ id: "" })).pipe(capturingLogs([]));
+      const methods = yield* shopActorObjectMethods;
+      const request = yield* signedIn(ADMIN);
+      const exit = yield* Effect.exit(methods.destroyOrphan(request, { id: "" })).pipe(
+        capturingLogs([]),
+      );
       assert.isTrue(Exit.isFailure(exit) && Cause.hasDies(exit.cause));
-    }).pipe(Effect.provide(ShopActorObjects.layerTest([])), Effect.provide(services())),
+    }).pipe(
+      Effect.provide(ShopActorObjects.layerTest([])),
+      Effect.provide(services()),
+      Effect.provide(siteAuth()),
+    ),
   );
 });
