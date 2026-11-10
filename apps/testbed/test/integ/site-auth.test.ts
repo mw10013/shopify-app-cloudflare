@@ -10,11 +10,6 @@ import { fileStage } from "./file-stage.ts";
 import { cookieOf, signIn, verify } from "./site-session.ts";
 import Stack from "./stack.ts";
 
-/**
- * Site sign-in through the real Backend in workerd, over D1 migrated from `migrations/` and
- * seeded by the stack: a code requested over `BACKEND`, checked through the Website's
- * `/api/auth/*` forward, and the admin gate on the orphan sweep's methods.
- */
 const { test, beforeAll, afterAll, deploy, destroy } = Test.make({
   providers: Cloudflare.providers(),
   stage: fileStage("siteauth"),
@@ -25,7 +20,6 @@ afterAll.skipIf(!!process.env.NO_DESTROY)(destroy(Stack));
 
 const signedOut = { cookie: undefined, ip: undefined };
 
-/** The actor id of a shop with no installation, which `destroyOrphan` destroys. */
 const orphanId = (websiteUrl: string) =>
   Effect.map(call(websiteUrl, "shopActorId", { shop: "orphan-shop.myshopify.com" }), (outcome) => {
     assert.strictEqual(outcome._tag, "Returned");

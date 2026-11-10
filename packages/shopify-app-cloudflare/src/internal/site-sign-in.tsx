@@ -1,11 +1,3 @@
-/**
- * The site's sign-in page and the browser's two calls to Better Auth: checking a code, which sets
- * the session cookie, and signing out. The page holds no server call of its own: an app's route
- * passes its server function for requesting a code.
- *
- * @module
- */
-
 import * as Duration from "effect/Duration";
 import * as Match from "effect/Match";
 import * as Option from "effect/Option";
@@ -15,7 +7,6 @@ import { useRef, useState } from "react";
 import type { SignInCodeResult } from "./sign-in-code-result.ts";
 import { AUTH_BASE_PATH, Email, SIGN_IN_CODE_TTL } from "./site-auth-contract.ts";
 
-/** How a code check ended. */
 export type VerifyCodeResult =
   | { readonly _tag: "SignedIn" }
   | { readonly _tag: "InvalidCode" }

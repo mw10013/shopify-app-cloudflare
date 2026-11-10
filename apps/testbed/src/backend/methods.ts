@@ -100,15 +100,10 @@ export const counterMethods = Effect.gen(function* () {
   return serveAll({ count }, { count: AuthenticateMerchantFailure });
 });
 
-/** The admin sign-in page's methods: requesting a code, and who is signed in. */
 export const siteMethods = Effect.gen(function* () {
   return serveAll(yield* signInMethods, signInFailures);
 });
 
-/**
- * The `/admin` pages' methods, the orphan sweep's, each behind the package's admin gate: a
- * signed-out request is `UnauthorizedError` and anyone but an admin `ForbiddenError`.
- */
 export const adminMethods = Effect.gen(function* () {
   return yield* serveAdmin(yield* shopActorObjectMethods, shopActorObjectFailures);
 });

@@ -1,7 +1,5 @@
 /**
- * What crosses between the Website, the Backend and the browser for site sign-in: who is signed
- * in, the request fields a Backend method reads, the sign-in code and the refusals. Imports only
- * `effect`, so the Website and the browser load it without Better Auth.
+ * Imports only `effect`, so the Website and the browser load it without Better Auth.
  *
  * @module
  */
@@ -39,7 +37,6 @@ export type Email = typeof Email.Type;
 export const Role = Schema.Literals(["admin", "user"]);
 export type Role = typeof Role.Type;
 
-/** The signed-in site user. */
 export const SiteUser = Schema.Struct({ id: Schema.String, email: Email, role: Role });
 export type SiteUser = typeof SiteUser.Type;
 
@@ -54,10 +51,8 @@ export const RequestInfo = Schema.Struct({
 });
 export type RequestInfo = typeof RequestInfo.Type;
 
-/** How many digits a sign-in code has. */
 export const SIGN_IN_CODE_LENGTH = 6;
 
-/** How long a sign-in code signs its holder in. */
 export const SIGN_IN_CODE_TTL = Duration.minutes(5);
 
 /** How many wrong guesses one sign-in code survives before it is spent. */
@@ -69,7 +64,6 @@ export const SignInCode = Schema.String.check(
 ).pipe(Schema.brand("SignInCode"));
 export type SignInCode = typeof SignInCode.Type;
 
-/** `requestSignInCode`'s input. */
 export const SignInCodeRequest = Schema.Struct({ email: Email });
 export type SignInCodeRequest = typeof SignInCodeRequest.Type;
 

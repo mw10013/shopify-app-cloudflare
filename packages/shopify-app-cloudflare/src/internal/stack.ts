@@ -266,7 +266,6 @@ export const bindE2eSession = Effect.fn("Stack.bindE2eSession")(function* (
 /**
  * Binds what `Auth` and `SignInCodeDelivery.layerConfig` read: `authOrigin`, the Website's URL,
  * which Better Auth serves its endpoints and sets its cookie on, and the stage's `delivery`.
- * The Website already binds the Backend, so its URL goes on as a binding rather than a prop.
  */
 export const bindSiteAuth = Effect.fn("Stack.bindSiteAuth")(function* (
   backend: BindableWorker,

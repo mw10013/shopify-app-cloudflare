@@ -1,10 +1,3 @@
-/**
- * The Website's half of requesting a sign-in code, with no React and no TanStack: the request
- * fields a server function forwards, and the Backend's answer as the sign-in page renders it.
- *
- * @module
- */
-
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 

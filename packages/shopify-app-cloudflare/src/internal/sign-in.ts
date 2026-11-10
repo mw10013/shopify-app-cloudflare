@@ -1,10 +1,3 @@
-/**
- * Requesting a sign-in code: the rate limit, the delivery the stage chose, the mail, and the
- * Backend methods and control door procedure over them.
- *
- * @module
- */
-
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import { RuntimeContext } from "alchemy";
 import * as Config from "effect/Config";

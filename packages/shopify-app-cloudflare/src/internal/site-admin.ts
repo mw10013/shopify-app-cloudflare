@@ -1,10 +1,3 @@
-/**
- * The admin gate: the Backend checks the session of every admin method's request itself, where the
- * sessions and roles are, so no Website route can skip it.
- *
- * @module
- */
-
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
@@ -44,8 +37,7 @@ export type AdminServed<M, F extends { readonly [K in keyof M]: Failures }> = {
  * Every method of `methods` as an admin's Backend method, each through `serve` as `serveAll`
  * serves them: it takes the request's {@link RequestInfo} first, runs {@link requireAdmin} on it
  * before the method, and declares `UnauthorizedError` and `ForbiddenError` beside its
- * `failures` entry. The method itself never sees the request, so an admin method cannot be
- * served without the gate.
+ * `failures` entry.
  *
  * @example
  * ```ts

@@ -1,11 +1,3 @@
-/**
- * `SiteAuthTest`: the package's site auth over a fresh `D1Test`, for an app's unit tests and the
- * package's own: Better Auth on the migrated tables, the stage's delivery choice over a recording
- * mailer, and a limiter. Node only, for `D1Test`.
- *
- * @module
- */
-
 import { Database as BetterAuthDatabase } from "@alchemy.run/better-auth";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Effect from "effect/Effect";

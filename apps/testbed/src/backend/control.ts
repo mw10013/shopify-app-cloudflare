@@ -1,7 +1,5 @@
 /**
- * The testbed's control door: what a test runner calls on a stage to drive it, over Effect RPC at
- * {@link CONTROL_PATH}, forwarded by the Website. It mounts the package's site auth procedures
- * (`SiteAuthControlRpcs`) and nothing else yet.
+ * The testbed's control door: what a test runner calls on a stage to drive it.
  *
  * @module
  */
@@ -22,9 +20,8 @@ import * as Schema from "effect/Schema";
 export const CONTROL_PATH = "/api/control";
 
 /**
- * Who may call the door: anyone (`open`, on the disposable `dev`, `test` and `e2e` stages) or a
- * caller bearing `CONTROL_TOKEN` (`token`, on staging). Production binds neither, and its door
- * answers `404`.
+ * Who may call the door: anyone (`open`) or a caller bearing `CONTROL_TOKEN` (`token`). With
+ * neither bound, the door answers `404`.
  */
 export const ControlAccess = Schema.Literals(["open", "token"]);
 export type ControlAccess = typeof ControlAccess.Type;
@@ -32,11 +29,7 @@ export type ControlAccess = typeof ControlAccess.Type;
 const digest = (text: string) =>
   Effect.promise(() => crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
 
-/**
- * Whether a call with `authorization` may use the door. `token` admits only `Bearer <token>`,
- * compared by digest in constant time, and admits nothing when the stage has no token, so a
- * staging Backend deployed without one is closed rather than open.
- */
+/** `token` admits only `Bearer <token>`, compared by digest in constant time. */
 export const controlAllows = Effect.fnUntraced(function* (
   access: ControlAccess,
   token: Option.Option<Redacted.Redacted>,
@@ -51,7 +44,6 @@ export const controlAllows = Effect.fnUntraced(function* (
   return diff === 0;
 });
 
-/** The door, built in the Backend's init: whether a path is its, and its answer to a request. */
 export const control = Effect.gen(function* () {
   const access = yield* Config.option(Config.schema(ControlAccess, "CONTROL_ACCESS")).pipe(
     Effect.orDie,

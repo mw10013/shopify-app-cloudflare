@@ -2,9 +2,6 @@
 -- them out for the package's plugins (email OTP and admin). Shipped by the package; an app keeps a
 -- byte-identical copy in its own migrations/ folder, which `expectMigrationsSynced` checks.
 --
--- The package's Auth layer runs Better Auth with `migrate: false`, so these files are the schema;
--- a package test holds them equal to what Better Auth's own migration would create.
---
 -- Better Auth owns the rows and stores instants as ISO text and booleans as 0 or 1. An admin is a
 -- user row whose role is 'admin', written by the stage's auth seed; sign-in never writes one.
 

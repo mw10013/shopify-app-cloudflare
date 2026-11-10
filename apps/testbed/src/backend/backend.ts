@@ -38,14 +38,9 @@ import { Database, Email, SignInLimit } from "./resources.ts";
 import { ShopActor, ShopActorLive } from "./shop-actor.ts";
 
 /**
- * The Backend's init, built once per isolate. `fetch` serves Shopify's webhooks under
- * `/webhooks/` ({@link Webhooks}), the shop actor's sockets under `/api/actor/<shop>`
- * ({@link actorUpgrade}), Better Auth's code check and sign-out under `/api/auth/` ({@link Auth})
- * and the control door, each forwarded by the Website; anything else is 404. The methods
- * ({@link backendMethods}, {@link counterMethods}, {@link siteMethods}, {@link adminMethods})
- * serve the Website over the binding. A daily cron, `17 4 * * *`, revalidates every stale plan
- * ({@link SubscriptionPlan}); the event source swallows a handler's failure, so `scheduledJob`
- * logs it.
+ * The Backend's init, built once per isolate. A daily cron, `17 4 * * *`, revalidates every stale
+ * plan ({@link SubscriptionPlan}); the event source swallows a handler's failure, so
+ * `scheduledJob` logs it.
  */
 export const backendBody = Effect.gen(function* () {
   const webhooks = yield* Webhooks;
@@ -87,11 +82,6 @@ const shopifyAccess = Layer.unwrap(
   ),
 );
 
-/**
- * Site sign-in for the testbed's admin: sign-up closed, so only the users the stage's seed writes
- * sign in. Codes go where the stage's `SIGN_IN_CODE_DELIVERY` says, mailed through the Email
- * Service binding, and requests are limited per client and per address by {@link SignInLimit}.
- */
 const siteAuth = Layer.mergeAll(
   Auth.layer({ signUp: SIGN_UP_CLOSED }),
   SignInCodeDelivery.layerConfig({ appName: "Workers Testbed" }).pipe(

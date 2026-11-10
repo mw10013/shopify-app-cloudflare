@@ -1,10 +1,3 @@
-/**
- * `Auth`: site sign-in over Better Auth with email OTP as the only way in, and the admin plugin's
- * `role`. The app supplies who may sign up and its own database hooks; the package owns the rest.
- *
- * @module
- */
-
 import { BetterAuth, type Database as BetterAuthDatabase } from "@alchemy.run/better-auth";
 import { RuntimeContext } from "alchemy";
 import type { BetterAuthOptions } from "better-auth";
@@ -88,7 +81,6 @@ export interface AuthShape {
   readonly issueSignInCode: (email: Email) => Effect.Effect<SignInCode>;
 }
 
-/** Better Auth's log levels as Effect's, so its lines carry the Backend's log format. */
 const BETTER_AUTH_SEVERITY = {
   debug: "Debug",
   info: "Info",
@@ -192,7 +184,6 @@ const make = <R>(options: AuthOptions<R>) =>
           );
         },
       },
-      // Code requests are limited per client and per address by `SignInLimiter` instead.
       rateLimit: { enabled: false },
     });
 
@@ -255,11 +246,10 @@ const make = <R>(options: AuthOptions<R>) =>
  * in context (`CloudflareD1(database)` in a Worker), on the tables of the package's
  * `0000_sac_02_better_auth.sql`. A user is created only on a first sign-in the app's
  * {@link SignUpRule} admits, always with the role `user`; an admin is a user the stage's seed
- * writes with the role `admin`. Codes are six digits and stored hashed; only an address's newest
- * code is valid, for {@link SIGN_IN_CODE_TTL} and {@link SIGN_IN_CODE_ATTEMPTS} wrong guesses.
- * Better Auth sends
- * nothing itself: the Backend's `requestSignInCode` issues a code and hands it to
- * `SignInCodeDelivery`.
+ * writes with the role `admin`. Codes are {@link SIGN_IN_CODE_LENGTH} digits and stored hashed;
+ * only an address's newest code is valid, for {@link SIGN_IN_CODE_TTL} and
+ * {@link SIGN_IN_CODE_ATTEMPTS} wrong guesses. Better Auth sends nothing itself: the Backend's
+ * `requestSignInCode` issues a code and hands it to `SignInCodeDelivery`.
  */
 export class Auth extends Context.Service<Auth, AuthShape>()("app/Auth") {
   static readonly layer = <R = never>(

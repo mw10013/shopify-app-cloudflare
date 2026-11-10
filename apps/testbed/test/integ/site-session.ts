@@ -1,10 +1,3 @@
-/**
- * Site sessions for integ: a code checked through the test Website's `/api/auth/*` forward, which
- * sets the session cookie, and that cookie as a server function forwards it.
- *
- * @module
- */
-
 import * as Test from "@alchemy.run/test/Vitest";
 import { assert } from "@effect/vitest";
 import { Email, SiteAuthControlRpcs } from "@mw10013/shopify-app-cloudflare/contract";
@@ -16,7 +9,6 @@ import { CONTROL_PATH } from "#backend/control.ts";
 
 const email = Schema.decodeUnknownSync(Email);
 
-/** Checks `code` through the Website's forward; answers the response. */
 export const verify = (websiteUrl: string, address: string, code: string) =>
   Effect.promise(() =>
     fetch(new URL("api/auth/sign-in/email-otp", websiteUrl), {
@@ -32,7 +24,6 @@ export const cookieOf = (response: Response) =>
     .map((cookie) => cookie.split(";")[0])
     .join("; ");
 
-/** A code from the control door, which skips the rate limit, checked into a session cookie. */
 export const signIn = (
   urls: { readonly backendUrl: string; readonly websiteUrl: string },
   address: string,

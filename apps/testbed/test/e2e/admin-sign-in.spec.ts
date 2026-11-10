@@ -1,11 +1,3 @@
-/**
- * The admin's sign-in on the Website itself, outside the Shopify admin: a signed-out visit to
- * `/admin` goes to sign-in, the code the page shows under inline delivery is typed in, and the
- * admin lands on `/admin`, then signs out.
- *
- * @module
- */
-
 import { awaitHydration, expect, test } from "@mw10013/shopify-app-cloudflare/test/e2e";
 
 import { TEST_ADMIN } from "#root/stacks/site-auth.ts";
