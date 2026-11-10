@@ -63,8 +63,9 @@ const isDirectory = (file: string) =>
 
 /**
  * Moves a ledger left at `previous` to `current`. Apps locked on 0.8.0 read `previous`, so a symlink
- * there keeps them on the same ledger. The rename is atomic, so of two racing processes the loser
- * finds `current` taken and does nothing.
+ * there keeps them on the same ledger; every run restores a missing one, since a crash between the
+ * rename and the symlink would send 0.8.0 to a fresh, empty ledger. The rename is atomic, so of two
+ * racing processes the loser finds `current` taken.
  */
 const adoptLedger = Effect.fn("Settings.adoptLedger")(function* (
   previous: string,
@@ -72,19 +73,25 @@ const adoptLedger = Effect.fn("Settings.adoptLedger")(function* (
 ) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
-  if (!(yield* isDirectory(previous))) return;
   const conflict = () =>
     Effect.flatMap(isDirectory(previous), (stillThere) =>
       stillThere ? new LedgerDirectoryConflictError({ previous, current }) : Effect.void,
     );
-  if (yield* isDirectory(current)) return yield* conflict();
-  yield* fs.makeDirectory(path.dirname(current), { recursive: true }).pipe(Effect.orDie);
-  const renamed = yield* fs.rename(previous, current).pipe(
-    Effect.as(true),
-    Effect.catchTag("PlatformError", () => Effect.succeed(false)),
+  if (yield* isDirectory(previous)) {
+    if (yield* isDirectory(current)) return yield* conflict();
+    yield* fs.makeDirectory(path.dirname(current), { recursive: true }).pipe(Effect.orDie);
+    const renamed = yield* fs.rename(previous, current).pipe(
+      Effect.as(true),
+      Effect.catchTag("PlatformError", () => Effect.succeed(false)),
+    );
+    if (!renamed) yield* conflict();
+  }
+  if (Option.isSome(yield* typeOf(previous)) || !(yield* isDirectory(current))) return;
+  yield* fs.makeDirectory(path.dirname(previous), { recursive: true }).pipe(Effect.orDie);
+  yield* fs.symlink(current, previous).pipe(
+    Effect.catchReason("PlatformError", "AlreadyExists", () => Effect.void),
+    Effect.orDie,
   );
-  if (!renamed) return yield* conflict();
-  yield* fs.symlink(current, previous).pipe(Effect.orDie);
 });
 
 /** Beside `pool.json`, adopting the ledger that 0.8.0 kept under `berth/`. */

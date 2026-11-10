@@ -77,6 +77,14 @@ describe("ledgerDirectory", () => {
     expect(names(current)).toEqual(["g-3.json"]);
   });
 
+  it("restores the symlink a crash after the move left out", async () => {
+    fs.mkdirSync(current, { recursive: true });
+    fs.writeFileSync(path.join(current, "g-2.json"), '{"leases":[]}');
+    expect(await Effect.runPromise(provide(ledgerDirectory))).toBe(current);
+    expect(fs.readlinkSync(previous)).toBe(current);
+    expect(names(previous)).toEqual(["g-2.json"]);
+  });
+
   it("converges when racing processes all find the previous ledger", async () => {
     fs.mkdirSync(previous, { recursive: true });
     fs.writeFileSync(path.join(previous, "g-1.json"), '{"leases":[]}');
