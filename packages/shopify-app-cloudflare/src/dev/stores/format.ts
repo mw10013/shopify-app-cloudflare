@@ -1,6 +1,6 @@
 /**
- * Every state file this package writes carries `"format": 1`. A file without one is format 1, which
- * the global berth wrote before the field existed. A reader that finds another format fails before
+ * Every state file this package writes carries `"format": 1`. A file without one is format 1, written
+ * before the field existed. A reader that finds another format fails before
  * it writes anything, so an old package never rewrites a file a newer one made.
  *
  * @module

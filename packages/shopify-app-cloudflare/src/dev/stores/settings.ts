@@ -10,9 +10,7 @@ import type { App } from "@mw10013/rigging/core/app";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
-import * as Option from "effect/Option";
 import * as Path from "effect/Path";
-import * as Schema from "effect/Schema";
 
 import { CheckoutPath, MachineName, type Policy, ProjectName } from "./domain.ts";
 import { formattedText, readFormatted } from "./format.ts";
@@ -39,68 +37,9 @@ const stateDirectory = Effect.gen(function* () {
   );
 }).pipe(Effect.orDie);
 
-export class LedgerDirectoryConflictError extends Schema.TaggedError<LedgerDirectoryConflictError>()(
-  "LedgerDirectoryConflictError",
-  { previous: Schema.String, current: Schema.String },
-) {
-  override get message() {
-    return `${this.previous} and ${this.current} are both ledger directories: merge them into ${this.current} by hand and delete ${this.previous}`;
-  }
-}
-
-const typeOf = (file: string) =>
-  Effect.gen(function* () {
-    const fs = yield* FileSystem.FileSystem;
-    return yield* fs.lstat(file).pipe(
-      Effect.map((info) => Option.some(info.type)),
-      Effect.catchReason("PlatformError", "NotFound", () => Effect.succeedNone),
-      Effect.orDie,
-    );
-  });
-
-const isDirectory = (file: string) =>
-  Effect.map(typeOf(file), (type) => Option.exists(type, (type) => type === "Directory"));
-
-/**
- * Moves a ledger left at `previous` to `current`. Apps locked on 0.8.0 read `previous`, so a symlink
- * there keeps them on the same ledger; every run restores a missing one, since a crash between the
- * rename and the symlink would send 0.8.0 to a fresh, empty ledger. The rename is atomic, so of two
- * racing processes the loser finds `current` taken.
- */
-const adoptLedger = Effect.fn("Settings.adoptLedger")(function* (
-  previous: string,
-  current: string,
-) {
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
-  const conflict = () =>
-    Effect.flatMap(isDirectory(previous), (stillThere) =>
-      stillThere ? new LedgerDirectoryConflictError({ previous, current }) : Effect.void,
-    );
-  if (yield* isDirectory(previous)) {
-    if (yield* isDirectory(current)) return yield* conflict();
-    yield* fs.makeDirectory(path.dirname(current), { recursive: true }).pipe(Effect.orDie);
-    const renamed = yield* fs.rename(previous, current).pipe(
-      Effect.as(true),
-      Effect.catchTag("PlatformError", () => Effect.succeed(false)),
-    );
-    if (!renamed) yield* conflict();
-  }
-  if (Option.isSome(yield* typeOf(previous)) || !(yield* isDirectory(current))) return;
-  yield* fs.makeDirectory(path.dirname(previous), { recursive: true }).pipe(Effect.orDie);
-  yield* fs.symlink(current, previous).pipe(
-    Effect.catchReason("PlatformError", "AlreadyExists", () => Effect.void),
-    Effect.orDie,
-  );
-});
-
-/** Beside `pool.json`, adopting the ledger that 0.8.0 kept under `berth/`. */
 export const ledgerDirectory = Effect.gen(function* () {
   const path = yield* Path.Path;
-  const state = yield* stateDirectory;
-  const current = path.join(state, "shopify-app-cloudflare", "stores", "ledger");
-  yield* adoptLedger(path.join(state, "berth", "ledger"), current);
-  return current;
+  return path.join(yield* stateDirectory, "shopify-app-cloudflare", "stores", "ledger");
 });
 
 export const poolFile = Effect.gen(function* () {

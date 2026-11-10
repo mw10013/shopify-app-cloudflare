@@ -26,7 +26,6 @@ export { AdoptRefusedError, StorePoolExhaustedError } from "./stores/domain.ts";
 export { StateFileInvalidError, UnsupportedFormatError } from "./stores/format.ts";
 export { UnknownEnvError } from "./stores/lease.ts";
 export { LedgerContendedError } from "./stores/ledger.ts";
-export { LedgerDirectoryConflictError } from "./stores/settings.ts";
 
 /** An environment's store, and the app config it runs with. */
 export interface EnvironmentStore {
