@@ -305,15 +305,21 @@ const sqlText = (value: string) => `'${value.replaceAll("'", "''")}'`;
 /**
  * The SQL that writes `users` into Better Auth's `user` table as Better Auth stores a row (ISO
  * text instants, 0 or 1 booleans), one statement each. A user whose address is already there
- * keeps its id and takes the seed's role, so the seed alone decides who is an admin.
+ * keeps its id and takes the seed's role, and an admin the seed no longer lists becomes a `user`,
+ * so the seed alone decides who is an admin.
  */
-export const siteUserSeedSql = (users: readonly SiteUserSeed[]): string =>
-  users
-    .map(({ email, role }) => {
+export const siteUserSeedSql = (users: readonly SiteUserSeed[]): string => {
+  const admins = users
+    .filter(({ role }) => role === "admin")
+    .map(({ email }) => sqlText(decodeEmail(email)));
+  return [
+    `update user set role = 'user' where role = 'admin'${admins.length === 0 ? "" : ` and email not in (${admins.join(", ")})`};`,
+    ...users.map(({ email, role }) => {
       const address = sqlText(decodeEmail(email));
       return `insert into user (id, name, email, emailVerified, role, banned, createdAt, updatedAt) values (${sqlText(`seed:${decodeEmail(email)}`)}, ${address}, ${address}, 1, ${sqlText(role)}, 0, '${SEEDED_AT}', '${SEEDED_AT}') on conflict (email) do update set role = excluded.role;`;
-    })
-    .join("\n");
+    }),
+  ].join("\n");
+};
 
 const SiteUsersSeed = (database: Cloudflare.D1.Database) =>
   Alchemy.Action(

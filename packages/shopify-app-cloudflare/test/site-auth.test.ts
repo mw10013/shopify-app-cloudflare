@@ -14,6 +14,7 @@ import {
   SignInCodeRequested,
   SiteAuthControlRpcs,
 } from "@mw10013/shopify-app-cloudflare/contract";
+import { siteUserSeedSql } from "@mw10013/shopify-app-cloudflare/stack";
 import { D1Test, SiteAuthTest } from "@mw10013/shopify-app-cloudflare/test/node";
 import { getMigrations } from "better-auth/db/migration";
 import { admin, emailOTP } from "better-auth/plugins";
@@ -351,6 +352,23 @@ describe("serveAdmin", () => {
       assert.deepStrictEqual(yield* crossed(served.refuse(NO_REQUEST)), {
         _tag: "UnauthorizedError",
       });
+    }).pipe(Effect.provide(layer())),
+  );
+
+  it.live("refuses an admin the seed no longer lists, on the session it already has", () =>
+    Effect.gen(function* () {
+      const served = yield* serveAdmin(methods, failures);
+      const cookie = yield* SiteAuthTest.signIn(ADMIN);
+      const { sqlite } = yield* D1Test;
+      sqlite.exec(siteUserSeedSql([{ email: USER, role: "admin" }]));
+      assert.deepStrictEqual(yield* crossed(served.ping({ cookie, ip: undefined }, { id: "1" })), {
+        _tag: "ForbiddenError",
+      });
+      const promoted = yield* SiteAuthTest.signIn(USER);
+      assert.strictEqual(
+        yield* served.ping({ cookie: promoted, ip: undefined }, { id: "2" }),
+        "pong 2",
+      );
     }).pipe(Effect.provide(layer())),
   );
 
