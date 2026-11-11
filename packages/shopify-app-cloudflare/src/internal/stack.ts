@@ -35,8 +35,8 @@ import {
   FAKE_SHOPIFY_API_SECRET,
 } from "#test/fake-app.ts";
 
+import { type AppIdentity, readAppIdentity } from "./app-identity.ts";
 import {
-  AppHandle,
   type PartnerConfig,
   partnerConfig,
   SHOP_ACTOR_OBJECTS_BINDING,
@@ -73,51 +73,8 @@ const appTokenKeyConfig = Config.all({
   appTokenKid: Config.String("SHOPIFY_APP_TOKEN_KID"),
 });
 
-const decodeAppHandle = Schema.decodeUnknownSync(AppHandle);
-
-/** A Shopify app's client ID, the toml's `client_id`, which is its API key: 32 hex digits. */
-const ClientId = Schema.NonEmptyString.check(Schema.isPattern(/^[0-9a-f]{32}$/u));
-const decodeClientId = Schema.decodeUnknownSync(ClientId);
-
 const pathOf = (tomlPath: string | URL): string =>
   tomlPath instanceof URL ? fileURLToPath(tomlPath) : tomlPath;
-
-/** An app's public identity, as its stage's `shopify.app*.toml` writes it. */
-export interface AppIdentity {
-  /** The top-level `handle`. */
-  readonly handle: string;
-  /** The top-level `client_id`, which Shopify calls the app's API key. */
-  readonly apiKey: string;
-}
-
-/**
- * The public identity of the app the toml at `tomlPath` configures: its top-level `handle` and
- * `client_id`, read from the lines before the first table header. A stage's toml is the one place
- * its app's identity is written, so the stack reads it rather than its environment. Throws,
- * naming the path, when the file is missing or either key is absent or malformed.
- */
-export const readAppIdentity = (tomlPath: string | URL): AppIdentity => {
-  const where = pathOf(tomlPath);
-  let contents: string;
-  try {
-    contents = readFileSync(tomlPath, "utf8");
-  } catch (cause) {
-    throw new Error(`readAppIdentity: cannot read ${where}`, { cause });
-  }
-  const values = new Map<string, string>();
-  for (const raw of contents.split("\n")) {
-    const line = raw.replace(/#.*$/u, "").trim();
-    if (line.startsWith("[")) break;
-    const match = /^(?<key>handle|client_id)\s*=\s*"(?<value>[^"]*)"$/u.exec(line)?.groups;
-    if (match?.key !== undefined && match.value !== undefined) values.set(match.key, match.value);
-  }
-  const value = (key: string) => {
-    const found = values.get(key);
-    if (found === undefined) throw new Error(`readAppIdentity: ${where} has no top-level ${key}`);
-    return found;
-  };
-  return { handle: decodeAppHandle(value("handle")), apiKey: decodeClientId(value("client_id")) };
-};
 
 /** {@link readAppIdentity} as a `Config`, so a stage that never reaches it never reads the file. */
 const appIdentityConfig = (tomlPath: string | URL): Config.Config<AppIdentity> =>

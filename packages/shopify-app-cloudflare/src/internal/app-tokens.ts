@@ -14,25 +14,17 @@ import * as Data from "effect/Data";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
-import * as Base64 from "effect/encoding/Base64";
-import * as Base64Url from "effect/encoding/Base64Url";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
-import * as Redacted from "effect/Redacted";
-import * as Result from "effect/Result";
+import type * as Redacted from "effect/Redacted";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 
+import { importAppTokenKey, signAssertion } from "./app-token-assertion.ts";
 import { appTokenConfig } from "./bindings.ts";
 import { AppNotInstalledError, type ShopifyUnavailableError } from "./contract.ts";
 import type { ShopDomain } from "./domain.ts";
 import { isAlchemyRuntime, unavailable } from "./shopify-client.ts";
-
-/** How long an assertion is valid, well inside Shopify's 300 s limit. */
-export const ASSERTION_LIFETIME = Duration.seconds(60);
-
-/** How far back an assertion's `iat` is set, for clock skew. */
-const ASSERTION_CLOCK_SKEW = Duration.seconds(5);
 
 /**
  * One HTTP attempt of a mint. An abandoned attempt needs no settling: whatever it issued retires
@@ -90,32 +82,6 @@ const decodeMintResponse = Schema.decodeUnknownEffect(MintResponse);
 const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown));
 const decodeErrorField = Schema.decodeUnknownOption(Schema.Struct({ error: Schema.String }));
 
-const PEM_ARMOR = /-----(?:BEGIN|END) PRIVATE KEY-----/gu;
-
-/**
- * Imports the PKCS #8 PEM as a non-extractable ECDSA P-256 signing key, once per isolate. A key
- * that does not import is a defect naming `SHOPIFY_APP_TOKEN_KEY`.
- */
-export const importAppTokenKey = (pem: Redacted.Redacted) =>
-  Effect.gen(function* () {
-    const der = Base64.decode(Redacted.value(pem).replaceAll(PEM_ARMOR, "").replaceAll(/\s/gu, ""));
-    if (Result.isFailure(der))
-      return yield* Effect.die(new Error("SHOPIFY_APP_TOKEN_KEY is not a PEM"));
-    return yield* Effect.tryPromise({
-      try: () =>
-        crypto.subtle.importKey(
-          "pkcs8",
-          new Uint8Array(der.success),
-          { name: "ECDSA", namedCurve: "P-256" },
-          false,
-          ["sign"],
-        ),
-      catch: () => new Error("SHOPIFY_APP_TOKEN_KEY is not a PKCS #8 P-256 private key"),
-    }).pipe(Effect.orDie);
-  });
-
-const segment = (value: unknown) => Base64Url.encode(JSON.stringify(value));
-
 /** Logs `AppTokens.mint: shop=<shop> status=<status>`, with the response's `x-request-id`. */
 const logMint = (
   log: (message: string) => Effect.Effect<void>,
@@ -132,32 +98,11 @@ const logMint = (
 
 const make = (options: AppTokensOptions) =>
   Effect.gen(function* () {
-    const key = yield* importAppTokenKey(options.key);
-    const header = segment({ alg: "ES256", kid: options.kid, typ: "JWT" });
-
-    const assertion = Effect.fnUntraced(function* (shop: ShopDomain) {
-      const iat = Math.floor(
-        DateTime.toEpochMillis(
-          DateTime.subtractDuration(yield* DateTime.now, ASSERTION_CLOCK_SKEW),
-        ) / 1000,
-      );
-      const signingInput = `${header}.${segment({
-        iss: options.clientId,
-        sub: options.clientId,
-        aud: `https://${shop}/admin/oauth/access_token`,
-        iat,
-        exp: iat + Duration.toSeconds(ASSERTION_LIFETIME),
-        jti: crypto.randomUUID(),
-      })}`;
-      const signature = yield* Effect.promise(() =>
-        crypto.subtle.sign(
-          { name: "ECDSA", hash: "SHA-256" },
-          key,
-          new TextEncoder().encode(signingInput),
-        ),
-      );
-      return `${signingInput}.${Base64Url.encode(new Uint8Array(signature))}`;
-    });
+    const signer = {
+      clientId: options.clientId,
+      kid: options.kid,
+      key: yield* importAppTokenKey(options.key),
+    };
 
     /**
      * One request, signed afresh. `redirect: "manual"`, since workerd refuses `"error"`; a 3xx is
@@ -168,7 +113,7 @@ const make = (options: AppTokensOptions) =>
         grant_type: "client_credentials",
         client_id: options.clientId,
         client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-        client_assertion: yield* assertion(shop),
+        client_assertion: yield* signAssertion(signer, shop),
       });
       const sentAt = yield* DateTime.now;
       const { status, text, requestId } = yield* Effect.tryPromise({
