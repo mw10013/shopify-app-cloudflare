@@ -11,7 +11,7 @@
 import { execFile } from "node:child_process";
 
 import * as Schema from "effect/Schema";
-import { expect, type Locator, type Page } from "playwright/test";
+import { expect, type Locator, type Page, test } from "playwright/test";
 
 import { appFrame } from "#dev/embedded-app.ts";
 
@@ -83,11 +83,75 @@ export const onLeasedStore = (page: Page, app: E2eApp) => {
   return url === admin || (url.startsWith(admin) && /^[/?#]/u.test(url.slice(admin.length)));
 };
 
+const APP_FRAME = 'iframe[src*="embedded=1"]:not([src*="chrome=window"])';
+
+/** The app frame's `src` with the values of its short-lived credentials dropped. */
+const redactedSrc = (src: string) => {
+  if (!URL.canParse(src)) return src;
+  const url = new URL(src);
+  for (const key of ["id_token", "hmac", "session"])
+    if (url.searchParams.has(key)) url.searchParams.set(key, "…");
+  return url.href;
+};
+
+/**
+ * Whether Shopify answered opening the app with its `same_site_cookies` OAuth error, which it
+ * shows as "The app couldn't be loaded" on Settings > Apps. Measured on 2026-11-11: every fourth
+ * opening of the install URL by one login, however spaced, redirects there at once, and the next
+ * one lands in the app.
+ */
+const refusedOAuth = (page: Page) =>
+  new URL(page.url()).searchParams.get("oauth_error") === "same_site_cookies";
+
+/** Each app frame on `page`: its `src`, and its document's state, title and first text. */
+const appFrames = async (page: Page) => {
+  const handles = await page
+    .locator(APP_FRAME)
+    .elementHandles()
+    .catch(() => []);
+  if (handles.length === 0) return "no app frame";
+  const frames = await Promise.all(
+    handles.map(async (handle) => {
+      const src = redactedSrc((await handle.getAttribute("src").catch(() => null)) ?? "(no src)");
+      const document = await handle
+        .contentFrame()
+        .then((frame) =>
+          frame?.evaluate(
+            () =>
+              `${globalThis.document.readyState}, title "${globalThis.document.title}", text "${(globalThis.document.body?.textContent ?? "").replaceAll(/\s+/gu, " ").trim().slice(0, 200)}"`,
+          ),
+        )
+        .catch((error: unknown) => `unreadable (${String(error).split("\n")[0]})`);
+      return `${src}: ${document ?? "no document"}`;
+    }),
+  );
+  return `${String(frames.length)} app frame(s): ${frames.join("; ")}`;
+};
+
+/** Attaches a full-page screenshot of `page` to the running test, if any. */
+const attachScreenshot = async (page: Page) => {
+  const info = (() => {
+    try {
+      return test.info();
+    } catch {
+      return undefined;
+    }
+  })();
+  if (info === undefined) return;
+  const path = info.outputPath(`unexpected-screen-${String(info.attachments.length)}.png`);
+  const taken = await page.screenshot({ fullPage: true, path, timeout: 5000 }).then(
+    () => true,
+    () => false,
+  );
+  if (taken) await info.attach("unexpected screen", { path, contentType: "image/png" });
+};
+
 /**
  * Names the screen `page` shows when a wait for `expected` timed out: a page on another store than
  * the leased one is named by its store alone ({@link requireLeasedStore}); a lapsed login and
- * Shopify's connection check need the owner; anything else is quoted by its URL, title and first
- * heading, for the owner to look at in the agent Chrome.
+ * Shopify's connection check need the owner; a refused opening ({@link refusedOAuth}) and a rate
+ * limit need another try; anything else is quoted by its URL, title and first
+ * heading with the state of the app's frames, and a screenshot of it is attached to the test.
  */
 export const screenError = async (page: Page, app: E2eApp, expected: string, cause?: unknown) => {
   const store = foreignStore(page, app);
@@ -104,6 +168,11 @@ export const screenError = async (page: Page, app: E2eApp, expected: string, cau
       `Waiting for ${expected}, Shopify's connection check held the agent Chrome at ${url}. Rerun in a few minutes; if it persists, the owner passes the check in the agent Chrome (vp run browser login).`,
       { cause },
     );
+  if (refusedOAuth(page))
+    return new ShopifyScreenError(
+      `Waiting for ${expected}, Shopify refused to open the app at ${url} ("The app couldn't be loaded", oauth_error=same_site_cookies), as it does on every fourth opening of its install URL; opening it again lands in the app.`,
+      { cause },
+    );
   if (await visible(page.getByText(/too many requests|rate limit/iu)))
     return new ShopifyScreenError(
       `Waiting for ${expected}, Shopify rate limited the agent Chrome at ${url}. Rerun in a few minutes.`,
@@ -114,8 +183,10 @@ export const screenError = async (page: Page, app: E2eApp, expected: string, cau
     .first()
     .textContent({ timeout: 1000 })
     .catch(() => null);
+  const frames = await appFrames(page);
+  if (onLeasedStore(page, app)) await attachScreenshot(page);
   return new ShopifyScreenError(
-    `Waiting for ${expected}, Shopify showed an unexpected screen: ${url} titled "${title}"${heading === null ? "" : `, heading "${heading.trim()}"`}. The owner opens it in the agent Chrome to see what changed.`,
+    `Waiting for ${expected}, Shopify showed an unexpected screen: ${url} titled "${title}"${heading === null ? "" : `, heading "${heading.trim()}"`}; ${frames}. The owner opens it in the agent Chrome to see what changed.`,
     { cause },
   );
 };
@@ -145,6 +216,8 @@ export type AdminLanding =
   | { readonly _tag: "Installing" }
   | { readonly _tag: "App" }
   | { readonly _tag: "PlanSelection" }
+  /** Shopify refused to open the app this time ({@link refusedOAuth}). */
+  | { readonly _tag: "OAuthRefused" }
   /** The app's frame loads its released URL: the store has the app, but no dev preview of it. */
   | { readonly _tag: "DevPreviewEnded"; readonly src: string };
 
@@ -156,11 +229,12 @@ export type AdminLanding =
 export const awaitLanding = async (page: Page, app: E2eApp): Promise<AdminLanding> => {
   const tunnel = new URL(app.server.tunnel).origin;
   const install = page.getByRole("heading", { name: "Install app", level: 1 });
-  const frame = page.locator('iframe[src*="embedded=1"]:not([src*="chrome=window"])');
+  const frame = page.locator(APP_FRAME);
   const ready = appFrame(page).getByTestId("shop");
   const read = async (): Promise<AdminLanding | undefined> => {
     requireLeasedStore(page, app);
     if (page.url().startsWith(planSelectionUrl(app))) return { _tag: "PlanSelection" };
+    if (refusedOAuth(page)) return { _tag: "OAuthRefused" };
     if (await visible(install)) return { _tag: "Installing" };
     if ((await frame.count()) > 0) {
       const src = (await frame.first().getAttribute("src")) ?? "";
