@@ -6,7 +6,6 @@
  * @module
  */
 
-import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
@@ -37,22 +36,6 @@ export const d1Store = (options: D1TestOptions) =>
     // call's `Scope`.
     Effect.map(D1Test, ({ database }) => AppInstallationStore.layerD1(Effect.succeed(database))),
   ).pipe(Layer.provideMerge(D1Test.layer(options)));
-
-/** Writes a seeded row's refresh columns, as the refresh design stored them, outside the store. */
-export const legacyWriter = (d1: D1Test["Service"]) => (row: SeedInstallation) =>
-  Effect.sync(() => {
-    d1.sqlite
-      .prepare(
-        "update AppInstallation set refreshToken = ?, refreshTokenExpiresAt = ? where shop = ?",
-      )
-      .run(
-        row.refreshToken ?? null,
-        row.refreshTokenExpiresAt === undefined || row.refreshTokenExpiresAt === null
-          ? null
-          : DateTime.toEpochMillis(row.refreshTokenExpiresAt),
-        row.shop,
-      );
-  });
 
 /** The library adapter and `AppTokens` over the fake app's credentials and signing key. */
 export const fakeAppClients = Layer.merge(
@@ -107,9 +90,8 @@ const layer = <Entry, R>(
     Effect.gen(function* () {
       const installations = yield* AppInstallationStore;
       const fake = yield* ShopifyFake;
-      const legacy = legacyWriter(yield* D1Test);
       for (const row of options.seed ?? [])
-        yield* Effect.scoped(seedInstallation(installations, fake, row, legacy));
+        yield* Effect.scoped(seedInstallation(installations, fake, row));
     }),
   );
   return seeded.pipe(

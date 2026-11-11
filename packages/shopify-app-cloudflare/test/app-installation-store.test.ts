@@ -26,8 +26,6 @@ const row: AppInstallation = {
   scope: "read_orders",
   accessToken: "shpat_a",
   accessTokenExpiresAt: at(1000),
-  refreshToken: "shprt_a",
-  refreshTokenExpiresAt: at(2000),
   planHandle: null,
   planHandleExpiresAt: null,
   planBoundaryAt: null,
@@ -100,19 +98,12 @@ describe.each([
   { backing: "D1", layer: layerD1 },
   { backing: "memory", layer: AppInstallationStore.layerMemory },
 ])("AppInstallationStore ($backing)", ({ layer }) => {
-  it.effect(
-    "1. updateToken on a stored row writes the token, its expiry and scope and nulls both refresh columns",
-    () =>
-      Effect.gen(function* () {
-        const installations = yield* AppInstallationStore;
-        assert.isTrue(yield* installations.updateToken(SHOP, token));
-        assert.deepStrictEqual(yield* stored, {
-          ...row,
-          ...token,
-          refreshToken: null,
-          refreshTokenExpiresAt: null,
-        });
-      }).pipe(Effect.provide(layer([row]))),
+  it.effect("1. updateToken on a stored row writes the token, its expiry and scope", () =>
+    Effect.gen(function* () {
+      const installations = yield* AppInstallationStore;
+      assert.isTrue(yield* installations.updateToken(SHOP, token));
+      assert.deepStrictEqual(yield* stored, { ...row, ...token });
+    }).pipe(Effect.provide(layer([row]))),
   );
 
   it.effect("1. updateToken with no row answers false and creates none", () =>
@@ -143,27 +134,18 @@ describe.each([
       const installations = yield* AppInstallationStore;
       const sooner = { ...token, accessTokenExpiresAt: at(999) };
       assert.isTrue(yield* installations.updateToken(SHOP, sooner, row.accessToken));
-      assert.deepStrictEqual(yield* stored, {
-        ...row,
-        ...sooner,
-        refreshToken: null,
-        refreshTokenExpiresAt: null,
-      });
+      assert.deepStrictEqual(yield* stored, { ...row, ...sooner });
     }).pipe(Effect.provide(layer([row]))),
   );
 
   it.effect(
-    "2. insert inserts a new row with its plan never fetched, the refresh columns null, stamped installedAt now",
+    "2. insert inserts a new row with its plan never fetched, stamped installedAt now",
     () =>
       Effect.gen(function* () {
         const installations = yield* AppInstallationStore;
         yield* TestClock.adjust(Duration.millis(500));
         assert.isTrue(yield* installations.insert(insert));
-        assert.deepStrictEqual(yield* stored, {
-          ...row,
-          refreshToken: null,
-          refreshTokenExpiresAt: null,
-        });
+        assert.deepStrictEqual(yield* stored, row);
       }).pipe(Effect.provide(layer([]))),
   );
 
@@ -270,17 +252,15 @@ describe.each([
     }).pipe(Effect.provide(layer([row]))),
   );
 
-  it.effect("the redacted reads answer whether each token is present, never the token", () =>
+  it.effect("the redacted reads answer whether the token is present, never the token", () =>
     Effect.gen(function* () {
       const installations = yield* AppInstallationStore;
       const other = shopDomain("other.myshopify.com");
       yield* installations.insert({ ...insert, shop: other, accessToken: null });
       const found = Option.getOrThrow(yield* installations.findRedacted(other));
       assert.isFalse(found.hasAccessToken);
-      assert.isFalse(found.hasRefreshToken);
-      assert.isTrue(Option.getOrThrow(yield* installations.findRedacted(SHOP)).hasRefreshToken);
+      assert.isTrue(Option.getOrThrow(yield* installations.findRedacted(SHOP)).hasAccessToken);
       assert.notProperty(found, "accessToken");
-      assert.notProperty(found, "refreshToken");
       assert.isTrue(
         Option.isNone(yield* installations.findRedacted(shopDomain("none.myshopify.com"))),
       );

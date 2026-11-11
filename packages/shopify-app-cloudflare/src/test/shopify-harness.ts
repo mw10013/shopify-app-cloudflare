@@ -32,9 +32,6 @@ export const SeedInstallation = Schema.Struct({
   scope: Schema.optional(Schema.NullOr(Schema.String)),
   accessToken: Schema.optional(Schema.NullOr(Schema.String)),
   accessTokenExpiresAt: Instant,
-  /** A row from the refresh design: with `legacyRow` only. */
-  refreshToken: Schema.optional(Schema.NullOr(Schema.String)),
-  refreshTokenExpiresAt: Instant,
   /** The plan cache, as a revalidation wrote it; unset, the plan was never fetched. */
   planHandle: Schema.optional(Schema.NullOr(Schema.String)),
   planHandleExpiresAt: Instant,
@@ -52,9 +49,7 @@ export type HarnessCapability =
   /** `TestClock` drives time, the mint's and the fake's included. */
   | "clock"
   /** The case gates a call mid-flight through the fake's intercept. */
-  | "interleave"
-  /** The case seeds a row from the refresh design, written outside the store. */
-  | "legacyRow";
+  | "interleave";
 
 /** A hook a case can break: its next call dies. */
 export type HookName = keyof ShopifyHooksShape;

@@ -17,8 +17,7 @@ import { ShopifyApp } from "#internal/shopify-app.ts";
 import { FAKE_APP_HANDLE } from "#test/fake-app.ts";
 import { seedInstallation } from "#test/harness-support.ts";
 import { mintIdToken } from "#test/id-token.ts";
-import { D1Test } from "#test/node/d1-test.ts";
-import { d1Store, fakeAppClients, legacyWriter } from "#test/node/shopify-app-test.ts";
+import { d1Store, fakeAppClients } from "#test/node/shopify-app-test.ts";
 import { ShopifyFake } from "#test/shopify-fake.ts";
 
 import { SHOP, SHOP_GID } from "./fixtures.ts";
@@ -40,20 +39,15 @@ const seedShop = (planIn: Duration.Input) =>
   Effect.gen(function* () {
     const now = yield* DateTime.now;
     yield* Effect.scoped(
-      seedInstallation(
-        yield* AppInstallationStore,
-        yield* ShopifyFake,
-        {
-          shop: SHOP,
-          shopGid: SHOP_GID,
-          scope: "",
-          accessToken: "shpat_fresh",
-          accessTokenExpiresAt: DateTime.addDuration(now, "1 hour"),
-          planHandle: "test-basic",
-          planHandleExpiresAt: DateTime.addDuration(now, planIn),
-        },
-        legacyWriter(yield* D1Test),
-      ),
+      seedInstallation(yield* AppInstallationStore, yield* ShopifyFake, {
+        shop: SHOP,
+        shopGid: SHOP_GID,
+        scope: "",
+        accessToken: "shpat_fresh",
+        accessTokenExpiresAt: DateTime.addDuration(now, "1 hour"),
+        planHandle: "test-basic",
+        planHandleExpiresAt: DateTime.addDuration(now, planIn),
+      }),
     );
   });
 
