@@ -103,7 +103,8 @@ test(
 test(
   "appHome over BACKEND: after a first install, the shop, the catalog's first plan and the install instant",
   Effect.gen(function* () {
-    const { websiteUrl } = yield* fresh;
+    const { backendUrl, websiteUrl } = yield* fresh;
+    yield* door(backendUrl, (client) => client.InstallShopify({ shop: SHOP }));
     const before = DateTime.nowUnsafe();
     yield* call(websiteUrl, "authenticateMerchant", {
       idToken: yield* mintIdToken({ shop: SHOP }),
