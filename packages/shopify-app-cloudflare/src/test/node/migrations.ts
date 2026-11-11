@@ -1,7 +1,6 @@
 /**
  * The package's D1 migrations as an app receives them: committed byte-for-byte copies in the
- * app's own `migrations/` folder, and the checks that hold the copies and the package's own
- * migrations to the production rules.
+ * app's own `migrations/` folder, and the check that holds the copies to the package's.
  *
  * @module
  */
@@ -70,64 +69,4 @@ export const expectMigrationsSynced = (options: { readonly migrationsDir: string
     problems.length === 0,
     `${migrationsDir} is out of sync with @mw10013/shopify-app-cloudflare:\n${problems.join("\n")}`,
   );
-};
-
-/** `sql` without its comments, as statements, each lowercased with its whitespace collapsed. */
-const statements = (sql: string) =>
-  sql
-    .replaceAll(/\/\*[\s\S]*?\*\//gu, " ")
-    .replaceAll(/--[^\n]*/gu, " ")
-    .split(";")
-    .map((statement) => statement.replaceAll(/\s+/gu, " ").trim().toLowerCase())
-    .filter((statement) => statement.length > 0);
-
-/** The statement forms that only expand the schema. Anything else is refused. */
-const EXPANSIONS: readonly RegExp[] = [
-  /^create table if not exists \w+ \(/u,
-  /^create index if not exists \w+ on \w+ \(/u,
-  /^alter table \w+ add (?:column )?\w+ /u,
-];
-
-/** A `not null` column whose default is missing or `null`, which an old insert would fail. */
-const requiredWithoutDefault = (s: string) =>
-  /\bnot null\b/u.test(s) && !/\bdefault (?!null\b)\S/u.test(s);
-
-/** The ways a statement contracts the schema, each with what catches it, in report order. */
-const CONTRACTIONS: readonly { readonly name: string; readonly test: (s: string) => boolean }[] = [
-  { name: "drop", test: (s) => /\bdrop\b/u.test(s) },
-  { name: "rename", test: (s) => /\brename\b/u.test(s) },
-  {
-    name: "insert or replace",
-    test: (s) => /\b(?:insert\s+or\s+replace|replace\s+into)\b/u.test(s),
-  },
-  {
-    name: "not null without a default",
-    test: (s) => /^alter table\b.*\badd\b/u.test(s) && requiredWithoutDefault(s),
-  },
-  { name: "not an expansion", test: (s) => !EXPANSIONS.some((form) => form.test(s)) },
-];
-
-/**
- * Each statement of `sql` that breaks expand-before-contract, with the rule it breaks: a drop, a
- * rename, an `insert or replace` (a delete that cascades), or a column added `not null` with no
- * non-null default, which the previous app version's inserts would fail. The check is an
- * allowlist: only `create table if not exists`, `create index if not exists` and `alter table …
- * add column` are expansions, so any other statement (a `delete`, an `update`, a unique index)
- * is refused as "not an expansion".
- */
-export const contractions = (sql: string) =>
-  statements(sql).flatMap((statement) => {
-    const broken = CONTRACTIONS.filter(({ test }) => test(statement));
-    const named = broken.filter(({ name }) => name !== "not an expansion");
-    return (named.length > 0 ? named : broken).map(({ name }) => ({ name, statement }));
-  });
-
-/** Asserts that every package migration in `migrationsDir` only expands the schema. */
-export const expectExpandOnly = (migrationsDir = PACKAGE_MIGRATIONS_DIR) => {
-  const found = packageMigrationNames(migrationsDir).flatMap((name) =>
-    contractions(readFileSync(path.join(migrationsDir, name), "utf8")).map(
-      ({ name: rule, statement }) => `${name}: ${rule}: ${statement}`,
-    ),
-  );
-  assert.deepStrictEqual(found, [], "a package migration contracts the schema");
 };

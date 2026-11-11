@@ -140,7 +140,6 @@ Route files stay in the app too, because TanStack's router builds its tree from 
 
 These rules hold for every release, because each app's production upgrades on its own schedule and must be able to roll back:
 
-- Migrations are forward only and expand before they contract. A Workers rollback does not revert D1, so the previous app version must still work against the new schema. A release removes a column only after every app's production runs a release that no longer reads it.
 - The shop actor's Durable Object class name never changes. A Durable Object class change blocks a Workers rollback.
 - The one exception is the `ShopGrantor` class, which the application-only grant made unneeded. The release that drops it deletes the class (Alchemy emits the `deleted_classes` migration when the binding goes), so that deploy goes out at 100% and a rollback past it is a redeploy. The class stored nothing.
 - The package pins the Admin API version, and a check holds each app's `[webhooks] api_version` equal to it.
