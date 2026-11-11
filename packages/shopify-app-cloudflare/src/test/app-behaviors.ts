@@ -1,6 +1,6 @@
 /**
  * The required behaviors of tier 2, as data like `AUTH_BEHAVIORS`: the plan check and the
- * merchant gate, the hooks' failure policies, and webhooks (`shopify-auth.md` cases 46–48 and
+ * merchant gate, the hooks' failure policies, and webhooks (`shopify-auth.md` cases 34–36 and
  * the package's `N…` cases).
  *
  * @module
@@ -23,6 +23,7 @@ import {
   BEHAVIOR_SHOP,
   BEHAVIOR_SHOP_GID,
   failureOf,
+  logged,
   type RequiredBehavior,
   rowAt,
   seedAt,
@@ -46,7 +47,7 @@ const RETIRED_HANDLE = "behavior-retired";
 
 const clock: readonly HarnessCapability[] = ["clock"];
 
-/** Seeds the shop with a token fresh for an hour, so the gate makes no exchange. */
+/** Seeds the shop with a token fresh for an hour, so the gate makes no mint. */
 const seedFresh = (over: Parameters<typeof seedAt>[0] = {}) =>
   Effect.gen(function* () {
     yield* seedAt({
@@ -87,13 +88,6 @@ const script = (...args: Parameters<PartnerFake["Service"]["script"]>) =>
 const hookCalls = Effect.flatMap(ShopifyHarness, (harness) => harness.hookCalls);
 const breakHook = (hook: Parameters<ShopifyHarness["Service"]["breakHook"]>[0]) =>
   Effect.flatMap(ShopifyHarness, (harness) => harness.breakHook(hook));
-
-/** The lines logged at `level` whose message starts with `prefix`. */
-const logged = (level: string, prefix: string) =>
-  Effect.map(
-    Effect.flatMap(ShopifyHarness, (harness) => harness.logs),
-    (lines) => lines.filter((line) => line.level === level && line.message.startsWith(prefix)),
-  );
 
 const deliver = (
   topic: string,
@@ -318,7 +312,7 @@ const billing: readonly RequiredBehavior[] = [
   ),
   behavior(
     "N20",
-    "a screen read answers the handle without exchanging; with no row it is a defect",
+    "a screen read answers the handle without minting; with no row it is a defect",
     Effect.gen(function* () {
       const harness = yield* ShopifyHarness;
       yield* assertDefect(harness.gate.subscribedShop(yield* idToken));
@@ -327,7 +321,7 @@ const billing: readonly RequiredBehavior[] = [
       assert.equal(read.shop, SHOP);
       assert.equal(read.handle, (yield* storedRow).planHandle);
       assert.deepEqual(read.installedAt, (yield* storedRow).installedAt);
-      assert.deepEqual((yield* (yield* ShopifyFake).calls).length, 0, "no exchange");
+      assert.deepEqual((yield* (yield* ShopifyFake).calls).length, 0, "no mint");
     }),
   ),
   behavior(
@@ -413,12 +407,6 @@ const webhooks: readonly RequiredBehavior[] = [
   ...(
     [
       [
-        "ReauthenticationRequiredError",
-        Effect.gen(function* () {
-          yield* seedAt({ refreshToken: null, refreshTokenExpiresAt: null });
-        }),
-      ],
-      [
         "AccessDeniedError",
         Effect.gen(function* () {
           yield* seedFresh();
@@ -444,7 +432,7 @@ const webhooks: readonly RequiredBehavior[] = [
     ] as const
   ).map(([error, arrange]) =>
     behavior(
-      "46",
+      "34",
       `a handler meeting ${error}: 200 and a Warning`,
       Effect.gen(function* () {
         yield* arrange;
@@ -460,7 +448,7 @@ const webhooks: readonly RequiredBehavior[] = [
     ),
   ),
   behavior(
-    "47",
+    "35",
     "a handler meeting ShopifyUnavailableError: 503, so Shopify redelivers, and a Warning",
     Effect.gen(function* () {
       yield* seedFresh();
@@ -492,7 +480,7 @@ const webhooks: readonly RequiredBehavior[] = [
     }),
   ),
   behavior(
-    "48",
+    "36",
     "app/uninstalled delivered twice, and for a shop with no row: 200 each time; no row afterwards",
     Effect.gen(function* () {
       yield* seedAt();
@@ -565,7 +553,7 @@ const webhooks: readonly RequiredBehavior[] = [
 
 /**
  * Every tier 2 case: the plan check and the gate (N3, N5, N11–N21), the hooks' policies (N4)
- * and webhooks (46–48, N22–N26).
+ * and webhooks (34–36, N22–N26).
  */
 export const APP_BEHAVIORS: readonly RequiredBehavior[] = [
   ...billing,

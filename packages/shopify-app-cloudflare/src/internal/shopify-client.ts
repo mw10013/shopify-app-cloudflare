@@ -39,7 +39,7 @@ import { ShopDomain } from "./domain.ts";
 
 /**
  * The Admin API answered 401 to the access token. Never leaves the Admin API call:
- * `Shopify.adminGraphql` retries it once, and the first exchange's `shopGid` fetch fails
+ * `Shopify.adminGraphql` retries it once, and the first mint's `shopGid` fetch fails
  * `ShopifyUnavailableError`.
  */
 export class AdminUnauthorizedError extends Data.TaggedError("AdminUnauthorizedError")<{
@@ -66,8 +66,8 @@ export interface ValidatedWebhook {
 /** The spans whose lines name a Shopify outage. */
 export type ShopifySpan =
   | "Shopify.adminGraphql"
-  | "ShopGrantor.exchange"
-  | "ShopGrantor.ensure"
+  | "Shopify.authenticateMerchant"
+  | "AppTokens.mint"
   | "PartnerApi.activeSubscription"
   | "MerchantGate.authenticateMerchant";
 
@@ -130,7 +130,7 @@ export const unavailable = (
     Effect.andThen(Effect.fail(new ShopifyUnavailableError({ shop }))),
   );
 
-const make = (credentials: ShopifyCredentials) =>
+const make = (credentials: Pick<ShopifyCredentials, "apiKey" | "apiSecret" | "appUrl">) =>
   Effect.gen(function* () {
     // Built on first use, so planning the stack, where the bindings are absent, never builds it.
     const library = yield* Effect.cached(
@@ -308,7 +308,7 @@ const make = (credentials: ShopifyCredentials) =>
       } satisfies ValidatedWebhook;
     });
 
-    return { library, decodeIdToken, adminCall, validateWebhook };
+    return { decodeIdToken, adminCall, validateWebhook };
   });
 
 /**
@@ -321,16 +321,17 @@ export const isAlchemyRuntime = () =>
 /**
  * The stateless `@shopify/shopify-api` adapter: the library instance, ID token and webhook
  * verification, and one classified Admin API call with a given access token. It holds no token
- * and decides nothing about one: the grantor grants through its `library`, and `Shopify` calls
- * the Admin API through `adminCall` with the stored token.
+ * and decides nothing about one: `Shopify` calls the Admin API through `adminCall` with the
+ * stored or minted token.
  */
 export class ShopifyClient extends Context.Service<
   ShopifyClient,
   Effect.Success<ReturnType<typeof make>>
 >()("app/ShopifyClient") {
   /** Given the API key, API secret and app URL. */
-  static readonly layer = (credentials: ShopifyCredentials) =>
-    Layer.effect(ShopifyClient, make(credentials));
+  static readonly layer = (
+    credentials: Pick<ShopifyCredentials, "apiKey" | "apiSecret" | "appUrl">,
+  ) => Layer.effect(ShopifyClient, make(credentials));
 
   /**
    * Over `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET` and `SHOPIFY_APP_URL`, which the stack binds to

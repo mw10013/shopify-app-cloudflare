@@ -119,7 +119,7 @@ export const PARTNER_RETRIES = 2;
 
 /**
  * How long one attempt waits for the Partner API's whole response, its headers and its body, the
- * same as a grant attempt's deadline (`GRANT_ATTEMPT_DEADLINE`): the merchant gate waits on this
+ * same as a mint attempt's deadline (`MINT_ATTEMPT_DEADLINE`): the merchant gate waits on this
  * call. An attempt past it is abandoned and counts as transient, so it is retried, and once the
  * retries are spent it is `ShopifyUnavailableError`. With the retries, a hung Partner API holds a
  * page about 16.5 s.
@@ -250,7 +250,7 @@ export class PartnerApi extends Context.Service<PartnerApi, PartnerApiShape>()("
    * before the owner adds them to `.env`): `activeSubscription` is a defect that says why, so a
    * plan is never guessed from a missing credential. The plan selection page needs only the
    * app's `handle`, which is public, so a shop whose plan is cached still passes the gate; it too
-   * is a defect when the handle is unbound. The Backend still boots, so webhooks and the grantor
+   * is a defect when the handle is unbound. The Backend still boots, so webhooks, minting
    * work.
    */
   static readonly layerUnbound = (handle: Option.Option<string>) =>

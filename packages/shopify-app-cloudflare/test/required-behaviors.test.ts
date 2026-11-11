@@ -18,7 +18,7 @@ describe("REQUIRED_BEHAVIORS", () => {
   });
 });
 
-/** Every required case over the in-process harness: real SQL, grantors in memory, both fakes. */
+/** Every required case over the in-process harness: real SQL and both fakes. */
 describe("required behavior (in process)", () => {
   for (const behavior of REQUIRED_BEHAVIORS) {
     // The harness keeps every line for the case and prints Warning and above.

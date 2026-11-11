@@ -16,7 +16,6 @@ export {
   MerchantAuthenticated,
   MerchantRefusal,
   PlanUnsubscribedError,
-  ReauthenticationRequiredError,
   ShopifyAccessFailure,
   ShopifyUnavailableError,
   ShopInaccessibleError,

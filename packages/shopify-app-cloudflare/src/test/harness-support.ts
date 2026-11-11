@@ -1,6 +1,6 @@
 /**
  * The parts of a {@link ShopifyHarness} that every harness builds the same way, in process or
- * in a test Backend in workerd: seeding a row, ageing its token, recording the hooks and keeping
+ * in a test Backend in workerd: seeding a row, uninstalling, recording the hooks and keeping
  * the lines a case logs.
  *
  * @module
@@ -12,7 +12,6 @@ import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as LogLevel from "effect/LogLevel";
-import * as Option from "effect/Option";
 import * as References from "effect/References";
 
 import type { AppInstallationStore } from "#internal/app-installation-store.ts";
@@ -20,7 +19,7 @@ import type { ShopDomain } from "#internal/domain.ts";
 import { ShopifyHooks, type ShopifyHooksShape } from "#internal/hooks.ts";
 import type { Webhooks } from "#internal/webhooks.ts";
 
-import type { ShopifyFake } from "./shopify-fake.ts";
+import { FAKE_SCOPE, type ShopifyFake } from "./shopify-fake.ts";
 import type {
   HarnessDelivery,
   HarnessLogLine,
@@ -30,24 +29,34 @@ import type {
 import { signWebhook } from "./webhook.ts";
 
 /**
- * Stores `row` as an exchange would and, unless `recognized` is false, tells the fake its refresh
- * token, so the fake's ledger answers a refresh with it as Shopify would.
+ * Stores `row` as a mint would: inserted, or its token written over an existing row. A row from
+ * the refresh design is `legacy`'s to write, since no store method writes a refresh token. Unless
+ * `installed` is false, the fake installs the app on the shop and recognizes the seeded token.
  */
 export const seedInstallation = (
   installations: AppInstallationStore["Service"],
   fake: ShopifyFake["Service"],
   row: SeedInstallation,
+  legacy: (row: SeedInstallation) => Effect.Effect<void>,
 ) =>
   Effect.gen(function* () {
-    yield* installations.upsert({
-      shop: row.shop,
-      shopGid: row.shopGid,
-      scope: row.scope ?? null,
+    const token = {
+      scope: row.scope ?? FAKE_SCOPE,
       accessToken: row.accessToken ?? null,
       accessTokenExpiresAt: row.accessTokenExpiresAt ?? null,
-      refreshToken: row.refreshToken ?? null,
-      refreshTokenExpiresAt: row.refreshTokenExpiresAt ?? null,
+    };
+    const inserted = yield* installations.insert({
+      shop: row.shop,
+      shopGid: row.shopGid,
+      ...token,
     });
+    if (!inserted && token.accessToken !== null && token.accessTokenExpiresAt !== null)
+      yield* installations.updateToken(row.shop, {
+        ...token,
+        accessToken: token.accessToken,
+        accessTokenExpiresAt: token.accessTokenExpiresAt,
+      });
+    if ((row.refreshToken ?? row.refreshTokenExpiresAt ?? null) !== null) yield* legacy(row);
     if (row.planHandleExpiresAt !== undefined && row.planHandleExpiresAt !== null)
       yield* installations.updatePlan({
         shop: row.shop,
@@ -55,26 +64,22 @@ export const seedInstallation = (
         planHandleExpiresAt: row.planHandleExpiresAt,
         planBoundaryAt: row.planBoundaryAt ?? null,
       });
-    if (row.recognized !== false && row.refreshToken !== null && row.refreshToken !== undefined)
-      yield* fake.recognize(row.shop, row.refreshToken);
+    if (row.installed === false) return;
+    yield* fake.install(row.shop, token.scope);
+    if (token.accessToken !== null && token.accessTokenExpiresAt !== null)
+      yield* fake.recognize(
+        row.shop,
+        token.accessToken,
+        DateTime.toEpochMillis(token.accessTokenExpiresAt),
+      );
   });
 
-/** Ages the stored access token to expire now, as an hour passing would; dies with no pair stored. */
-export const expireAccessToken = (
+/** Shopify uninstalls the app from `shop`, then `app/uninstalled`'s delete runs. */
+export const uninstall = (
   installations: AppInstallationStore["Service"],
+  fake: ShopifyFake["Service"],
   shop: ShopDomain,
-) =>
-  Effect.gen(function* () {
-    const row = Option.getOrThrow(yield* installations.find(shop));
-    if (row.accessToken === null || row.refreshToken === null || row.refreshTokenExpiresAt === null)
-      return yield* Effect.die(new Error(`expireAccessToken: shop=${shop}: no pair stored`));
-    yield* installations.updateTokens(shop, {
-      accessToken: row.accessToken,
-      accessTokenExpiresAt: yield* DateTime.now,
-      refreshToken: row.refreshToken,
-      refreshTokenExpiresAt: row.refreshTokenExpiresAt,
-    });
-  });
+) => Effect.andThen(fake.uninstall(shop), installations.delete(shop));
 
 /**
  * Hooks that record each call, and die once on a hook a case broke; `reset` forgets both. A call

@@ -31,6 +31,16 @@ The site's own users (its admins, and Baton's members) sign in with a six-digit 
 - **Website.** The app's `api.auth.$` route is `server: { handlers: authHandlers(env) }`. Its server function for a code is `signInCodeResult(backend().requestSignInCode(requestInfoOf(getRequest()), data))`. `SignInPage` (with an optional `footer`, such as a help link) and `SignOutButton` come from `/website/react`.
 - **Tests.** `SiteAuthTest` from `/test/node` runs it all over `D1Test`. The package's browser tests click through `SignInPage` and the two orphan pages, so an app tests only its routes' wiring.
 
+## Upgrading to application-only tokens
+
+Every Admin API token now comes from Shopify's application-only grant, signed with the app's own key. Token exchange, refresh tokens and the `ShopGrantor` Durable Object are gone.
+
+- Generate a P-256 key pair, register its public JWK (`ES256`) in the Dev Dashboard, and set `SHOPIFY_APP_TOKEN_KEY` (the private key, PKCS #8 PEM) and `SHOPIFY_APP_TOKEN_KID` (the `kid` it is registered under) on every stage before deploying: in `.env` for `dev` and `e2e`, and in each deployed stage's environment beside `SHOPIFY_API_SECRET`. `shopifyCliApp` and `deployedShopifyApp` read them and `bindShopifyApp` binds them. A Backend without them, or with a key that does not import, fails at startup naming the variable. `ShopifyCredentials` gains `appTokenKey` and `appTokenKid`.
+- The deploy that takes this release deletes the `ShopGrantor` class, so it goes out at 100%, not as a gradual rollout. The class stored nothing.
+- `ReauthenticationRequiredError` is gone from `/contract`, `ShopifyAccessFailure` and `EnsureSessionFailure`. A handler that matched it drops the branch.
+- Installed shops need nothing: the next request mints and writes the row's refresh columns null.
+- Tests: `ShopifyFake` installs shops explicitly (`install`, `uninstall`) and verifies each assertion against the fake app's key. `SeedInstallation` trades `recognized` for `installed`. `grantBody`, `REFRESH_GRANT`, `TOKEN_EXCHANGE_GRANT` and `FAKE_REFRESH_TOKEN_EXPIRES_IN` are gone. A test Backend's stack binds the fake app's key through `fakeShopifyApp`.
+
 ## Upgrading to 0.11
 
 - Sign-in codes are six digits, not eight. A test that matches the code's length changes.

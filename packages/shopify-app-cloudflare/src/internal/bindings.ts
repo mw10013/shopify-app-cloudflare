@@ -11,12 +11,17 @@ import * as Effect from "effect/Effect";
 import type * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 
-/** The Shopify app a Backend serves: its key, its secret and its URL. */
+/** The Shopify app a Backend serves: its key, its secret, its URL and its token signing key. */
 export interface ShopifyCredentials {
   readonly apiKey: string;
+  /** Verifies ID tokens and webhook HMACs; never sent to the token endpoint. */
   readonly apiSecret: Redacted.Redacted;
   /** The app's URL; its host and scheme are the library's `hostName` and `hostScheme`. */
   readonly appUrl: string;
+  /** The application-only grant's private key, PKCS #8 PEM, P-256: `SHOPIFY_APP_TOKEN_KEY`. */
+  readonly appTokenKey: Redacted.Redacted;
+  /** The `kid` its public JWK is registered under in the Dev Dashboard: `SHOPIFY_APP_TOKEN_KID`. */
+  readonly appTokenKid: string;
 }
 
 /**
@@ -57,6 +62,13 @@ export const shopifyCredentialsConfig = Config.all({
   apiKey: Config.option(Config.String("SHOPIFY_API_KEY")),
   apiSecret: Config.option(Config.Redacted("SHOPIFY_API_SECRET")),
   appUrl: Config.option(Config.String("SHOPIFY_APP_URL")),
+});
+
+/** What `AppTokens.layerConfig` reads from the Backend's bindings, each absent one `None`. */
+export const appTokenConfig = Config.all({
+  clientId: Config.option(Config.String("SHOPIFY_API_KEY")),
+  key: Config.option(Config.Redacted("SHOPIFY_APP_TOKEN_KEY")),
+  kid: Config.option(Config.String("SHOPIFY_APP_TOKEN_KID")),
 });
 
 /**

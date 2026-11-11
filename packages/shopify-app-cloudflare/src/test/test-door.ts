@@ -1,7 +1,7 @@
 /**
  * `ShopifyTestDoor`: what a test Backend in workerd mounts so an integ suite can drive the real
- * Backend: the required behaviors run inside it, against the real `ShopGrantor` Durable Object
- * and the real D1, and the fakes are scripted and the installations seeded and read from the
+ * Backend: the required behaviors run inside it, against the real D1 and the Backend's own
+ * services, and the fakes are scripted and the installations seeded and read from the
  * test process. Only a test Backend builds it; the production Backend never imports `/test`.
  *
  * @module
@@ -27,7 +27,6 @@ import { AppInstallation } from "#internal/app-installation.ts";
 import { ShopDomain, ShopGid } from "#internal/domain.ts";
 import { ShopifyHooks } from "#internal/hooks.ts";
 import { MerchantGate } from "#internal/merchant-gate.ts";
-import { ShopGrantors } from "#internal/shop-grantor.ts";
 import { ShopifyApp, type ShopifyAppDefinition } from "#internal/shopify-app.ts";
 import { Shopify } from "#internal/shopify.ts";
 import { SubscriptionPlan } from "#internal/subscription-plan.ts";
@@ -37,9 +36,9 @@ import { behaviorApp } from "./behavior-app.ts";
 import {
   capturedLogs,
   deliverTo,
-  expireAccessToken,
   recordingHooks,
   seedInstallation,
+  uninstall,
 } from "./harness-support.ts";
 import { PartnerAnswer, PartnerFake } from "./partner-fake.ts";
 import { REQUIRED_BEHAVIORS } from "./required-behaviors.ts";
@@ -56,10 +55,9 @@ import {
 export const SHOPIFY_TEST_DOOR_PATH = "/api/test/shopify";
 
 /**
- * What the door's harness can do. A case runs in the test Backend's isolate, which the grantor
- * Durable Object shares, so the fake's intercept gates the object's grant. Time is the runtime's,
- * and the store the object writes through is the production one, so `clock` and `holdWrite` are
- * in-process only.
+ * What the door's harness can do. A case runs in the test Backend's isolate, so the fake's
+ * intercept gates its mints. Time is the runtime's, and the store is the production one, which
+ * writes no refresh column, so `clock` and `legacyRow` are in-process only.
  */
 export const SHOPIFY_TEST_DOOR_CAN: ReadonlySet<HarnessCapability> = new Set(["interleave"]);
 
@@ -75,12 +73,12 @@ export type BehaviorOutcome = typeof BehaviorOutcome.Type;
  *
  * - `RunBehavior` resets the door's state (`Reset`), then runs `REQUIRED_BEHAVIORS[index]` in the
  *   test Backend; `name` is the runner's `<id>: <name>`, checked so the two lists cannot drift.
- * - `Reset` uninstalls every installed shop through its grantor, then forgets every script,
- *   call, issued token and hook call, as a fresh harness would start.
- * - `ScriptShopify` and `ShopifyCalls` are {@link ShopifyFake}'s `script` and `calls`;
+ * - `Reset` deletes every installation, then forgets every script, call, installation at the
+ *   fake, issued token and hook call, as a fresh harness would start.
+ * - `ScriptShopify`, `InstallShopify` and `ShopifyCalls` are {@link ShopifyFake}'s `script`,
+ *   `install` and `calls`;
  *   `ScriptPartner` and `PartnerAsked` are {@link PartnerFake}'s `script` and `asked`.
- * - `Seed` stores an installation as an exchange would; `Stored` reads one back, tokens
- *   included.
+ * - `Seed` stores an installation as a mint would; `Stored` reads one back, tokens included.
  */
 export const ShopifyTestDoorRpcs = RpcGroup.make(
   Rpc.make("RunBehavior", {
@@ -92,6 +90,7 @@ export const ShopifyTestDoorRpcs = RpcGroup.make(
     payload: { replies: Schema.Array(ShopifyFakeReply) },
     success: Schema.Struct({}),
   }),
+  Rpc.make("InstallShopify", { payload: { shop: ShopDomain }, success: Schema.Struct({}) }),
   Rpc.make("ShopifyCalls", { payload: {}, success: Schema.Array(ShopifyFakeCall) }),
   Rpc.make("ScriptPartner", {
     payload: { shopGid: ShopGid, answer: PartnerAnswer },
@@ -148,7 +147,6 @@ const make = Effect.gen(function* () {
   const gate = yield* MerchantGate;
   const plans = yield* SubscriptionPlan;
   const webhooks = yield* Webhooks;
-  const grantors = yield* ShopGrantors;
   const installations = yield* AppInstallationStore;
   const fake = yield* ShopifyFake;
   const partner = yield* PartnerFake;
@@ -156,15 +154,15 @@ const make = Effect.gen(function* () {
 
   const ShopId = Schema.Struct({ shop: Schema.Struct({ id: Schema.String }) });
 
-  // A case calls the harness from inside a fake's reply too, which runs with no context in the
-  // grantor's request: each call that reaches D1 is scoped, since the D1 client is memoized on
-  // the running call's `Scope`.
+  // A case calls the harness from inside a fake's reply too, which runs with no context: each
+  // call that reaches D1 is scoped, since the D1 client is memoized on the running call's `Scope`.
+  const legacy = () =>
+    Effect.die(new Error("ShopifyTestDoor: a row from the refresh design is in-process only"));
   const harnessOf = (logs: Effect.Effect<readonly HarnessLogLine[]>): ShopifyHarnessShape => ({
     can: SHOPIFY_TEST_DOOR_CAN,
-    seed: (row) => Effect.scoped(seedInstallation(installations, fake, row)),
+    seed: (row) => Effect.scoped(seedInstallation(installations, fake, row, legacy)),
     stored: (shop) => Effect.scoped(installations.find(shop)),
-    expireAccessToken: (shop) => Effect.scoped(expireAccessToken(installations, shop)),
-    uninstall: (shop) => Effect.scoped(grantors.uninstall(shop)),
+    uninstall: (shop) => Effect.scoped(uninstall(installations, fake, shop)),
     authenticateMerchant: (idToken) =>
       Effect.map(gate.authenticateMerchant(idToken), ({ shop, shopGid }) => ({ shop, shopGid })),
     gate,
@@ -175,12 +173,11 @@ const make = Effect.gen(function* () {
     logs,
     ensureSession: shopify.ensureSession,
     adminGraphql: (shop, query) => shopify.adminGraphql(shop, ShopId, query),
-    holdWrite: Effect.die(new Error("ShopifyTestDoor: holdWrite is in-process only")),
   });
 
   const reset = Effect.scoped(
     Effect.gen(function* () {
-      for (const shop of yield* installations.shops()) yield* grantors.uninstall(shop);
+      for (const shop of yield* installations.shops()) yield* installations.delete(shop);
       yield* fake.reset;
       yield* partner.reset;
       yield* hooks.reset;
@@ -222,10 +219,12 @@ const make = Effect.gen(function* () {
         RunBehavior: ({ index, name }) => runBehavior(index, name),
         Reset: () => Effect.as(reset, {}),
         ScriptShopify: ({ replies }) => Effect.as(fake.script(replies), {}),
+        InstallShopify: ({ shop }) => Effect.as(fake.install(shop), {}),
         ShopifyCalls: () => fake.calls,
         ScriptPartner: ({ shopGid, answer }) => Effect.as(partner.script(shopGid, answer), {}),
         PartnerAsked: () => partner.asked,
-        Seed: ({ row }) => Effect.as(Effect.scoped(seedInstallation(installations, fake, row)), {}),
+        Seed: ({ row }) =>
+          Effect.as(Effect.scoped(seedInstallation(installations, fake, row, legacy)), {}),
         Stored: ({ shop }) => Effect.map(Effect.scoped(installations.find(shop)), Option.getOrNull),
       }),
     ),
@@ -254,8 +253,9 @@ const make = Effect.gen(function* () {
  * // and in fetch: if (pathname === SHOPIFY_TEST_DOOR_PATH) return yield* door.serve;
  * ```
  *
- * It installs {@link ShopifyFake} in place of the Shopify library's fetch for the isolate's life;
- * the grantor Durable Object runs in the same isolate, so its grants reach the fake too.
+ * It installs {@link ShopifyFake} in place of the Shopify library's fetch for the isolate's life,
+ * so the Backend's mints and Admin calls reach the fake. The Backend's `SHOPIFY_APP_TOKEN_KEY`
+ * must be the fake app's, which `fakeShopifyApp` binds.
  */
 export class ShopifyTestDoor extends Context.Service<ShopifyTestDoor, ShopifyTestDoorShape>()(
   "app/ShopifyTestDoor",

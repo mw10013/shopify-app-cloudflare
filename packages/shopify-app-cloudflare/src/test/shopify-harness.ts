@@ -23,8 +23,8 @@ import type { SubscriptionPlanShape } from "#internal/subscription-plan.ts";
 const Instant = Schema.optional(Schema.NullOr(Schema.DateTimeUtcFromMillis));
 
 /**
- * A stored installation as a case seeds it: the grant columns, each unset one null. A schema,
- * so a test seeds a test Backend's database through `ShopifyTestDoor`.
+ * A stored installation as a case seeds it, each unset column null. A schema, so a test seeds a
+ * test Backend's database through `ShopifyTestDoor`.
  */
 export const SeedInstallation = Schema.Struct({
   shop: ShopDomain,
@@ -32,6 +32,7 @@ export const SeedInstallation = Schema.Struct({
   scope: Schema.optional(Schema.NullOr(Schema.String)),
   accessToken: Schema.optional(Schema.NullOr(Schema.String)),
   accessTokenExpiresAt: Instant,
+  /** A row from the refresh design: with `legacyRow` only. */
   refreshToken: Schema.optional(Schema.NullOr(Schema.String)),
   refreshTokenExpiresAt: Instant,
   /** The plan cache, as a revalidation wrote it; unset, the plan was never fetched. */
@@ -39,33 +40,21 @@ export const SeedInstallation = Schema.Struct({
   planHandleExpiresAt: Instant,
   planBoundaryAt: Instant,
   /**
-   * Whether the fake's ledger knows the seeded refresh token as one Shopify issued (by default
-   * it does); `false` seeds the repair state, a token Shopify has retired.
+   * Whether Shopify has the app installed on the shop and issued the seeded access token (by
+   * default it has); `false` seeds an orphaned row, one Shopify has uninstalled.
    */
-  recognized: Schema.optional(Schema.Boolean),
+  installed: Schema.optional(Schema.Boolean),
 });
 export type SeedInstallation = typeof SeedInstallation.Type;
 
-/**
- * What a case needs that not every harness can give it. A harness in a test Backend runs the
- * case in the isolate the grantor Durable Object runs in, so a fake's intercept reaches the
- * object's grant, but neither the test clock nor the object's store does.
- */
+/** What a case needs that not every harness can give it. */
 export type HarnessCapability =
-  /** `TestClock` drives time, the grantor's included. */
+  /** `TestClock` drives time, the mint's and the fake's included. */
   | "clock"
-  /** The case gates a call mid-flight through the fake's intercept, or interrupts its caller. */
+  /** The case gates a call mid-flight through the fake's intercept. */
   | "interleave"
-  /** The case holds the grantor's store write ({@link ShopifyHarnessShape.holdWrite}). */
-  | "holdWrite";
-
-/** A hold on the next grant write, from {@link ShopifyHarnessShape.holdWrite}. */
-export interface HeldWrite {
-  /** Succeeds once the held write has started. */
-  readonly started: Effect.Effect<void>;
-  /** Lets the held write through. */
-  readonly release: Effect.Effect<void>;
-}
+  /** The case seeds a row from the refresh design, written outside the store. */
+  | "legacyRow";
 
 /** A hook a case can break: its next call dies. */
 export type HookName = keyof ShopifyHooksShape;
@@ -86,13 +75,14 @@ export interface HarnessDelivery {
 
 export interface ShopifyHarnessShape {
   readonly can: ReadonlySet<HarnessCapability>;
-  /** Stores `row` as an exchange would, and by default tells the fake its refresh token. */
+  /**
+   * Stores `row` as a mint would (inserted, or its token written over an existing row), and by
+   * default installs the app on the shop at the fake and has it recognize the seeded token.
+   */
   readonly seed: (row: SeedInstallation) => Effect.Effect<void>;
-  /** The stored row, tokens included: the invariant reads its refresh token. */
+  /** The stored row, tokens included. */
   readonly stored: (shop: ShopDomain) => Effect.Effect<Option.Option<AppInstallation>>;
-  /** Ages the stored access token to expire now, as an hour passing would. */
-  readonly expireAccessToken: (shop: ShopDomain) => Effect.Effect<void>;
-  /** `app/uninstalled`'s grantor step: the epoch moves on and the row goes. */
+  /** Shopify uninstalls the app and `app/uninstalled`'s delete runs: no hooks. */
   readonly uninstall: (shop: ShopDomain) => Effect.Effect<void>;
   /** The merchant path, through `MerchantGate.authenticateMerchant`: its shop and id. */
   readonly authenticateMerchant: (
@@ -120,8 +110,6 @@ export interface ShopifyHarnessShape {
     shop: ShopDomain,
     query: string,
   ) => Effect.Effect<{ readonly shop: { readonly id: string } }, ShopifyAccessFailure>;
-  /** With `holdWrite` only: holds the next grant write (`upsert` or `updateTokens`) until released. */
-  readonly holdWrite: Effect.Effect<HeldWrite>;
 }
 
 export class ShopifyHarness extends Context.Service<ShopifyHarness, ShopifyHarnessShape>()(

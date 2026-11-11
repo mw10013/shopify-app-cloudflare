@@ -1,22 +1,26 @@
 /**
  * `ShopifyAppTest`: both tiers for an app's own unit tests, wired as its Backend wires them but
- * over test backings: `D1Test` migrated from the app's `migrations/`, the grantors held in
- * memory, the fake app's credentials, the {@link ShopifyFake} and the {@link PartnerFake}. Node
- * only, for `D1Test`.
+ * over test backings: `D1Test` migrated from the app's `migrations/`, the fake app's credentials
+ * and signing key, the {@link ShopifyFake} and the {@link PartnerFake}. Node only, for `D1Test`.
  *
  * @module
  */
 
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
 import { AppInstallationStore } from "#internal/app-installation-store.ts";
+import { AppTokens } from "#internal/app-tokens.ts";
 import { ShopifyHooks, type ShopifyHooksShape } from "#internal/hooks.ts";
-import { ShopGrantors } from "#internal/shop-grantor.ts";
 import { ShopifyAccess } from "#internal/shopify-access.ts";
 import { ShopifyApp, type ShopifyAppDefinition } from "#internal/shopify-app.ts";
 import { ShopifyClient } from "#internal/shopify-client.ts";
-import { FAKE_SHOPIFY_CREDENTIALS } from "#test/fake-app.ts";
+import {
+  FAKE_APP_TOKEN_KID,
+  FAKE_SHOPIFY_API_KEY,
+  FAKE_SHOPIFY_CREDENTIALS,
+} from "#test/fake-app.ts";
 import { seedInstallation } from "#test/harness-support.ts";
 import { PartnerFake } from "#test/partner-fake.ts";
 import { ShopifyFake } from "#test/shopify-fake.ts";
@@ -34,9 +38,34 @@ export const d1Store = (options: D1TestOptions) =>
     Effect.map(D1Test, ({ database }) => AppInstallationStore.layerD1(Effect.succeed(database))),
   ).pipe(Layer.provideMerge(D1Test.layer(options)));
 
+/** Writes a seeded row's refresh columns, as the refresh design stored them, outside the store. */
+export const legacyWriter = (d1: D1Test["Service"]) => (row: SeedInstallation) =>
+  Effect.sync(() => {
+    d1.sqlite
+      .prepare(
+        "update AppInstallation set refreshToken = ?, refreshTokenExpiresAt = ? where shop = ?",
+      )
+      .run(
+        row.refreshToken ?? null,
+        row.refreshTokenExpiresAt === undefined || row.refreshTokenExpiresAt === null
+          ? null
+          : DateTime.toEpochMillis(row.refreshTokenExpiresAt),
+        row.shop,
+      );
+  });
+
+/** The library adapter and `AppTokens` over the fake app's credentials and signing key. */
+export const fakeAppClients = Layer.merge(
+  ShopifyClient.layer(FAKE_SHOPIFY_CREDENTIALS),
+  AppTokens.layer({
+    clientId: FAKE_SHOPIFY_API_KEY,
+    key: FAKE_SHOPIFY_CREDENTIALS.appTokenKey,
+    kid: FAKE_APP_TOKEN_KID,
+  }),
+);
+
 /**
- * Both tiers over `app`, `hooks` and `store`, with the grantors in memory, the fake app's
- * credentials, {@link ShopifyFake} installed and {@link PartnerFake} answering the catalog's
+ * Both tiers over `app`, `hooks` and `store`, with the fake app's credentials and signing key, {@link ShopifyFake} installed and {@link PartnerFake} answering the catalog's
  * first handle. Everything it builds stays in its output, so a test reaches the fakes too.
  */
 export const testTiers = <Entry, R, E1, E2, R2>(options: {
@@ -48,8 +77,7 @@ export const testTiers = <Entry, R, E1, E2, R2>(options: {
     Layer.provideMerge(options.hooks),
     Layer.provideMerge(PartnerFake.layer({ defaultHandle: options.app.catalog.handles[0] })),
     Layer.provideMerge(ShopifyAccess.layerNoDeps),
-    Layer.provideMerge(ShopGrantors.layerMemory),
-    Layer.provideMerge(ShopifyClient.layer(FAKE_SHOPIFY_CREDENTIALS)),
+    Layer.provideMerge(fakeAppClients),
     Layer.provideMerge(options.store),
     Layer.provideMerge(ShopifyFake.layer),
   );
@@ -79,8 +107,9 @@ const layer = <Entry, R>(
     Effect.gen(function* () {
       const installations = yield* AppInstallationStore;
       const fake = yield* ShopifyFake;
+      const legacy = legacyWriter(yield* D1Test);
       for (const row of options.seed ?? [])
-        yield* Effect.scoped(seedInstallation(installations, fake, row));
+        yield* Effect.scoped(seedInstallation(installations, fake, row, legacy));
     }),
   );
   return seeded.pipe(

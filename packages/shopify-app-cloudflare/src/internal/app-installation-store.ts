@@ -30,30 +30,27 @@ const SqliteBoolean = Schema.Number.pipe(
 );
 
 /**
- * An `AppInstallation` as a token exchange writes it: everything but the plan columns, so an
- * exchange never disturbs a cached plan, and a fresh insert leaves them null (never fetched).
- * Nor `installedAt`, which the insert stamps with the current time.
+ * An `AppInstallation` as a first mint inserts it: the shop, its id and the minted token. The
+ * plan columns stay null (never fetched), the refresh columns null, and `installedAt` is stamped.
  */
-export const AppInstallationUpsert = Schema.Struct(
-  Struct.omit(AppInstallation.fields, [
-    "planHandle",
-    "planHandleExpiresAt",
-    "planBoundaryAt",
-    "installedAt",
-  ]),
-);
-export type AppInstallationUpsert = typeof AppInstallationUpsert.Type;
-
-/** The four token columns a refresh rewrites. */
-export const AppInstallationTokens = Schema.Struct(
+export const AppInstallationInsert = Schema.Struct(
   Struct.pick(AppInstallation.fields, [
+    "shop",
+    "shopGid",
+    "scope",
     "accessToken",
     "accessTokenExpiresAt",
-    "refreshToken",
-    "refreshTokenExpiresAt",
   ]),
 );
-export type AppInstallationTokens = typeof AppInstallationTokens.Type;
+export type AppInstallationInsert = typeof AppInstallationInsert.Type;
+
+/** What a mint writes to an existing row. */
+export const AppInstallationToken = Schema.Struct({
+  scope: Schema.String,
+  accessToken: Schema.String,
+  accessTokenExpiresAt: Schema.DateTimeUtcFromMillis,
+});
+export type AppInstallationToken = typeof AppInstallationToken.Type;
 
 /** The three plan cache columns, by shop. */
 export const AppInstallationPlan = Schema.Struct(
@@ -84,8 +81,8 @@ export interface RedactedPageInput {
   readonly limit: number;
 }
 
-const encodeUpsert = Schema.encodeEffect(AppInstallationUpsert);
-const encodeTokens = Schema.encodeEffect(AppInstallationTokens);
+const encodeInsert = Schema.encodeEffect(AppInstallationInsert);
+const encodeToken = Schema.encodeEffect(AppInstallationToken);
 const encodePlan = Schema.encodeEffect(AppInstallationPlan);
 
 /** What a `select shop` or an `update … returning shop` answers. */
@@ -131,49 +128,49 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
     }, Effect.orDie);
 
     /**
-     * An exchange's write: `insert … on conflict do update`, never `insert or replace`, which is a
-     * delete and would cascade into every app table. It names no plan column, since an unchanged
-     * column in `set` still rewrites its index, a billed row write. An insert stamps
-     * `installedAt`; a conflict leaves it.
+     * A first mint's write: `insert … on conflict do nothing`, never `insert or replace`, which is
+     * a delete and would cascade into every app table. Answers whether it inserted; two first
+     * mints at once leave one row.
      */
-    const upsert = Effect.fn("AppInstallationStore.upsert")(function* (
-      installation: AppInstallationUpsert,
+    const insert = Effect.fn("AppInstallationStore.insert")(function* (
+      installation: AppInstallationInsert,
     ) {
-      const row = yield* encodeUpsert(installation);
+      const row = yield* encodeInsert(installation);
       const installedAt = DateTime.toEpochMillis(yield* DateTime.now);
-      yield* sql`insert into AppInstallation (shop, shopGid, scope, accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt, installedAt)
-      values (${row.shop}, ${row.shopGid}, ${row.scope}, ${row.accessToken}, ${row.accessTokenExpiresAt}, ${row.refreshToken}, ${row.refreshTokenExpiresAt}, ${installedAt})
-      on conflict (shop) do update set
-        shopGid = excluded.shopGid,
-        scope = excluded.scope,
-        accessToken = excluded.accessToken,
-        accessTokenExpiresAt = excluded.accessTokenExpiresAt,
-        refreshToken = excluded.refreshToken,
-        refreshTokenExpiresAt = excluded.refreshTokenExpiresAt`;
+      const inserted = yield* decodeShops(
+        yield* sql`insert into AppInstallation (shop, shopGid, scope, accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt, installedAt)
+      values (${row.shop}, ${row.shopGid}, ${row.scope}, ${row.accessToken}, ${row.accessTokenExpiresAt}, null, null, ${installedAt})
+      on conflict (shop) do nothing
+      returning shop`,
+      );
+      return inserted.length > 0;
     }, Effect.orDie);
 
     /**
-     * A refresh's write of the four token columns. Answers whether the row was there: it never
-     * inserts, so a refresh never recreates an uninstalled shop's row.
+     * A mint's write to an existing row: the token, its expiry and scope, and both refresh columns
+     * null. Answers whether it wrote. It never inserts, so a mint never recreates an uninstalled
+     * shop's row, and never replaces a token with one that expires sooner: concurrent mints may
+     * write in either order, and each token stays valid until its own expiry.
      */
-    const updateTokens = Effect.fn("AppInstallationStore.updateTokens")(function* (
+    const updateToken = Effect.fn("AppInstallationStore.updateToken")(function* (
       shop: ShopDomain,
-      tokens: AppInstallationTokens,
+      token: AppInstallationToken,
     ) {
-      const encoded = yield* encodeTokens(tokens);
+      const encoded = yield* encodeToken(token);
       const updated = yield* decodeShops(
         yield* sql`update AppInstallation set
+        scope = ${encoded.scope},
         accessToken = ${encoded.accessToken},
         accessTokenExpiresAt = ${encoded.accessTokenExpiresAt},
-        refreshToken = ${encoded.refreshToken},
-        refreshTokenExpiresAt = ${encoded.refreshTokenExpiresAt}
-      where shop = ${shop}
+        refreshToken = null,
+        refreshTokenExpiresAt = null
+      where shop = ${shop} and (accessTokenExpiresAt is null or accessTokenExpiresAt < ${encoded.accessTokenExpiresAt})
       returning shop`,
       );
       return updated.length > 0;
     }, Effect.orDie);
 
-    /** The `app/scopes_update` webhook's write; an exchange rewrites `scope` too. */
+    /** The `app/scopes_update` webhook's write; a mint rewrites `scope` too. */
     const updateScope = Effect.fn("AppInstallationStore.updateScope")(function* (
       shop: ShopDomain,
       scope: string | null,
@@ -181,7 +178,7 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
       yield* sql`update AppInstallation set scope = ${scope} where shop = ${shop}`;
     }, Effect.orDie);
 
-    /** On `app/uninstalled`, through the grantor. The app's tables go with the row by cascade. */
+    /** On `app/uninstalled`. The app's tables go with the row by cascade. */
     const deleteInstallation = Effect.fn("AppInstallationStore.delete")(function* (
       shop: ShopDomain,
     ) {
@@ -190,7 +187,7 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
 
     /**
      * Writes the three plan cache columns, and only them: its own statement rather than columns
-     * folded into {@link upsert}, which runs on every exchange, while a plan revalidates about
+     * folded into {@link updateToken}, which runs on every mint, while a plan revalidates about
      * once per shop per day.
      */
     const updatePlan = Effect.fn("AppInstallationStore.updatePlan")(function* (
@@ -289,8 +286,8 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
 
     return {
       find,
-      upsert,
-      updateTokens,
+      insert,
+      updateToken,
       updateScope,
       delete: deleteInstallation,
       updatePlan,
@@ -313,18 +310,20 @@ const redact = ({
 });
 
 /**
- * The only code that touches the `AppInstallation` table. Storage errors are defects. Writers,
- * by column group, so no column has two owners but `scope`, which both write as Shopify's
- * current granted scopes:
+ * The only code that touches the `AppInstallation` table: a cache of each shop's app token, not a
+ * credential, so a lost or stale one costs one mint. Storage errors are defects. Writers, by
+ * column group, so no column has two owners but `scope`, which both write as Shopify's current
+ * granted scopes:
  *
- * | Columns                                              | Writer              | Methods                            |
- * | ---------------------------------------------------- | ------------------- | ---------------------------------- |
- * | the row's existence, `shopGid`, `scope`, the tokens  | the shop's grantor  | `upsert`, `updateTokens`, `delete` |
- * | `scope` on `app/scopes_update`                       | the webhooks        | `updateScope`                      |
- * | `planHandle`, `planHandleExpiresAt`, `planBoundaryAt` | the plan check     | `updatePlan`, `shortenPlanExpiry`  |
+ * | Columns                                               | Writer         | Methods                           |
+ * | ----------------------------------------------------- | -------------- | --------------------------------- |
+ * | the row's existence, `shopGid`, `scope`, the token    | a mint         | `insert`, `updateToken`           |
+ * | the row's existence                                   | the webhooks   | `delete`                          |
+ * | `scope` on `app/scopes_update`                        | the webhooks   | `updateScope`                     |
+ * | `planHandle`, `planHandleExpiresAt`, `planBoundaryAt` | the plan check | `updatePlan`, `shortenPlanExpiry` |
  *
- * The grantor runs one grant at a time per shop and orders `upsert`, `updateTokens` and
- * `delete`, so none needs a fence.
+ * The refresh columns are unused and only ever written null. No write needs ordering: `insert`
+ * never overwrites and `updateToken` never inserts or shortens a token's life.
  */
 export class AppInstallationStore extends Context.Service<
   AppInstallationStore,
@@ -349,27 +348,30 @@ export class AppInstallationStore extends Context.Service<
       const sorted = () => [...rows.values()].toSorted((a, b) => a.shop.localeCompare(b.shop));
       return {
         find: (shop: ShopDomain) => Effect.sync(() => Option.fromUndefinedOr(rows.get(shop))),
-        upsert: (installation: AppInstallationUpsert) =>
+        insert: (installation: AppInstallationInsert) =>
           Effect.map(DateTime.now, (installedAt) => {
-            const existing = rows.get(installation.shop);
-            rows.set(
-              installation.shop,
-              existing === undefined
-                ? {
-                    ...installation,
-                    planHandle: null,
-                    planHandleExpiresAt: null,
-                    planBoundaryAt: null,
-                    installedAt,
-                  }
-                : { ...existing, ...installation },
-            );
+            if (rows.has(installation.shop)) return false;
+            rows.set(installation.shop, {
+              ...installation,
+              refreshToken: null,
+              refreshTokenExpiresAt: null,
+              planHandle: null,
+              planHandleExpiresAt: null,
+              planBoundaryAt: null,
+              installedAt,
+            });
+            return true;
           }),
-        updateTokens: (shop: ShopDomain, tokens: AppInstallationTokens) =>
+        updateToken: (shop: ShopDomain, token: AppInstallationToken) =>
           Effect.sync(() => {
             const row = rows.get(shop);
-            if (row === undefined) return false;
-            rows.set(shop, { ...row, ...tokens });
+            if (
+              row === undefined ||
+              (row.accessTokenExpiresAt !== null &&
+                !DateTime.isLessThan(row.accessTokenExpiresAt, token.accessTokenExpiresAt))
+            )
+              return false;
+            rows.set(shop, { ...row, ...token, refreshToken: null, refreshTokenExpiresAt: null });
             return true;
           }),
         updateScope: (shop: ShopDomain, scope: string | null) => edit(shop, { scope }),
