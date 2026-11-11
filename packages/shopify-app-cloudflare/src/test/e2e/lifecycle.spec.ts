@@ -88,10 +88,12 @@ test("the app installs, subscribes, changes plan, uninstalls and reinstalls", as
 
   /**
    * Opens the admin install URL until it lands in the app or on plan selection: Install on
-   * Shopify's install page, and a restart when the store has the app but no dev preview of it.
+   * Shopify's install page, again when Shopify refused to open the app, and a restart when the
+   * store has the app but no dev preview of it.
    */
   const install = async (): Promise<AdminLanding> => {
     let restarted = false;
+    let refused = false;
     for (;;) {
       await page.goto(installUrl(app), { waitUntil: "commit" });
       let landing = await awaitLanding(page, app);
@@ -99,6 +101,16 @@ test("the app installs, subscribes, changes plan, uninstalls and reinstalls", as
         await approveInstall(page, app);
         landing = await awaitLanding(page, app);
       }
+      if (landing._tag === "OAuthRefused") {
+        if (refused)
+          throw new ShopifyScreenError(
+            `Shopify refused to open the app on ${shop} twice in a row (oauth_error=same_site_cookies), where it refuses only every fourth opening: the owner opens ${installUrl(app)} in the agent Chrome.`,
+          );
+        refused = true;
+        test.info().annotations.push({ type: "oauth refused", description: page.url() });
+        continue;
+      }
+      refused = false;
       if (landing._tag !== "DevPreviewEnded") return landing;
       if (restarted)
         throw new ShopifyScreenError(
