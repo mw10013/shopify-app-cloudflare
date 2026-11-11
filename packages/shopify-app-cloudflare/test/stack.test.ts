@@ -21,6 +21,8 @@ import {
 } from "@mw10013/shopify-app-cloudflare/stack";
 import {
   FAKE_APP_HANDLE,
+  FAKE_APP_TOKEN_KEY,
+  FAKE_APP_TOKEN_KID,
   FAKE_SHOPIFY_API_KEY,
   FAKE_SHOPIFY_API_SECRET,
 } from "@mw10013/shopify-app-cloudflare/test";
@@ -34,7 +36,12 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 
-import { appHandleConfig, partnerConfig, shopifyCredentialsConfig } from "#internal/bindings.ts";
+import {
+  appHandleConfig,
+  appTokenConfig,
+  partnerConfig,
+  shopifyCredentialsConfig,
+} from "#internal/bindings.ts";
 
 import { reachedPackages } from "./reach.ts";
 
@@ -52,6 +59,11 @@ const recordingWorker = () => {
 
 const withEnv = (env: Record<string, string>) =>
   Effect.provideService(ConfigProvider.ConfigProvider, ConfigProvider.fromEnvRecord(env));
+
+const TOKEN_KEY_ENV = {
+  SHOPIFY_APP_TOKEN_KEY: FAKE_APP_TOKEN_KEY,
+  SHOPIFY_APP_TOKEN_KID: "app-key-1",
+};
 
 const PARTNER_ENV = {
   SHOPIFY_PARTNER_ORG_ID: "123",
@@ -90,7 +102,11 @@ describe("/stack", () => {
   it.effect("shopifyCliApp is Some only when the CLI injected all three variables", () =>
     Effect.gen(function* () {
       const file = toml(DEV_TOML);
-      const full = { APP_URL: "https://x.trycloudflare.com", SHOPIFY_API_KEY: CLIENT_ID };
+      const full = {
+        APP_URL: "https://x.trycloudflare.com",
+        SHOPIFY_API_KEY: CLIENT_ID,
+        ...TOKEN_KEY_ENV,
+      };
       assert.isTrue(Option.isNone(yield* shopifyCliApp(file).pipe(withEnv(full))));
       const app = yield* shopifyCliApp(file).pipe(withEnv({ ...full, SHOPIFY_API_SECRET: "s" }));
       assert.isTrue(Option.isSome(app));
@@ -99,7 +115,31 @@ describe("/stack", () => {
         assert.strictEqual(app.value.apiKey, CLIENT_ID);
         assert.strictEqual(app.value.appUrl, full.APP_URL);
         assert.strictEqual(Redacted.value(app.value.apiSecret), "s");
+        assert.strictEqual(
+          Redacted.value(app.value.appTokenKey),
+          TOKEN_KEY_ENV.SHOPIFY_APP_TOKEN_KEY,
+        );
+        assert.strictEqual(app.value.appTokenKid, TOKEN_KEY_ENV.SHOPIFY_APP_TOKEN_KID);
       }
+    }),
+  );
+
+  it.effect("shopifyCliApp fails, naming it, without the token signing key in .env", () =>
+    Effect.gen(function* () {
+      const exit = yield* Effect.exit(
+        shopifyCliApp(toml(DEV_TOML)).pipe(
+          withEnv({
+            APP_URL: "https://x.trycloudflare.com",
+            SHOPIFY_API_KEY: CLIENT_ID,
+            SHOPIFY_API_SECRET: "s",
+          }),
+        ),
+      );
+      assert.isTrue(Exit.isFailure(exit));
+      assert.include(
+        Cause.pretty(Exit.isFailure(exit) ? exit.cause : Cause.empty),
+        "SHOPIFY_APP_TOKEN_KEY",
+      );
     }),
   );
 
@@ -172,17 +212,28 @@ describe("/stack", () => {
             SHOPIFY_APP_HANDLE: "env-handle",
             SHOPIFY_API_KEY: "env-key",
             SHOPIFY_API_SECRET: "s",
+            ...TOKEN_KEY_ENV,
           }),
         );
         assert.strictEqual(app.handle, "my-app-dev");
         assert.strictEqual(app.apiKey, CLIENT_ID);
         assert.strictEqual(Redacted.value(app.apiSecret), "s");
         assert.strictEqual(app.appUrl, "https://app.example");
+        assert.strictEqual(app.appTokenKid, TOKEN_KEY_ENV.SHOPIFY_APP_TOKEN_KID);
 
         const noSecret = yield* Effect.exit(
           deployedShopifyApp(toml(DEV_TOML), "https://app.example").pipe(withEnv({})),
         );
         assert.isTrue(Exit.isFailure(noSecret));
+        const noKey = yield* Effect.exit(
+          deployedShopifyApp(toml(DEV_TOML), "https://app.example").pipe(
+            withEnv({ SHOPIFY_API_SECRET: "s", SHOPIFY_APP_TOKEN_KID: "kid" }),
+          ),
+        );
+        assert.include(
+          Cause.pretty(Exit.isFailure(noKey) ? noKey.cause : Cause.empty),
+          "SHOPIFY_APP_TOKEN_KEY",
+        );
       }),
   );
 
@@ -268,6 +319,10 @@ describe("/stack", () => {
           ]),
       );
       const credentials = yield* shopifyCredentialsConfig.pipe(withEnv(env));
+      const appToken = yield* appTokenConfig.pipe(withEnv(env));
+      assert.strictEqual(Option.getOrThrow(appToken.clientId), FAKE_SHOPIFY_API_KEY);
+      assert.strictEqual(Redacted.value(Option.getOrThrow(appToken.key)), FAKE_APP_TOKEN_KEY);
+      assert.strictEqual(Option.getOrThrow(appToken.kid), FAKE_APP_TOKEN_KID);
       assert.strictEqual(Option.getOrThrow(credentials.apiKey), FAKE_SHOPIFY_API_KEY);
       assert.strictEqual(Option.getOrThrow(credentials.appUrl), "http://localhost:1234");
       assert.strictEqual(yield* appHandleConfig.pipe(withEnv(env)), FAKE_APP_HANDLE);

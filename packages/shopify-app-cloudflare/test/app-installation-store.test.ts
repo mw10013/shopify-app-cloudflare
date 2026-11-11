@@ -12,8 +12,8 @@ import * as Schema from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
 
 import {
+  type AppInstallationInsert,
   AppInstallationStore,
-  type AppInstallationUpsert,
 } from "#internal/app-installation-store.ts";
 import { AppInstallation, AppInstallationRedactedPage } from "#internal/app-installation.ts";
 import { D1Test, type D1TestShape } from "#test/node/d1-test.ts";
@@ -34,21 +34,17 @@ const row: AppInstallation = {
   installedAt: at(500),
 };
 
-const {
-  planHandle: _handle,
-  planHandleExpiresAt: _expires,
-  planBoundaryAt: _boundary,
-  installedAt: _installed,
-  ...upsert
-}: AppInstallation = row;
-const asUpsert: AppInstallationUpsert = upsert;
-
-const tokens = {
-  accessToken: "shpat_b",
-  accessTokenExpiresAt: at(3000),
-  refreshToken: "shprt_b",
-  refreshTokenExpiresAt: at(4000),
+/** {@link row} as a first mint inserts it. */
+const insert: AppInstallationInsert = {
+  shop: row.shop,
+  shopGid: row.shopGid,
+  scope: row.scope,
+  accessToken: row.accessToken,
+  accessTokenExpiresAt: row.accessTokenExpiresAt,
 };
+
+/** A later mint's token. */
+const token = { scope: "write_orders", accessToken: "shpat_b", accessTokenExpiresAt: at(3000) };
 
 const encodeRow = Schema.encodeSync(AppInstallation);
 
@@ -104,56 +100,90 @@ describe.each([
   { backing: "D1", layer: layerD1 },
   { backing: "memory", layer: AppInstallationStore.layerMemory },
 ])("AppInstallationStore ($backing)", ({ layer }) => {
-  it.effect("1. updateTokens on a stored row writes the four token columns", () =>
-    Effect.gen(function* () {
-      const installations = yield* AppInstallationStore;
-      assert.isTrue(yield* installations.updateTokens(SHOP, tokens));
-      assert.deepStrictEqual(yield* stored, { ...row, ...tokens });
-    }).pipe(Effect.provide(layer([row]))),
+  it.effect(
+    "1. updateToken on a stored row writes the token, its expiry and scope and nulls both refresh columns",
+    () =>
+      Effect.gen(function* () {
+        const installations = yield* AppInstallationStore;
+        assert.isTrue(yield* installations.updateToken(SHOP, token));
+        assert.deepStrictEqual(yield* stored, {
+          ...row,
+          ...token,
+          refreshToken: null,
+          refreshTokenExpiresAt: null,
+        });
+      }).pipe(Effect.provide(layer([row]))),
   );
 
-  it.effect("1. updateTokens with no row answers false and creates none", () =>
+  it.effect("1. updateToken with no row answers false and creates none", () =>
     Effect.gen(function* () {
       const installations = yield* AppInstallationStore;
-      assert.isFalse(yield* installations.updateTokens(SHOP, tokens));
+      assert.isFalse(yield* installations.updateToken(SHOP, token));
       assert.isTrue(Option.isNone(yield* installations.find(SHOP)));
     }).pipe(Effect.provide(layer([]))),
   );
 
   it.effect(
-    "2. upsert inserts a new row with its plan never fetched, stamped installedAt now",
+    "1. updateToken with a later expiry already stored answers false and changes nothing",
+    () =>
+      Effect.gen(function* () {
+        const installations = yield* AppInstallationStore;
+        assert.isFalse(
+          yield* installations.updateToken(SHOP, { ...token, accessTokenExpiresAt: at(999) }),
+        );
+        assert.isFalse(
+          yield* installations.updateToken(SHOP, { ...token, accessTokenExpiresAt: at(1000) }),
+        );
+        assert.deepStrictEqual(yield* stored, row);
+      }).pipe(Effect.provide(layer([row]))),
+  );
+
+  it.effect("1. updateToken replacing the stored token writes even with an earlier expiry", () =>
+    Effect.gen(function* () {
+      const installations = yield* AppInstallationStore;
+      const sooner = { ...token, accessTokenExpiresAt: at(999) };
+      assert.isTrue(yield* installations.updateToken(SHOP, sooner, row.accessToken));
+      assert.deepStrictEqual(yield* stored, {
+        ...row,
+        ...sooner,
+        refreshToken: null,
+        refreshTokenExpiresAt: null,
+      });
+    }).pipe(Effect.provide(layer([row]))),
+  );
+
+  it.effect(
+    "2. insert inserts a new row with its plan never fetched, the refresh columns null, stamped installedAt now",
     () =>
       Effect.gen(function* () {
         const installations = yield* AppInstallationStore;
         yield* TestClock.adjust(Duration.millis(500));
-        yield* installations.upsert(asUpsert);
-        assert.deepStrictEqual(yield* stored, row);
+        assert.isTrue(yield* installations.insert(insert));
+        assert.deepStrictEqual(yield* stored, {
+          ...row,
+          refreshToken: null,
+          refreshTokenExpiresAt: null,
+        });
       }).pipe(Effect.provide(layer([]))),
   );
 
-  it.effect(
-    "2. upsert on conflict rewrites the grant columns and leaves the plan cache and installedAt",
-    () =>
-      Effect.gen(function* () {
-        const installations = yield* AppInstallationStore;
-        yield* installations.updatePlan({
-          shop: SHOP,
-          planHandle: "baton-pro",
-          planHandleExpiresAt: at(3000),
-          planBoundaryAt: at(4000),
-        });
-        yield* TestClock.adjust(Duration.millis(9000));
-        yield* installations.upsert({ ...asUpsert, accessToken: "shpat_c", scope: "write_orders" });
-        assert.deepStrictEqual(yield* stored, {
-          ...row,
-          accessToken: "shpat_c",
-          scope: "write_orders",
-          planHandle: "baton-pro",
-          planHandleExpiresAt: at(3000),
-          planBoundaryAt: at(4000),
-        });
-        assert.deepStrictEqual(yield* installations.shops(), [SHOP]);
-      }).pipe(Effect.provide(layer([row]))),
+  it.effect("2. insert on conflict answers false and leaves the row and its plan cache", () =>
+    Effect.gen(function* () {
+      const installations = yield* AppInstallationStore;
+      yield* installations.updatePlan({
+        shop: SHOP,
+        planHandle: "baton-pro",
+        planHandleExpiresAt: at(3000),
+        planBoundaryAt: at(4000),
+      });
+      const before = yield* stored;
+      yield* TestClock.adjust(Duration.millis(9000));
+      assert.isFalse(
+        yield* installations.insert({ ...insert, accessToken: "shpat_c", scope: "write_orders" }),
+      );
+      assert.deepStrictEqual(yield* stored, before);
+      assert.deepStrictEqual(yield* installations.shops(), [SHOP]);
+    }).pipe(Effect.provide(layer([row]))),
   );
 
   it.effect("3. delete removes the row, and again is a no-op", () =>
@@ -219,8 +249,8 @@ describe.each([
       const installations = yield* AppInstallationStore;
       const fresh = shopDomain("fresh.myshopify.com");
       const expired = shopDomain("expired.myshopify.com");
-      yield* installations.upsert({ ...asUpsert, shop: fresh });
-      yield* installations.upsert({ ...asUpsert, shop: expired });
+      yield* installations.insert({ ...insert, shop: fresh });
+      yield* installations.insert({ ...insert, shop: expired });
       yield* installations.updatePlan({
         shop: fresh,
         planHandle: "baton-pro",
@@ -244,10 +274,11 @@ describe.each([
     Effect.gen(function* () {
       const installations = yield* AppInstallationStore;
       const other = shopDomain("other.myshopify.com");
-      yield* installations.upsert({ ...asUpsert, shop: other, accessToken: null });
+      yield* installations.insert({ ...insert, shop: other, accessToken: null });
       const found = Option.getOrThrow(yield* installations.findRedacted(other));
       assert.isFalse(found.hasAccessToken);
-      assert.isTrue(found.hasRefreshToken);
+      assert.isFalse(found.hasRefreshToken);
+      assert.isTrue(Option.getOrThrow(yield* installations.findRedacted(SHOP)).hasRefreshToken);
       assert.notProperty(found, "accessToken");
       assert.notProperty(found, "refreshToken");
       assert.isTrue(
@@ -302,7 +333,7 @@ describe("AppInstallationStore over D1", () => {
     }).pipe(Effect.provide(layerD1([]))),
   );
 
-  it.effect("N6. upsert on an installed shop leaves the plan cache and the app's child rows", () =>
+  it.effect("N6. insert on an installed shop leaves the plan cache and the app's child rows", () =>
     Effect.gen(function* () {
       const d1 = yield* D1Test;
       const installations = yield* AppInstallationStore;
@@ -313,7 +344,7 @@ describe("AppInstallationStore over D1", () => {
         planHandleExpiresAt: at(3000),
         planBoundaryAt: at(4000),
       });
-      yield* installations.upsert({ ...asUpsert, accessToken: "shpat_c" });
+      assert.isFalse(yield* installations.insert({ ...insert, accessToken: "shpat_c" }));
       assert.strictEqual(noteCount(d1), 1);
       const after = yield* stored;
       assert.strictEqual(after.planHandle, "baton-pro");
@@ -350,7 +381,7 @@ describe("AppInstallationStore over D1", () => {
       sqlite.exec("alter table AppInstallation add column addedLater text default 'x'");
       assert.deepStrictEqual(yield* stored, row);
       const installations = yield* AppInstallationStore;
-      yield* installations.upsert({ ...asUpsert, shop: shopDomain("new.myshopify.com") });
+      yield* installations.insert({ ...insert, shop: shopDomain("new.myshopify.com") });
       assert.deepStrictEqual(
         sqlite
           .prepare("select addedLater from AppInstallation where shop = ?")

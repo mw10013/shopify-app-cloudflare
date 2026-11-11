@@ -64,7 +64,7 @@ export const backendMethods = Effect.gen(function* () {
 
   /**
    * The App Home's screen read: `MerchantGate.subscribedShop`, which verifies the ID token,
-   * reads the row and resolves the plan from it without an exchange. The install instant comes
+   * reads the row and resolves the plan from it without a mint. The install instant comes
    * from that same row, so the answer never mixes two installations.
    */
   const appHome = Effect.fn("Backend.appHome")(function* (payload: AppHomeInput) {

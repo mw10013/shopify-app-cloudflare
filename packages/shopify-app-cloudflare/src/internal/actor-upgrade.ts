@@ -121,7 +121,7 @@ const isUpgrade = (request: HttpServerRequest.HttpServerRequest) =>
 /**
  * The merchant gate, {@link actorUpgrade}'s default. The merchant's Shopify ID token arrives as
  * `?token=`, because a browser cannot set a header on an upgrade. The gate verifies it (never
- * exchanges it: the `/app` guard did), checks its shop is the socket's before any read, and
+ * mints for it: the `/app` guard did), checks its shop is the socket's before any read, and
  * requires an active plan. A D1 failure and a plan that could not be read are both 503, so an
  * outage never reads as "uninstalled" and the browser retries.
  */

@@ -27,7 +27,13 @@ import {
   e2eSessionEnv,
   E2eSessionJson,
 } from "#test/e2e-session.ts";
-import { FAKE_APP_HANDLE, FAKE_SHOPIFY_API_KEY, FAKE_SHOPIFY_API_SECRET } from "#test/fake-app.ts";
+import {
+  FAKE_APP_HANDLE,
+  FAKE_APP_TOKEN_KEY,
+  FAKE_APP_TOKEN_KID,
+  FAKE_SHOPIFY_API_KEY,
+  FAKE_SHOPIFY_API_SECRET,
+} from "#test/fake-app.ts";
 
 import {
   AppHandle,
@@ -52,7 +58,20 @@ export interface ShopifyAppBinding {
   readonly apiSecret: Redacted.Redacted;
   /** The app's public URL: Shopify CLI's tunnel under `shopify app dev`, else the Website's own. */
   readonly appUrl: string | Output.Output<string | undefined>;
+  /** `SHOPIFY_APP_TOKEN_KEY`: the application-only grant's private key, PKCS #8 PEM, P-256. */
+  readonly appTokenKey: Redacted.Redacted;
+  /** `SHOPIFY_APP_TOKEN_KID`: the `kid` its public JWK is registered under. */
+  readonly appTokenKid: string;
 }
+
+/**
+ * The app's token signing key from the stage's environment (`.env` or a deploy's), never the
+ * toml: the key is a secret, and the `kid` names it. Missing either fails the plan, naming it.
+ */
+const appTokenKeyConfig = Config.all({
+  appTokenKey: Config.Redacted("SHOPIFY_APP_TOKEN_KEY"),
+  appTokenKid: Config.String("SHOPIFY_APP_TOKEN_KID"),
+});
 
 const decodeAppHandle = Schema.decodeUnknownSync(AppHandle);
 
@@ -123,7 +142,8 @@ const appIdentityConfig = (tomlPath: string | URL): Config.Config<AppIdentity> =
  * `shopify app dev`, which runs `alchemy dev` as that command; the process environment wins over
  * `.env`, so `.env` cannot shadow them. The identity is the toml's at `tomlPath`, the one the
  * CLI serves; the injected key must equal its `client_id`, else the CLI serves another app and
- * this fails, naming both.
+ * this fails, naming both. The token signing key, which the CLI does not inject, comes from
+ * `.env`; without it this fails, naming it.
  */
 export const shopifyCliApp = (
   tomlPath: string | URL,
@@ -140,7 +160,7 @@ export const shopifyCliApp = (
         onSome: (cli) =>
           Effect.flatMap(appIdentityConfig(tomlPath), (identity) =>
             cli.apiKey === identity.apiKey
-              ? Effect.succeed(Option.some({ ...cli, ...identity }))
+              ? Effect.map(appTokenKeyConfig, (key) => Option.some({ ...cli, ...identity, ...key }))
               : Effect.fail(
                   new Config.ConfigError(
                     new ConfigProvider.SourceError({
@@ -154,9 +174,10 @@ export const shopifyCliApp = (
   );
 
 /**
- * A deployed stage's app: its identity from the stage's toml at `tomlPath`, and only its secret,
- * `SHOPIFY_API_SECRET`, from the deploy's environment, served at `appUrl` (the Website's own
- * URL). A missing toml or secret fails the plan rather than falling back to the fake app.
+ * A deployed stage's app: its identity from the stage's toml at `tomlPath`, and its secrets,
+ * `SHOPIFY_API_SECRET`, `SHOPIFY_APP_TOKEN_KEY` and `SHOPIFY_APP_TOKEN_KID`, from the deploy's
+ * environment, served at `appUrl` (the Website's own URL). A missing toml or secret fails the
+ * plan rather than falling back to the fake app.
  */
 export const deployedShopifyApp = (
   tomlPath: string | URL,
@@ -165,7 +186,10 @@ export const deployedShopifyApp = (
   Config.all({
     identity: appIdentityConfig(tomlPath),
     apiSecret: Config.Redacted("SHOPIFY_API_SECRET"),
-  }).pipe(Config.map(({ identity, apiSecret }) => ({ ...identity, apiSecret, appUrl })));
+    key: appTokenKeyConfig,
+  }).pipe(
+    Config.map(({ identity, apiSecret, key }) => ({ ...identity, apiSecret, ...key, appUrl })),
+  );
 
 /**
  * The fake app served at `appUrl`: `/test`'s constants, which only a token or a webhook a test
@@ -177,6 +201,8 @@ export const fakeShopifyApp = (appUrl: ShopifyAppBinding["appUrl"]): ShopifyAppB
   apiKey: FAKE_SHOPIFY_API_KEY,
   apiSecret: Redacted.make(FAKE_SHOPIFY_API_SECRET),
   appUrl,
+  appTokenKey: Redacted.make(FAKE_APP_TOKEN_KEY),
+  appTokenKid: FAKE_APP_TOKEN_KID,
 });
 
 /** The Partner values a stage binds, read from `.env` or a deploy's environment. */
@@ -192,9 +218,10 @@ export interface BindableWorker {
 
 /**
  * Binds the Backend's Shopify configuration: the app as `SHOPIFY_APP_HANDLE`, `SHOPIFY_API_KEY`,
- * `SHOPIFY_API_SECRET` and `SHOPIFY_APP_URL`, and, when `partner` is `Some`, the Partner
- * credentials. With `None` none is bound, and the Backend's billing dies on its first Partner
- * call while webhooks, the grantor and a shop with a cached plan work (`PartnerApi.layerUnbound`).
+ * `SHOPIFY_API_SECRET`, `SHOPIFY_APP_URL`, `SHOPIFY_APP_TOKEN_KEY` and `SHOPIFY_APP_TOKEN_KID`,
+ * and, when `partner` is `Some`, the Partner credentials. With `None` none is bound, and the
+ * Backend's billing dies on its first Partner call while webhooks, minting and a shop with a
+ * cached plan work (`PartnerApi.layerUnbound`).
  */
 export const bindShopifyApp = Effect.fn("Stack.bindShopifyApp")(function* (
   backend: BindableWorker,
@@ -209,6 +236,8 @@ export const bindShopifyApp = Effect.fn("Stack.bindShopifyApp")(function* (
       SHOPIFY_API_KEY: options.app.apiKey,
       SHOPIFY_API_SECRET: options.app.apiSecret,
       SHOPIFY_APP_URL: options.app.appUrl,
+      SHOPIFY_APP_TOKEN_KEY: options.app.appTokenKey,
+      SHOPIFY_APP_TOKEN_KID: options.app.appTokenKid,
     },
   });
   if (Option.isSome(options.partner))

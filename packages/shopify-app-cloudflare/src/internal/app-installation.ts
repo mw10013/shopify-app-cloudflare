@@ -15,7 +15,7 @@ import { ShopDomain, ShopGid } from "./domain.ts";
 const StoredInstant = Schema.NullOr(Schema.DateTimeUtcFromMillis);
 
 /**
- * An `AppInstallation` row: the app installed on one shop, from the first token exchange until
+ * An `AppInstallation` row: the app installed on one shop, from the first mint until
  * uninstall, with every column the package's migrations create. Apps add no column here; their
  * per-shop data lives in their own tables, which cascade from this one. A row with a column a
  * later migration added still decodes: the struct ignores a property it does not name, so the
@@ -27,7 +27,9 @@ export const AppInstallation = Schema.Struct({
   scope: Schema.NullOr(Schema.String),
   accessToken: Schema.NullOr(Schema.String),
   accessTokenExpiresAt: StoredInstant,
+  /** Unused since the application-only grant; written null. Kept: migrations never drop. */
   refreshToken: Schema.NullOr(Schema.String),
+  /** Unused; written null. */
   refreshTokenExpiresAt: StoredInstant,
   /**
    * The cached plan handle. A plain string, not `PlanHandle`: every row decodes on the merchant
@@ -44,8 +46,8 @@ export const AppInstallation = Schema.Struct({
    */
   planBoundaryAt: StoredInstant,
   /**
-   * When the row was inserted: the shop's first token exchange, or its first after an uninstall
-   * deleted the row. An exchange on an existing row leaves it. Null on a row inserted before the
+   * When the row was inserted: the shop's first mint, or its first after an uninstall deleted the
+   * row. A mint on an existing row leaves it. Null on a row inserted before the
    * column existed.
    */
   installedAt: StoredInstant,

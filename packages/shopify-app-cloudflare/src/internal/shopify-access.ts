@@ -1,6 +1,6 @@
 /**
- * Tier 1, `ShopifyAccess`: `Shopify`, the read side of the `AppInstallation` table and the
- * grantor, which an app's shop actor needs and so must exist below it. Tier 2 (billing, the
+ * Tier 1, `ShopifyAccess`: `Shopify` and the read side of the `AppInstallation` table, which an
+ * app's shop actor needs and so must exist below it. Tier 2 (billing, the
  * merchant gate and webhooks) builds on the internal services it also provides.
  *
  * @module
@@ -14,9 +14,9 @@ import type * as Option from "effect/Option";
 
 import { AppInstallationStore, type RedactedPageInput } from "./app-installation-store.ts";
 import type { AppInstallationRedacted, AppInstallationRedactedPage } from "./app-installation.ts";
+import { AppTokens } from "./app-tokens.ts";
 import type { ShopifyCredentials } from "./bindings.ts";
 import type { ShopDomain } from "./domain.ts";
-import { ShopGrantorLive, ShopGrantors } from "./shop-grantor.ts";
 import { ShopifyClient } from "./shopify-client.ts";
 import { layerShopify } from "./shopify.ts";
 
@@ -48,35 +48,44 @@ const layerAppInstallations = Layer.effect(
 
 /**
  * Tier 1's services before their backings: `Shopify`, the merchant path and `AppInstallations`,
- * over the `ShopifyClient`, `ShopGrantors` and `AppInstallationStore` in context. Tests build it
- * over in-memory grantors; {@link layer} builds it over the Durable Object.
+ * over the `ShopifyClient`, `AppTokens` and `AppInstallationStore` in context.
  */
 const layerNoDeps = Layer.merge(layerShopify, layerAppInstallations);
 
 /**
- * Tier 1 over the shop's `ShopGrantor` Durable Object and the app's D1 `database`. Building it in
- * the Backend's init binds the `ShopGrantor` class to the Worker, so the app never names it. It
- * also provides the internal services tier 2 builds on.
+ * Tier 1 over the app's D1 `database` and its `credentials`. It also provides the internal
+ * services tier 2 builds on.
  */
 const layer = <R>(options: {
   readonly database: SQL.D1DatabaseSource<never, R>;
   readonly credentials: ShopifyCredentials;
-}) => withGrantorObject(options.database, ShopifyClient.layer(options.credentials));
+}) =>
+  over(
+    options.database,
+    ShopifyClient.layer(options.credentials),
+    AppTokens.layer({
+      clientId: options.credentials.apiKey,
+      key: options.credentials.appTokenKey,
+      kid: options.credentials.appTokenKid,
+    }),
+  );
 
 /**
- * {@link layer} with the credentials read from `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET` and
- * `SHOPIFY_APP_URL`, which the stack binds to the Backend.
+ * {@link layer} with the credentials read from `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`,
+ * `SHOPIFY_APP_URL`, `SHOPIFY_APP_TOKEN_KEY` and `SHOPIFY_APP_TOKEN_KID`, which the stack binds to
+ * the Backend. A Worker without the token key, or with one that does not import, fails its
+ * startup naming it.
  */
 const layerConfig = <R>(options: { readonly database: SQL.D1DatabaseSource<never, R> }) =>
-  withGrantorObject(options.database, ShopifyClient.layerConfig);
+  over(options.database, ShopifyClient.layerConfig, AppTokens.layerConfig);
 
-const withGrantorObject = <R, E2, R2>(
+const over = <R, E2, R2, E3, R3>(
   database: SQL.D1DatabaseSource<never, R>,
   client: Layer.Layer<ShopifyClient, E2, R2>,
+  tokens: Layer.Layer<AppTokens, E3, R3>,
 ) =>
   layerNoDeps.pipe(
-    Layer.provideMerge(ShopGrantors.layer.pipe(Layer.provide(ShopGrantorLive))),
-    Layer.provideMerge(client),
+    Layer.provideMerge(Layer.merge(client, tokens)),
     Layer.provideMerge(AppInstallationStore.layerD1(database)),
   );
 

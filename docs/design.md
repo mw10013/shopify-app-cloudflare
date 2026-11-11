@@ -6,7 +6,7 @@ baton, bang and motio are embedded Shopify admin apps built the same way. Each o
 
 The package holds everything an embedded app on this stack needs and no app should write itself:
 
-- Authentication: ID tokens, token exchange and refresh through the grantor Durable Object, the `AppInstallation` table and repository, and `adminGraphql`.
+- Authentication: ID tokens, Admin API tokens from Shopify's application-only grant (`AppTokens`), the `AppInstallation` table and repository, and `adminGraphql`.
 - Billing: the plan cache, `SubscriptionPlan` and the merchant gate. Plan handles are an allowlist; an app passes its catalog as data.
 - Webhooks: `app/uninstalled`, `app/scopes_update`, the compliance topics and the HMAC check.
 - The shop actor's machinery: the socket session, notices, the activation guard and destroy on uninstall.
@@ -20,7 +20,7 @@ The work starts with authentication, billing and webhooks, then the shop actor m
 
 ## Where an app's identity and secrets live
 
-Each stage's `shopify.app*.toml` in the app's repository is the only place its app's public identity is written: the top-level `handle` and `client_id`, which is the app's API key (`SHOPIFY_API_KEY`). The app's `alchemy.run.ts` reads them from the toml at stack time (`readAppIdentity`, `shopifyCliApp`, `deployedShopifyApp`) and binds them into the Backend; the deployed Worker never reads a file. Only secrets come from the environment: `SHOPIFY_API_SECRET` and the Partner values. Under `shopify app dev` the CLI's injected `SHOPIFY_API_KEY` must equal the toml's `client_id`, or the stack fails.
+Each stage's `shopify.app*.toml` in the app's repository is the only place its app's public identity is written: the top-level `handle` and `client_id`, which is the app's API key (`SHOPIFY_API_KEY`). The app's `alchemy.run.ts` reads them from the toml at stack time (`readAppIdentity`, `shopifyCliApp`, `deployedShopifyApp`) and binds them into the Backend; the deployed Worker never reads a file. Only secrets come from the environment: `SHOPIFY_API_SECRET`, the token signing key `SHOPIFY_APP_TOKEN_KEY` with its `SHOPIFY_APP_TOKEN_KID`, and the Partner values. Shopify CLI injects none of the signing key, so `shopify app dev` reads it from `.env`. Under `shopify app dev` the CLI's injected `SHOPIFY_API_KEY` must equal the toml's `client_id`, or the stack fails.
 
 ## Why a library inside each Worker
 
@@ -83,7 +83,7 @@ export const ShopActorLive = ShopActor.make(
 );
 ```
 
-The other way is a base class the app extends, overriding `handlers` and `alarm`. That way fails on two counts. Alchemy's `Cloudflare.DurableObject` builds the class from an Effect, so a base class would have to wrap Alchemy's own factory. And the grantor already composes this way, so the package would mix two styles for one kind of thing.
+The other way is a base class the app extends, overriding `handlers` and `alarm`. That way fails on two counts. Alchemy's `Cloudflare.DurableObject` builds the class from an Effect, so a base class would have to wrap Alchemy's own factory. And the package's other Durable Object machinery already composes this way, so the package would mix two styles for one kind of thing.
 
 The class name stays `ShopActor` in every app. A Durable Object class rename or delete blocks a Workers rollback, so moving an app onto the kit must show no class created or deleted in `alchemy plan`.
 
@@ -141,11 +141,13 @@ Route files stay in the app too, because TanStack's router builds its tree from 
 These rules hold for every release, because each app's production upgrades on its own schedule and must be able to roll back:
 
 - Migrations are forward only and expand before they contract. A Workers rollback does not revert D1, so the previous app version must still work against the new schema. A release removes a column only after every app's production runs a release that no longer reads it.
-- The grantor's and the shop actor's Durable Object class names never change. A Durable Object class change blocks a Workers rollback.
-- During a gradual deploy only one version of a Durable Object runs, so the grantor accepts calls from the old and the new Worker version.
+- The shop actor's Durable Object class name never changes. A Durable Object class change blocks a Workers rollback.
+- The one exception is the `ShopGrantor` class, which the application-only grant made unneeded. The release that drops it deletes the class (Alchemy emits the `deleted_classes` migration when the binding goes), so that deploy goes out at 100% and a rollback past it is a redeploy. The class stored nothing.
 - The package pins the Admin API version, and a check holds each app's `[webhooks] api_version` equal to it.
 
 ## Decisions
+
+- Every Admin API token comes from the application-only grant: a `client_credentials` request signed with the app's ES256 key, with no merchant and no refresh token. A mint retires no other token and Shopify answers concurrent mints with one token, so nothing orders them: the per-shop grantor Durable Object, abandoned-attempt adoption, the uninstall epoch and the merchant-only repair states of the refresh design are gone. The refresh columns of `AppInstallation` stay, written null, because migrations never drop.
 
 - A failed webhook HMAC logs at `Error`. A wrong API secret makes every real delivery fail, including `app/uninstalled`, and nothing else reports it. If scanner noise gets expensive, the fix is sampling, not a lower level.
 - Plan handles are an allowlist in every app.

@@ -40,7 +40,7 @@ const embeddedIdToken = createMiddleware({ type: "function" }).server(({ next, d
 const IdTokenInput = Schema.Struct({ idToken: Schema.optional(Schema.NonEmptyString) });
 
 /**
- * The App Home guard's read: `BACKEND.authenticateMerchant`, which exchanges the ID token when
+ * The App Home guard's read: `BACKEND.authenticateMerchant`, which mints a token when
  * the stored one is not fresh and checks the plan, re-read from the Partner API on the billing
  * redirect. Answers the shop, the API key for App Bridge's meta tag and the Manage plan URL.
  *

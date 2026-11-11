@@ -1,127 +1,235 @@
 import { assert, describe, it } from "@effect/vitest";
-import { abstractFetch } from "@shopify/shopify-api/runtime";
+import { abstractFetch, setAbstractFetchFunc } from "@shopify/shopify-api/runtime";
 import * as Effect from "effect/Effect";
+import * as Base64Url from "effect/encoding/Base64Url";
 import * as Layer from "effect/Layer";
+import * as Redacted from "effect/Redacted";
 import * as TestClock from "effect/testing/TestClock";
 
-import {
-  FAKE_REFRESH_TOKEN_EXPIRES_IN,
-  REFRESH_GRANT,
-  ShopifyFake,
-  TOKEN_EXCHANGE_GRANT,
-} from "#test/shopify-fake.ts";
+import { AppTokens } from "#internal/app-tokens.ts";
+import { FAKE_APP_TOKEN_KEY, FAKE_APP_TOKEN_KID, FAKE_SHOPIFY_API_KEY } from "#test/fake-app.ts";
+import { FAKE_ACCESS_TOKEN_EXPIRES_IN, FAKE_SCOPE, ShopifyFake } from "#test/shopify-fake.ts";
 
 import { SHOP } from "./fixtures.ts";
 
 const TOKEN_URL = `https://${SHOP}/admin/oauth/access_token`;
 
-/** A grant as the library sends it, through whatever fetch is installed. */
-const grant = (body: Record<string, string>) =>
+const tokens = AppTokens.layer({
+  clientId: FAKE_SHOPIFY_API_KEY,
+  key: Redacted.make(FAKE_APP_TOKEN_KEY),
+  kid: FAKE_APP_TOKEN_KID,
+});
+const layer = Layer.merge(tokens, ShopifyFake.layer);
+
+const mint = Effect.flatMap(AppTokens, (appTokens) => appTokens.mint(SHOP));
+
+/** A token request as `AppTokens` sends one, its form fields replaced or added by `over`. */
+const post = (over: Record<string, string>) =>
   Effect.promise(async () => {
     const response = await abstractFetch(TOKEN_URL, {
       method: "POST",
-      body: JSON.stringify(body),
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: FAKE_SHOPIFY_API_KEY,
+        client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+        client_assertion: "",
+        ...over,
+      }).toString(),
     });
-    return {
-      status: response.status,
-      body: (await response.json()) as Record<string, unknown>,
-    };
+    return { status: response.status, body: (await response.json()) as Record<string, unknown> };
   });
 
-const exchange = grant({ grant_type: TOKEN_EXCHANGE_GRANT, subject_token: "id-token" });
-const refresh = (refreshToken: string) =>
-  grant({ grant_type: REFRESH_GRANT, refresh_token: refreshToken });
-
-const refreshed = (refreshToken: string) =>
-  Effect.map(refresh(refreshToken), ({ status, body }) => {
-    assert.strictEqual(status, 200);
-    return String(body.refresh_token);
-  });
-
-describe("ShopifyFake's ledger", () => {
-  it.effect("rule 2: an exchange retires every other refresh token for the shop", () =>
+describe("ShopifyFake's token endpoint", () => {
+  it.effect("an installed shop is minted a token with the installation's scope", () =>
     Effect.gen(function* () {
       const fake = yield* ShopifyFake;
-      yield* fake.recognize(SHOP, "shprt_seeded");
-      const { body } = yield* exchange;
-      assert.strictEqual(body.refresh_token, "shprt_1");
-      assert.isFalse(yield* fake.accepts(SHOP, "shprt_seeded"));
-      assert.isTrue(yield* fake.accepts(SHOP, "shprt_1"));
-      assert.deepStrictEqual(yield* refresh("shprt_seeded"), {
-        status: 401,
-        body: { error: "invalid_request" },
-      });
-    }).pipe(Effect.provide(ShopifyFake.layer)),
+      yield* fake.install(SHOP);
+      const token = yield* mint;
+      assert.strictEqual(token.scope, FAKE_SCOPE);
+      assert.isTrue(yield* fake.accepts(SHOP, token.accessToken));
+    }).pipe(Effect.provide(layer)),
   );
 
-  it.effect("rule 3: a presented refresh token stays usable until its successor is presented", () =>
+  it.effect("rule 4: a mint in the same minute answers the token already issued", () =>
     Effect.gen(function* () {
       const fake = yield* ShopifyFake;
-      yield* fake.recognize(SHOP, "shprt_seeded");
-      const first = yield* refreshed("shprt_seeded");
-      assert.isTrue(yield* fake.accepts(SHOP, "shprt_seeded"), "until its successor is used");
-      // The successor's response was lost; the same token refreshes again.
-      const again = yield* refreshed("shprt_seeded");
-      assert.notStrictEqual(again, first);
-      yield* refreshed(again);
-      assert.isFalse(yield* fake.accepts(SHOP, "shprt_seeded"), "its successor was used");
-      assert.strictEqual((yield* refresh("shprt_seeded")).status, 401);
-    }).pipe(Effect.provide(ShopifyFake.layer)),
+      yield* fake.install(SHOP);
+      const first = yield* mint;
+      yield* TestClock.adjust("30 seconds");
+      const again = yield* mint;
+      assert.strictEqual(again.accessToken, first.accessToken);
+      assert.deepStrictEqual(again.expires, first.expires, "with its original expiry");
+      yield* TestClock.adjust("30 seconds");
+      const next = yield* mint;
+      assert.notStrictEqual(next.accessToken, first.accessToken);
+      assert.isTrue(yield* fake.accepts(SHOP, first.accessToken), "minting retires nothing");
+    }).pipe(Effect.provide(layer)),
   );
 
-  it.effect("rule 3: a presented refresh token is retired 30 days after its first use", () =>
+  it.effect("a token expires FAKE_ACCESS_TOKEN_EXPIRES_IN after it was issued", () =>
     Effect.gen(function* () {
       const fake = yield* ShopifyFake;
-      yield* fake.recognize(SHOP, "shprt_seeded");
-      yield* refreshed("shprt_seeded");
-      yield* TestClock.adjust("29 days");
-      yield* refreshed("shprt_seeded");
-      yield* TestClock.adjust("1 day");
-      assert.isFalse(yield* fake.accepts(SHOP, "shprt_seeded"));
-      assert.strictEqual((yield* refresh("shprt_seeded")).status, 401);
-    }).pipe(Effect.provide(ShopifyFake.layer)),
-  );
-
-  it.effect("rule 3: a refresh token is retired at its original expiry, even unused", () =>
-    Effect.gen(function* () {
-      const fake = yield* ShopifyFake;
-      const { body } = yield* exchange;
-      const issued = String(body.refresh_token);
-      yield* TestClock.adjust(FAKE_REFRESH_TOKEN_EXPIRES_IN * 1000 - 1);
-      assert.isTrue(yield* fake.accepts(SHOP, issued));
+      yield* fake.install(SHOP);
+      const { accessToken } = yield* mint;
+      yield* TestClock.adjust(FAKE_ACCESS_TOKEN_EXPIRES_IN * 1000 - 1);
+      assert.isTrue(yield* fake.accepts(SHOP, accessToken));
       yield* TestClock.adjust(1);
-      assert.isFalse(yield* fake.accepts(SHOP, issued));
-      assert.strictEqual((yield* refresh(issued)).status, 401);
-    }).pipe(Effect.provide(ShopifyFake.layer)),
+      assert.isFalse(yield* fake.accepts(SHOP, accessToken));
+    }).pipe(Effect.provide(layer)),
   );
 
-  it.effect("a refresh token the ledger never saw is answered 401", () =>
-    Effect.gen(function* () {
-      assert.strictEqual((yield* refresh("shprt_unknown")).status, 401);
-    }).pipe(Effect.provide(ShopifyFake.layer)),
-  );
-
-  it.effect("each shop keeps its own tokens", () =>
+  it.effect("rule 6: a shop never installed, or uninstalled, answers app_not_installed", () =>
     Effect.gen(function* () {
       const fake = yield* ShopifyFake;
-      yield* exchange;
-      assert.isFalse(yield* fake.accepts("other-shop.myshopify.com" as typeof SHOP, "shprt_1"));
-    }).pipe(Effect.provide(ShopifyFake.layer)),
+      const exit = yield* Effect.flip(mint);
+      assert.strictEqual(exit._tag, "AppNotInstalledError");
+      yield* fake.install(SHOP);
+      const { accessToken } = yield* mint;
+      yield* fake.uninstall(SHOP);
+      assert.isFalse(yield* fake.accepts(SHOP, accessToken), "its tokens end at once");
+      assert.strictEqual((yield* Effect.flip(mint))._tag, "AppNotInstalledError");
+    }).pipe(Effect.provide(layer)),
+  );
+
+  it.effect("rule 7: a replayed assertion answers 401 invalid_client", () =>
+    Effect.gen(function* () {
+      const fake = yield* ShopifyFake;
+      yield* fake.install(SHOP);
+      const served = abstractFetch;
+      let sent = "";
+      yield* Effect.acquireUseRelease(
+        Effect.sync(() => {
+          setAbstractFetchFunc((url, init) => {
+            sent = typeof init?.body === "string" ? init.body : "";
+            return served(url, init);
+          });
+        }),
+        () => mint,
+        () =>
+          Effect.sync(() => {
+            setAbstractFetchFunc(served);
+          }),
+      );
+      const replayed = yield* Effect.promise(async () => {
+        const response = await abstractFetch(TOKEN_URL, { method: "POST", body: sent });
+        return { status: response.status, body: (await response.json()) as unknown };
+      });
+      assert.deepStrictEqual(replayed, { status: 401, body: { error: "invalid_client" } });
+    }).pipe(Effect.provide(layer)),
+  );
+
+  it.effect("rule 7: an assertion signed with a key the fake does not hold answers 401", () =>
+    Effect.gen(function* () {
+      const fake = yield* ShopifyFake;
+      yield* fake.install(SHOP);
+      yield* fake.revokeKey(FAKE_APP_TOKEN_KID);
+      const forged = [
+        Base64Url.encode(JSON.stringify({ alg: "ES256", kid: FAKE_APP_TOKEN_KID })),
+        Base64Url.encode(JSON.stringify({ iss: FAKE_SHOPIFY_API_KEY })),
+        "c2ln",
+      ].join(".");
+      assert.deepStrictEqual(yield* post({ client_assertion: forged }), {
+        status: 401,
+        body: { error: "invalid_client" },
+      });
+    }).pipe(Effect.provide(layer)),
+  );
+
+  it.effect(
+    "rule 2: a client secret, a scope, an Authorization header or another assertion type answers 400",
+    () =>
+      Effect.gen(function* () {
+        const fake = yield* ShopifyFake;
+        yield* fake.install(SHOP);
+        assert.strictEqual((yield* post({ client_secret: "secret" })).status, 400);
+        assert.strictEqual((yield* post({ scope: "read_orders" })).status, 400);
+        assert.strictEqual((yield* post({ client_assertion_type: "basic" })).status, 400);
+        const withBasic = yield* Effect.promise(async () => {
+          const response = await abstractFetch(TOKEN_URL, {
+            method: "POST",
+            headers: { Authorization: "Basic c2VjcmV0" },
+            body: new URLSearchParams({
+              grant_type: "client_credentials",
+              client_id: FAKE_SHOPIFY_API_KEY,
+              client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+              client_assertion: "",
+            }).toString(),
+          });
+          return response.status;
+        });
+        assert.strictEqual(withBasic, 400, "an Authorization header beside the assertion");
+      }).pipe(Effect.provide(layer)),
+  );
+
+  it.effect("rule 8: revoking a key ends the tokens issued under it", () =>
+    Effect.gen(function* () {
+      const fake = yield* ShopifyFake;
+      yield* fake.install(SHOP);
+      const { accessToken } = yield* mint;
+      yield* fake.revokeKey(FAKE_APP_TOKEN_KID);
+      assert.isFalse(yield* fake.accepts(SHOP, accessToken));
+    }).pipe(Effect.provide(layer)),
+  );
+
+  it.effect("rule 7: an unknown client id answers 400 application_cannot_be_found", () =>
+    Effect.gen(function* () {
+      assert.deepStrictEqual(yield* post({ client_id: "0".repeat(32) }), {
+        status: 400,
+        body: { error: "application_cannot_be_found" },
+      });
+    }).pipe(Effect.provide(layer)),
+  );
+
+  it.effect("reset forgets installations and registers the fake app's key again", () =>
+    Effect.gen(function* () {
+      const fake = yield* ShopifyFake;
+      yield* fake.install(SHOP);
+      yield* fake.revokeKey(FAKE_APP_TOKEN_KID);
+      yield* fake.reset;
+      assert.strictEqual((yield* Effect.flip(mint))._tag, "AppNotInstalledError");
+      yield* fake.install(SHOP);
+      yield* mint;
+    }).pipe(Effect.provide(layer)),
+  );
+});
+
+describe("ShopifyFake's Admin GraphQL", () => {
+  it.effect("answers a token it issued, and 401 for any other", () =>
+    Effect.gen(function* () {
+      const fake = yield* ShopifyFake;
+      yield* fake.install(SHOP);
+      const { accessToken } = yield* mint;
+      const status = (token: string) =>
+        Effect.promise(async () => {
+          const response = await abstractFetch(`https://${SHOP}/admin/api/2026-10/graphql.json`, {
+            method: "POST",
+            headers: { "X-Shopify-Access-Token": token },
+            body: "{}",
+          });
+          return response.status;
+        });
+      assert.strictEqual(yield* status(accessToken), 200);
+      assert.strictEqual(yield* status("shpat_unknown"), 401);
+      yield* fake.recognize(SHOP, "shpat_seeded", Date.now() + 60_000);
+      assert.strictEqual(yield* status("shpat_seeded"), 200);
+    }).pipe(Effect.provide(layer)),
   );
 });
 
 describe("ShopifyFake's scripts", () => {
-  it.effect("a scripted reply answers one call before the ledger, and every call is recorded", () =>
+  it.effect("a scripted reply answers one call first, and every call is recorded", () =>
     Effect.gen(function* () {
       const fake = yield* ShopifyFake;
+      yield* fake.install(SHOP);
       yield* fake.script([{ route: "token", status: 503, body: { error: "down" } }]);
-      assert.strictEqual((yield* exchange).status, 503);
-      assert.strictEqual((yield* exchange).status, 200);
-      assert.deepStrictEqual(yield* fake.calls, [
-        { route: "token", shop: SHOP, grantType: TOKEN_EXCHANGE_GRANT },
-        { route: "token", shop: SHOP, grantType: TOKEN_EXCHANGE_GRANT },
-      ]);
-    }).pipe(Effect.provide(ShopifyFake.layer)),
+      assert.strictEqual((yield* post({})).status, 503);
+      assert.strictEqual((yield* post({})).status, 401);
+      const recorded = yield* fake.calls;
+      assert.deepStrictEqual(
+        recorded.map((call) => call.route),
+        ["token", "token"],
+      );
+    }).pipe(Effect.provide(layer)),
   );
 
   it.effect("a text reply is sent as it is, not as JSON", () =>
@@ -129,10 +237,10 @@ describe("ShopifyFake's scripts", () => {
       const fake = yield* ShopifyFake;
       yield* fake.script([{ route: "token", status: 502, text: "<html>Bad gateway</html>" }]);
       const text = yield* Effect.promise(async () =>
-        (await abstractFetch(TOKEN_URL, { method: "POST", body: "{}" })).text(),
+        (await abstractFetch(TOKEN_URL, { method: "POST", body: "" })).text(),
       );
       assert.strictEqual(text, "<html>Bad gateway</html>");
-    }).pipe(Effect.provide(ShopifyFake.layer)),
+    }).pipe(Effect.provide(layer)),
   );
 
   it.effect("a network error rejects the fetch", () =>
@@ -143,14 +251,14 @@ describe("ShopifyFake's scripts", () => {
         abstractFetch(TOKEN_URL, { method: "POST" }),
       ).pipe(Effect.flip);
       assert.instanceOf(failed.cause, TypeError);
-    }).pipe(Effect.provide(ShopifyFake.layer)),
+    }).pipe(Effect.provide(layer)),
   );
 
   it.effect("a URL that is not Shopify's is answered 599", () =>
     Effect.gen(function* () {
       const response = yield* Effect.promise(() => abstractFetch("https://example.com/"));
       assert.strictEqual(response.status, 599);
-    }).pipe(Effect.provide(ShopifyFake.layer)),
+    }).pipe(Effect.provide(layer)),
   );
 
   it.effect("the library's fetch is restored when the fake's layer is released", () =>

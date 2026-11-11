@@ -19,7 +19,6 @@ import { AppInstallationStore } from "./app-installation-store.ts";
 import type { ShopifyAccessFailure } from "./contract.ts";
 import type { ShopDomain } from "./domain.ts";
 import { bestEffort, ShopifyHooks } from "./hooks.ts";
-import { ShopGrantors } from "./shop-grantor.ts";
 import { ShopifyClient } from "./shopify-client.ts";
 import type { BuiltInTopic } from "./webhook-topics.ts";
 
@@ -78,7 +77,6 @@ type AnsweredFailure = ShopifyAccessFailure | MalformedWebhookError;
  */
 const FAILURE_ANSWERS = {
   ShopifyUnavailableError: { status: 503, log: "Warn" },
-  ReauthenticationRequiredError: { status: 200, log: "Warn" },
   AccessDeniedError: { status: 200, log: "Warn" },
   ShopInaccessibleError: { status: 200, log: "Warn" },
   AppNotInstalledError: { status: 200, log: "Debug" },
@@ -95,11 +93,7 @@ const isAnsweredFailure = (error: unknown): error is AnsweredFailure =>
 
 /** A failure's fields for its log line, beyond its tag and the delivery's shop. */
 const failureFields = (failure: AnsweredFailure): Readonly<Record<string, string | number>> =>
-  failure._tag === "ReauthenticationRequiredError"
-    ? { refreshTokenState: failure.refreshTokenState }
-    : failure._tag === "ShopInaccessibleError"
-      ? { status: failure.status }
-      : {};
+  failure._tag === "ShopInaccessibleError" ? { status: failure.status } : {};
 
 const answer = (status: number) => HttpServerResponse.empty({ status });
 
@@ -117,7 +111,7 @@ export interface WebhooksShape {
    * | Handled                                                        | 200    | the handler's own     |
    * | `MalformedWebhookError`                                        | 400    | Warning               |
    * | `ShopifyUnavailableError`                                      | 503    | Warning               |
-   * | `ReauthenticationRequiredError`, `AccessDeniedError`, `ShopInaccessibleError` | 200 | Warning, with the error's fields |
+   * | `AccessDeniedError`, `ShopInaccessibleError`                  | 200    | Warning, with the error's fields |
    * | `AppNotInstalledError`                                         | 200    | Debug                 |
    * | A defect, an `afterUninstall` defect included                  | 500    | Error                 |
    *
@@ -133,7 +127,6 @@ const make = <R>(extra: ExtraTopics<R>) =>
   Effect.gen(function* () {
     const client = yield* ShopifyClient;
     const installations = yield* AppInstallationStore;
-    const grantors = yield* ShopGrantors;
     const hooks = yield* ShopifyHooks;
     const context = yield* Effect.context<R>();
 
@@ -156,16 +149,17 @@ const make = <R>(extra: ExtraTopics<R>) =>
 
     /**
      * `app/uninstalled`, the one teardown point: the app's `beforeUninstall` (best-effort), the
-     * grantor's uninstall (the epoch moves on, a write on the wire lands, the row goes and the
-     * app's rows with it by cascade), then the app's `afterUninstall`, whose defect fails the
-     * delivery so Shopify redelivers the whole, idempotent, teardown. A repeated delivery, or one
-     * for a shop that never stored anything, deletes nothing and answers 200.
+     * row's delete (the app's rows go with it by cascade), then the app's `afterUninstall`, whose
+     * defect fails the delivery so Shopify redelivers the whole, idempotent, teardown. Nothing
+     * needs fencing: the shop's tokens already answer 401 and its mints `app_not_installed`, so
+     * no later write restores access, and `updateToken` never inserts. A repeated delivery, or
+     * one for a shop that never stored anything, deletes nothing and answers 200.
      */
     const appUninstalled: TopicHandler = Effect.fn("Webhooks.appUninstalled")(function* ({
       shop,
     }: WebhookDelivery) {
       yield* bestEffort("beforeUninstall", shop, hooks.beforeUninstall(shop));
-      yield* grantors.uninstall(shop);
+      yield* installations.delete(shop);
       yield* hooks.afterUninstall(shop);
       yield* Effect.logInfo(`Webhooks.appUninstalled: shop=${shop} status=uninstalled`).pipe(
         Effect.annotateLogs({ shop, status: "uninstalled" }),

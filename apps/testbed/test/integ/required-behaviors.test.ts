@@ -10,9 +10,9 @@ import Stack from "./stack.ts";
 
 /**
  * Every required behavior inside the test Backend in workerd, through its `ShopifyTestDoor`:
- * against the real `ShopGrantor` Durable Object and the real D1, migrated from the testbed's
- * `migrations/`. A case that needs what only an in-process harness has (the test clock, a held
- * store write) is skipped here and runs in the unit suite.
+ * against the real D1, migrated from the testbed's `migrations/`. A case that needs what only an
+ * in-process harness has (the test clock, a row from the refresh design) is skipped here and runs
+ * in the unit suite.
  */
 const { test, beforeAll, afterAll, deploy, destroy } = Test.make({
   providers: Cloudflare.providers(),

@@ -8,7 +8,7 @@ import * as Schema from "effect/Schema";
 
 /**
  * A shop, named by its myshopify domain: the key of an `AppInstallation` row and the name of the
- * shop's grantor and actor. The value also arrives in a URL path, which a route decodes through
+ * shop's actor. The value also arrives in a URL path, which a route decodes through
  * this before it reaches a query or `getByName`, so it is held to the shape of a myshopify
  * domain, not merely to what Shopify sent. A field holding one is named `shop`.
  */
@@ -21,7 +21,7 @@ export type ShopDomain = typeof ShopDomain.Type;
 export const ID_MAX_LENGTH = 128;
 
 /**
- * The shop's Admin API global id (`gid://shopify/Shop/<n>`), fetched once on the first exchange.
+ * The shop's Admin API global id (`gid://shopify/Shop/<n>`), fetched once on the first mint.
  * A field holding one is `shopGid`, never `id`.
  */
 export const ShopGid = Schema.NonEmptyString.check(Schema.isMaxLength(ID_MAX_LENGTH)).pipe(

@@ -53,7 +53,7 @@ afterAll.skipIf(!!process.env.NO_DESTROY)(destroy(Stack));
 const shopNamed = (name: string) => Schema.decodeUnknownSync(ShopDomain)(`${name}.myshopify.com`);
 const SHOP_GID = Schema.decodeUnknownSync(ShopGid)("gid://shopify/Shop/17");
 
-/** Installs `shop` on the catalog's first plan, cached for an hour, as an exchange would. */
+/** Installs `shop` on the catalog's first plan, cached for an hour, as a mint would. */
 const install = (backendUrl: string, shop: ShopDomain, planHandleExpiresAt = Duration.hours(1)) =>
   door(backendUrl, (client) =>
     client.Seed({

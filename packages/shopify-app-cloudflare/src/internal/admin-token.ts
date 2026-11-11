@@ -11,16 +11,10 @@ import * as Schema from "effect/Schema";
 
 import type { AppInstallation } from "./app-installation.ts";
 
-/**
- * How fresh the merchant path needs a stored token: exchange is cheap and a merchant is
- * present.
- */
+/** How fresh the merchant path needs a stored token: the request finishes on it, and a mint is one round trip. */
 export const MERCHANT_ACCESS_TOKEN_BUFFER = Duration.seconds(30);
 
-/**
- * How fresh `ensureSession` needs a stored token: a job's Admin API calls finish on it, and a shop
- * refreshes at most about hourly.
- */
+/** How fresh `ensureSession` needs a stored token: a job's Admin API calls finish on it. */
 export const BACKGROUND_ACCESS_TOKEN_BUFFER = Duration.minutes(5);
 
 /** An access token an Admin API call is made with, and when it expires. A caller never keeps one across calls. */

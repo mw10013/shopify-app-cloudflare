@@ -3,19 +3,16 @@ import * as Backend from "@mw10013/shopify-app-cloudflare/backend";
 
 import { reachedPackages } from "./reach.ts";
 
-/** Names that would hand an app the library, a transport, a token or the grantor. */
+/** Names that would hand an app the library, a transport, a token or the signing key. */
 const INTERNAL = new Set([
   "ShopifyClient",
   "ShopifyMerchant",
-  "ShopGrantor",
-  "ShopGrantorLive",
-  "ShopGrantors",
-  "makeGrantor",
+  "AppTokens",
+  "importAppTokenKey",
   "AppInstallationStore",
   "AdminUnauthorizedError",
   "WebhookRejectedError",
   "unavailable",
-  "GrantorProbe",
   "isAlchemyRuntime",
   "bestEffort",
   "cachedStatus",

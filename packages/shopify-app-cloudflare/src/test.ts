@@ -20,22 +20,20 @@ export {
   FAKE_SHOPIFY_API_KEY,
   FAKE_SHOPIFY_API_SECRET,
   FAKE_SHOPIFY_APP_URL,
+  FAKE_APP_TOKEN_KEY,
+  FAKE_APP_TOKEN_KID,
   FAKE_SHOPIFY_CREDENTIALS,
 } from "./test/fake-app.ts";
 export { mintIdToken } from "./test/id-token.ts";
 export {
   FAKE_ACCESS_TOKEN_EXPIRES_IN,
-  FAKE_REFRESH_TOKEN_EXPIRES_IN,
   FAKE_SCOPE,
   FAKE_SHOP_GID,
-  grantBody,
-  REFRESH_GRANT,
   ShopifyFake,
   ShopifyFakeCall,
   type ShopifyFakeIntercept,
   ShopifyFakeReply,
   ShopifyFakeRoute,
-  TOKEN_EXCHANGE_GRANT,
 } from "./test/shopify-fake.ts";
 export {
   currentMonth,
@@ -47,7 +45,6 @@ export {
   type HarnessCapability,
   type HarnessDelivery,
   type HarnessLogLine,
-  type HeldWrite,
   type HookName,
   SeedInstallation,
   ShopifyHarness,

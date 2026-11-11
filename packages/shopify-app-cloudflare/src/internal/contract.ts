@@ -11,8 +11,7 @@ import * as Schema from "effect/Schema";
 import { ShopDomain, ShopGid } from "./domain.ts";
 
 /**
- * The ID token failed a check of the merchant path's verification, or the exchange answered
- * `400 invalid_subject_token`. A caller gets a new ID token from App Bridge and retries, or
+ * The ID token failed a check of the merchant path's verification. A caller gets a new ID token from App Bridge and retries, or
  * bounces the document request.
  */
 export class InvalidIdTokenError extends Schema.TaggedError<InvalidIdTokenError>()(
@@ -25,8 +24,9 @@ export class InvalidIdTokenError extends Schema.TaggedError<InvalidIdTokenError>
 }
 
 /**
- * The shop has no app installation row: the app was never installed here, or was uninstalled.
- * A caller stops and does not retry; a webhook has nothing to do for the shop.
+ * The shop has no app installation row, or Shopify answered a mint `app_not_installed` or 404:
+ * the app was never installed here, or was uninstalled. A caller stops and does not retry; a
+ * webhook has nothing to do for the shop.
  */
 export class AppNotInstalledError extends Schema.TaggedError<AppNotInstalledError>()(
   "AppNotInstalledError",
@@ -34,25 +34,6 @@ export class AppNotInstalledError extends Schema.TaggedError<AppNotInstalledErro
 ) {
   override get message() {
     return `The app is not installed on ${this.shop}`;
-  }
-}
-
-/**
- * Only a merchant opening the app (a token exchange) restores access. Shopify's word: the
- * merchant grants nothing new. A caller stops until then: a webhook answers 200 without acting,
- * a background job ends its run as a typed failure, and a merchant-triggered action tells the
- * merchant to reopen the app. `refreshTokenState`, for the log, is why no refresh could help:
- * the row has none, it is within its buffer of expiry, or Shopify rejected it.
- */
-export class ReauthenticationRequiredError extends Schema.TaggedError<ReauthenticationRequiredError>()(
-  "ReauthenticationRequiredError",
-  {
-    shop: ShopDomain,
-    refreshTokenState: Schema.Literals(["missing", "expired", "rejected"]),
-  },
-) {
-  override get message() {
-    return `A merchant must open the app on ${this.shop} to restore access`;
   }
 }
 
@@ -86,8 +67,7 @@ export class ShopInaccessibleError extends Schema.TaggedError<ShopInaccessibleEr
 
 /**
  * Shopify could not serve the call now: transient failures after their retries, a deadline,
- * throttling, Shopify's internal error, a grant an uninstall fenced out, a second Admin API 401,
- * or a Partner API outage. The installation may be fine; a caller retries later. It carries no
+ * throttling, Shopify's internal error, a second Admin API 401, or a Partner API outage. The installation may be fine; a caller retries later. It carries no
  * cause: it crosses to the browser, so where it is raised the cause is logged at Warning instead.
  */
 export class ShopifyUnavailableError extends Schema.TaggedError<ShopifyUnavailableError>()(
@@ -100,12 +80,11 @@ export class ShopifyUnavailableError extends Schema.TaggedError<ShopifyUnavailab
 }
 
 /**
- * The five ways a call that needs the shop's app installation fails once the shop is known: what
+ * The four ways a call that needs the shop's app installation fails once the shop is known: what
  * a background job or a webhook handler meets. The sentence each one shows is the app's.
  */
 export const ShopifyAccessFailure = Schema.Union([
   AppNotInstalledError,
-  ReauthenticationRequiredError,
   AccessDeniedError,
   ShopInaccessibleError,
   ShopifyUnavailableError,

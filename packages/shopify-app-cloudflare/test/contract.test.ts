@@ -8,7 +8,6 @@ import {
   InvalidIdTokenError,
   MerchantRefusal,
   PlanUnsubscribedError,
-  ReauthenticationRequiredError,
   ShopifyAccessFailure,
   ShopifyUnavailableError,
   ShopInaccessibleError,
@@ -35,7 +34,6 @@ describe("/contract", () => {
 describe("ShopifyAccessFailure", () => {
   const failures = [
     new AppNotInstalledError({ shop: SHOP }),
-    new ReauthenticationRequiredError({ shop: SHOP, refreshTokenState: "rejected" }),
     new AccessDeniedError({ shop: SHOP }),
     new ShopInaccessibleError({ shop: SHOP, status: 423 }),
     new ShopifyUnavailableError({ shop: SHOP }),

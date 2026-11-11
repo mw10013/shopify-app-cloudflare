@@ -12,14 +12,13 @@ import { PlanCatalog } from "#internal/catalog.ts";
 import { ShopifyHooks } from "#internal/hooks.ts";
 import { MerchantGate } from "#internal/merchant-gate.ts";
 import { PartnerApi } from "#internal/partner-api.ts";
-import { ShopGrantors } from "#internal/shop-grantor.ts";
 import { ShopifyAccess } from "#internal/shopify-access.ts";
 import { ShopifyApp } from "#internal/shopify-app.ts";
-import { ShopifyClient } from "#internal/shopify-client.ts";
-import { FAKE_APP_HANDLE, FAKE_SHOPIFY_CREDENTIALS } from "#test/fake-app.ts";
+import { FAKE_APP_HANDLE } from "#test/fake-app.ts";
 import { seedInstallation } from "#test/harness-support.ts";
 import { mintIdToken } from "#test/id-token.ts";
-import { d1Store } from "#test/node/shopify-app-test.ts";
+import { D1Test } from "#test/node/d1-test.ts";
+import { d1Store, fakeAppClients, legacyWriter } from "#test/node/shopify-app-test.ts";
 import { ShopifyFake } from "#test/shopify-fake.ts";
 
 import { SHOP, SHOP_GID } from "./fixtures.ts";
@@ -31,28 +30,30 @@ const unboundPartnerTiers = ShopifyApp.layerNoDeps(app).pipe(
   Layer.provideMerge(ShopifyHooks.layerNoop),
   Layer.provideMerge(PartnerApi.layerUnbound(Option.some(FAKE_APP_HANDLE))),
   Layer.provideMerge(ShopifyAccess.layerNoDeps),
-  Layer.provideMerge(ShopGrantors.layerMemory),
-  Layer.provideMerge(ShopifyClient.layer(FAKE_SHOPIFY_CREDENTIALS)),
+  Layer.provideMerge(fakeAppClients),
   Layer.provideMerge(d1Store({})),
   Layer.provideMerge(ShopifyFake.layer),
 );
 
-/** Seeds the shop with a fresh token pair and a plan cache that expires `planIn` from now. */
+/** Seeds the shop with a fresh token and a plan cache that expires `planIn` from now. */
 const seedShop = (planIn: Duration.Input) =>
   Effect.gen(function* () {
     const now = yield* DateTime.now;
     yield* Effect.scoped(
-      seedInstallation(yield* AppInstallationStore, yield* ShopifyFake, {
-        shop: SHOP,
-        shopGid: SHOP_GID,
-        scope: "",
-        accessToken: "shpat_fresh",
-        accessTokenExpiresAt: DateTime.addDuration(now, "1 hour"),
-        refreshToken: "shprt_fresh",
-        refreshTokenExpiresAt: DateTime.addDuration(now, "30 days"),
-        planHandle: "test-basic",
-        planHandleExpiresAt: DateTime.addDuration(now, planIn),
-      }),
+      seedInstallation(
+        yield* AppInstallationStore,
+        yield* ShopifyFake,
+        {
+          shop: SHOP,
+          shopGid: SHOP_GID,
+          scope: "",
+          accessToken: "shpat_fresh",
+          accessTokenExpiresAt: DateTime.addDuration(now, "1 hour"),
+          planHandle: "test-basic",
+          planHandleExpiresAt: DateTime.addDuration(now, planIn),
+        },
+        legacyWriter(yield* D1Test),
+      ),
     );
   });
 
