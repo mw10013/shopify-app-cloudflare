@@ -24,9 +24,40 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  redirect,
   RouterProvider,
+  useRouter,
+  useSearch,
 } from "@tanstack/react-router";
 import { render } from "vitest-browser-react";
+
+/** What the app's `/admin` guard reads. */
+export interface Session {
+  signedIn: boolean;
+}
+
+/** A server function's failure once the session ended, as the Backend's binding rejects with it. */
+export const UNAUTHORIZED = { _tag: "UnauthorizedError" } as const;
+
+const SIGNED_IN: Session = { signedIn: true };
+
+function SignIn({ session }: { readonly session: Session }) {
+  const router = useRouter();
+  const { redirect: returnTo } = useSearch({ strict: false }) as unknown as {
+    readonly redirect?: string;
+  };
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        session.signedIn = true;
+        void router.navigate({ href: returnTo ?? "/admin" });
+      }}
+    >
+      Test sign in
+    </button>
+  );
+}
 
 /** The server functions an app hands the admin routes, each a test's own. */
 export interface AdminCalls {
@@ -49,11 +80,27 @@ const EMPTY_PAGE: AppInstallationRedactedPage = {
 
 /**
  * An app's admin section as the README tells it to write one: SAC's route options spread under
- * `/admin`, an app page with a summary, and an app tab on the shop page.
+ * `/admin` beside the app's guard, its own sign-in page outside the layout, an app page with a
+ * summary, and an app tab on the shop page.
  */
-export const adminRouter = (path: string, calls: AdminCalls = {}) => {
+export const adminRouter = (path: string, calls: AdminCalls = {}, session: Session = SIGNED_IN) => {
   const root = createRootRoute();
-  const admin = createRoute({ ...adminLayout, getParentRoute: () => root, path: "admin" });
+  const admin = createRoute({
+    ...adminLayout,
+    getParentRoute: () => root,
+    path: "admin",
+    beforeLoad: ({ location }) => {
+      if (!session.signedIn)
+        throw redirect({ to: "/admin/sign-in", search: { redirect: location.href } });
+    },
+  });
+  const signIn = createRoute({
+    getParentRoute: () => root,
+    path: "admin/sign-in",
+    validateSearch: (search: Record<string, unknown>): { readonly redirect?: string } =>
+      typeof search.redirect === "string" ? { redirect: search.redirect } : {},
+    component: () => <SignIn session={session} />,
+  });
   const home = createRoute({ ...adminHome, getParentRoute: () => admin, path: "/" });
   const shops = createRoute({ ...adminShops, getParentRoute: () => admin, path: "shops" });
   const shopsList = createRoute({
@@ -108,6 +155,7 @@ export const adminRouter = (path: string, calls: AdminCalls = {}) => {
   });
   return createRouter({
     routeTree: root.addChildren([
+      signIn,
       admin.addChildren([
         home,
         shops.addChildren([shopsList, shop.addChildren([overview, actor, untagged])]),
@@ -121,8 +169,8 @@ export const adminRouter = (path: string, calls: AdminCalls = {}) => {
   });
 };
 
-export const renderAdmin = async (path: string, calls?: AdminCalls) => {
-  const router = adminRouter(path, calls);
+export const renderAdmin = async (path: string, calls?: AdminCalls, session?: Session) => {
+  const router = adminRouter(path, calls, session);
   const screen = await render(<RouterProvider router={router} />);
   return { router, screen };
 };

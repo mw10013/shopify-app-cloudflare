@@ -3,7 +3,7 @@ import * as DateTime from "effect/DateTime";
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 
-import { renderAdmin } from "./admin-router.tsx";
+import { renderAdmin, type Session, UNAUTHORIZED } from "./admin-router.tsx";
 
 const SHOP = "tabs.myshopify.com" as ShopDomain;
 const INSTALLED_AT = DateTime.makeUnsafe("2026-03-04T05:06:07Z");
@@ -186,5 +186,51 @@ describe("the admin section", () => {
     });
     await expect.poll(() => requests).toEqual([{}]);
     expect(router.state.location.pathname).toBe("/admin/shops");
+  });
+
+  describe("a session that ends after the /admin guard passed", () => {
+    const FOUND = {
+      _tag: "Found" as const,
+      appInstallation: ROW,
+      plan: { _tag: "NeverFetched" as const },
+      shopActorId: "actor-1",
+    };
+    const endSession = (session: Session) => {
+      session.signedIn = false;
+      // oxlint-disable-next-line typescript/prefer-promise-reject-errors -- the Backend's binding rejects with the plain encoded failure
+      return Promise.reject(UNAUTHORIZED);
+    };
+
+    it("a loader sends the admin to the app's sign-in page with the page, and sign-in returns there", async () => {
+      const session = { signedIn: true };
+      let reads = 0;
+      const { router, screen } = await renderAdmin(
+        `/admin/shops/${SHOP}`,
+        { shop: () => (reads++ === 0 ? endSession(session) : Promise.resolve(FOUND)) },
+        session,
+      );
+      await expect.poll(() => router.state.location.pathname).toBe("/admin/sign-in");
+      expect(router.state.location.search).toEqual({ redirect: `/admin/shops/${SHOP}` });
+      await screen.getByRole("button", { name: "Test sign in" }).click();
+      await expect.element(screen.getByText("Never fetched")).toBeVisible();
+      expect(router.state.location.pathname).toBe(`/admin/shops/${SHOP}`);
+      expect(screen.container.querySelector('s-banner[tone="critical"]')).toBeNull();
+    });
+
+    it("Refresh plan sends the admin to the app's sign-in page with the page, and sign-in returns there", async () => {
+      const session = { signedIn: true };
+      const { router, screen } = await renderAdmin(
+        `/admin/shops/${SHOP}`,
+        { shop: () => Promise.resolve(FOUND), refreshPlan: () => endSession(session) },
+        session,
+      );
+      await screen.getByRole("button", { name: "Refresh plan" }).click();
+      await expect.poll(() => router.state.location.pathname).toBe("/admin/sign-in");
+      expect(router.state.location.search).toEqual({ redirect: `/admin/shops/${SHOP}` });
+      await screen.getByRole("button", { name: "Test sign in" }).click();
+      await expect.element(screen.getByText("Never fetched")).toBeVisible();
+      expect(router.state.location.pathname).toBe(`/admin/shops/${SHOP}`);
+      expect(screen.container.querySelector('s-banner[tone="critical"]')).toBeNull();
+    });
   });
 });

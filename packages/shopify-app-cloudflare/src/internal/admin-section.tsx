@@ -15,11 +15,13 @@ import {
   useMatch,
   useMatches,
   useRouter,
+  useRouterState,
 } from "@tanstack/react-router";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, type ReactNode, useEffect } from "react";
 
+import { UnauthorizedError } from "./site-auth-contract.ts";
 import { SignOutButton } from "./site-sign-in.tsx";
 
 /**
@@ -109,12 +111,20 @@ export const STALE_RELOAD_MODE = "blocking" as const;
 /** A call to one of the app's server functions, which the app creates and hands its route. */
 export type ServerCall<Input, Output> = (options: { readonly data: Input }) => Promise<Output>;
 
+/**
+ * The session ended after the `/admin` guard passed: the Backend's `UnauthorizedError` as the plain
+ * `{ _tag }` its binding rejects with, which TanStack Start carries to the browser intact.
+ */
+const isSignedOut = (error: unknown) =>
+  Option.isSome(Schema.decodeUnknownOption(UnauthorizedError)(error));
+
 /** How a press ended when the server function sent the browser elsewhere, as to sign-in. */
 export const REDIRECTED = "Redirected";
 
 /**
- * `call` as TanStack Start's `useServerFn` makes it: a redirect the server function throws is
- * followed in the app and answers {@link REDIRECTED}.
+ * `call` as TanStack Start's `useServerFn` makes it, a redirect the server function throws
+ * followed in the app, and a signed-out failure handed to the app's `/admin` guard. Both answer
+ * {@link REDIRECTED}.
  */
 export const useServerCall = <Input, Output>(call: ServerCall<Input, Output>) => {
   const router: AnyRouter = useRouter();
@@ -122,6 +132,10 @@ export const useServerCall = <Input, Output>(call: ServerCall<Input, Output>) =>
     try {
       return await call({ data });
     } catch (error) {
+      if (isSignedOut(error)) {
+        await router.invalidate();
+        return REDIRECTED;
+      }
       if (!isRedirect(error)) throw error;
       await router.navigate(router.resolveRedirect(error).options);
       return REDIRECTED;
@@ -174,11 +188,27 @@ function AdminLayout() {
   );
 }
 
-/** A failure anywhere under `/admin`, as a banner in the page it failed on. */
+/**
+ * A failure anywhere under `/admin`, as a banner in the page it failed on. A signed-out failure
+ * shows no banner and reloads the matches instead, as Sign out does.
+ */
 function AdminError({ error }: ErrorComponentProps) {
+  const router: AnyRouter = useRouter();
+  const signedOut = isSignedOut(error);
+  const loading = useRouterState({ select: (state) => state.isLoading });
+  useEffect(() => {
+    // The boundary remounts this page each time a load changes the `/admin` match, so invalidating
+    // while one is running would restart it before the guard can redirect.
+    if (signedOut && !loading) void router.invalidate();
+  }, [router, signedOut, loading]);
   return (
     <AdminChrome>
-      <s-banner tone="critical" heading={error instanceof Error ? error.message : String(error)} />
+      {!signedOut && (
+        <s-banner
+          tone="critical"
+          heading={error instanceof Error ? error.message : String(error)}
+        />
+      )}
     </AdminChrome>
   );
 }
