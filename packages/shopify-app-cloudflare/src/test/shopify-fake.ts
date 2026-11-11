@@ -129,11 +129,12 @@ const publicKeyOf = async (pem: string) => {
   return crypto.subtle.importKey("jwk", jwk, ES256, false, ["verify"]);
 };
 
-/** A token the fake issued, and when. */
+/** A token the fake issued, when, and under which registered key. */
 interface Issued {
   readonly accessToken: string;
   readonly expiresAt: number;
   readonly issuedAt: number;
+  readonly kid: string | undefined;
 }
 
 const MINUTE_MS = 60_000;
@@ -192,7 +193,8 @@ const make = Effect.gen(function* () {
 
   /**
    * Rules 2 and 7: a key the fake holds, a valid signature, `iss` and `sub` the client id, `aud`
-   * the shop's token endpoint, a live window of at most 300 s, and a `jti` never seen.
+   * the shop's token endpoint, a live window of at most 300 s, and a `jti` never seen. Answers
+   * the key's `kid`, or `undefined` when the assertion fails.
    */
   const verifyAssertion = async (shop: ShopDomain, clientId: string, assertion: string) => {
     const [header = "", claims = "", signature = ""] = assertion.split(".");
@@ -204,9 +206,9 @@ const make = Effect.gen(function* () {
       Option.isNone(decodedClaims) ||
       Result.isFailure(signatureBytes)
     )
-      return false;
+      return undefined;
     const key = keys.get(decodedHeader.value.kid);
-    if (key === undefined || decodedHeader.value.alg !== "ES256") return false;
+    if (key === undefined || decodedHeader.value.alg !== "ES256") return undefined;
     const signed = await crypto.subtle.verify(
       { name: "ECDSA", hash: "SHA-256" },
       key,
@@ -225,16 +227,20 @@ const make = Effect.gen(function* () {
       exp - iat > ASSERTION_MAX_LIFETIME_S ||
       usedJtis.has(jti)
     )
-      return false;
+      return undefined;
     usedJtis.add(jti);
-    return true;
+    return decodedHeader.value.kid;
   };
 
-  /** Rule 4: the token already issued this minute, with its original expiry, else a new one. */
-  const issue = (shop: ShopDomain) => {
+  /**
+   * Rule 4: the token already issued this minute under `kid`, with its original expiry, else a
+   * new one. Each key gets its own.
+   */
+  const issue = (shop: ShopDomain, kid: string) => {
     const at = now();
     const current = tokensOf(shop).find(
-      (token) => Math.floor(token.issuedAt / MINUTE_MS) === Math.floor(at / MINUTE_MS),
+      (token) =>
+        token.kid === kid && Math.floor(token.issuedAt / MINUTE_MS) === Math.floor(at / MINUTE_MS),
     );
     if (current !== undefined) return current;
     issued += 1;
@@ -242,26 +248,36 @@ const make = Effect.gen(function* () {
       accessToken: `shpat_${String(issued)}`,
       expiresAt: at + FAKE_ACCESS_TOKEN_EXPIRES_IN * 1000,
       issuedAt: at,
+      kid,
     };
     tokens.set(shop, [...tokensOf(shop), token]);
     return token;
   };
 
-  const tokenAnswer = async (shop: ShopDomain, form: URLSearchParams): Promise<Response> => {
+  /** Rule 2: one way to authenticate, the assertion, so no secret or `Authorization` beside it. */
+  const tokenAnswer = async (
+    shop: ShopDomain,
+    form: URLSearchParams,
+    authorization: boolean,
+  ): Promise<Response> => {
     const clientId = form.get("client_id") ?? "";
     const assertion = form.get("client_assertion");
     if (
       form.get("grant_type") !== "client_credentials" ||
+      form.get("client_assertion_type") !==
+        "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" ||
       assertion === null ||
+      authorization ||
       form.has("client_secret") ||
       form.has("scope")
     )
       return refused(400, "invalid_request");
     if (clientId !== FAKE_SHOPIFY_API_KEY) return refused(400, "application_cannot_be_found");
-    if (!(await verifyAssertion(shop, clientId, assertion))) return refused(401, "invalid_client");
+    const kid = await verifyAssertion(shop, clientId, assertion);
+    if (kid === undefined) return refused(401, "invalid_client");
     const scope = installed.get(shop);
     if (scope === undefined) return refused(400, "app_not_installed");
-    const token = issue(shop);
+    const token = issue(shop, kid);
     return Response.json({
       access_token: token.accessToken,
       scope,
@@ -275,11 +291,11 @@ const make = Effect.gen(function* () {
       : Response.json({ errors: "[API] Invalid API key or access token" }, { status: 401 });
 
   /** What the fake answers `call` when no intercept decides: a scripted reply, else Shopify's. */
-  const answer = (call: ShopifyFakeCall, form: URLSearchParams) => () => {
+  const answer = (call: ShopifyFakeCall, form: URLSearchParams, authorization: boolean) => () => {
     const scripted = queues[call.route].shift();
     if (scripted !== undefined) return replyWith(scripted);
     return call.route === "token"
-      ? tokenAnswer(call.shop, form)
+      ? tokenAnswer(call.shop, form, authorization)
       : Promise.resolve(graphqlAnswer(call));
   };
 
@@ -298,7 +314,9 @@ const make = Effect.gen(function* () {
       decodeClaims(decodeSegment(form.get("client_assertion")?.split(".")[1] ?? "")),
       (claims) => claims.jti,
     );
-    const accessToken = new Headers(init?.headers).get("x-shopify-access-token");
+    const headers = new Headers(init?.headers);
+    const accessToken = headers.get("x-shopify-access-token");
+    const authorization = headers.has("authorization");
     const call: ShopifyFakeCall = {
       route: route.value,
       shop: shop.value,
@@ -310,8 +328,8 @@ const make = Effect.gen(function* () {
     calls.push(call);
     const decide = intercept;
     return decide === undefined
-      ? answer(call, form)()
-      : Promise.resolve(decide(call, attempt, answer(call, form)));
+      ? answer(call, form, authorization)()
+      : Promise.resolve(decide(call, attempt, answer(call, form, authorization)));
   };
 
   yield* Effect.acquireRelease(
@@ -353,12 +371,23 @@ const make = Effect.gen(function* () {
     /** Marks `accessToken` as one the fake issued for `shop` earlier, valid until `expiresAt` (epoch ms). */
     recognize: (shop: ShopDomain, accessToken: string, expiresAt: number) =>
       Effect.sync(() => {
-        tokens.set(shop, [...tokensOf(shop), { accessToken, expiresAt, issuedAt: -Infinity }]);
+        tokens.set(shop, [
+          ...tokensOf(shop),
+          { accessToken, expiresAt, issuedAt: -Infinity, kid: undefined },
+        ]);
       }),
-    /** Revokes the registered key `kid`: an assertion signed with it answers `401 invalid_client`. */
+    /**
+     * Revokes the registered key `kid` (rule 8): an assertion signed with it answers
+     * `401 invalid_client`, and the tokens issued under it answer 401.
+     */
     revokeKey: (kid: string) =>
       Effect.sync(() => {
         keys.delete(kid);
+        for (const [shop, issuedTokens] of tokens)
+          tokens.set(
+            shop,
+            issuedTokens.filter((token) => token.kid !== kid),
+          );
       }),
     /** Whether Shopify would accept `accessToken` for `shop` now. */
     accepts: (shop: ShopDomain, accessToken: string | null) =>

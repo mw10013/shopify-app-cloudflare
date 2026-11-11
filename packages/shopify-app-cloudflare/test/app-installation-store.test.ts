@@ -138,6 +138,20 @@ describe.each([
       }).pipe(Effect.provide(layer([row]))),
   );
 
+  it.effect("1. updateToken replacing the stored token writes even with an earlier expiry", () =>
+    Effect.gen(function* () {
+      const installations = yield* AppInstallationStore;
+      const sooner = { ...token, accessTokenExpiresAt: at(999) };
+      assert.isTrue(yield* installations.updateToken(SHOP, sooner, row.accessToken));
+      assert.deepStrictEqual(yield* stored, {
+        ...row,
+        ...sooner,
+        refreshToken: null,
+        refreshTokenExpiresAt: null,
+      });
+    }).pipe(Effect.provide(layer([row]))),
+  );
+
   it.effect(
     "2. insert inserts a new row with its plan never fetched, the refresh columns null, stamped installedAt now",
     () =>

@@ -150,11 +150,13 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
      * A mint's write to an existing row: the token, its expiry and scope, and both refresh columns
      * null. Answers whether it wrote. It never inserts, so a mint never recreates an uninstalled
      * shop's row, and never replaces a token with one that expires sooner: concurrent mints may
-     * write in either order, and each token stays valid until its own expiry.
+     * write in either order, and each token stays valid until its own expiry. The exception is
+     * `replacing`, a token the Admin API just answered 401, which any new token replaces.
      */
     const updateToken = Effect.fn("AppInstallationStore.updateToken")(function* (
       shop: ShopDomain,
       token: AppInstallationToken,
+      replacing: string | null = null,
     ) {
       const encoded = yield* encodeToken(token);
       const updated = yield* decodeShops(
@@ -164,7 +166,7 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
         accessTokenExpiresAt = ${encoded.accessTokenExpiresAt},
         refreshToken = null,
         refreshTokenExpiresAt = null
-      where shop = ${shop} and (accessTokenExpiresAt is null or accessTokenExpiresAt < ${encoded.accessTokenExpiresAt})
+      where shop = ${shop} and (accessTokenExpiresAt is null or accessTokenExpiresAt < ${encoded.accessTokenExpiresAt} or accessToken = ${replacing})
       returning shop`,
       );
       return updated.length > 0;
@@ -362,12 +364,17 @@ export class AppInstallationStore extends Context.Service<
             });
             return true;
           }),
-        updateToken: (shop: ShopDomain, token: AppInstallationToken) =>
+        updateToken: (
+          shop: ShopDomain,
+          token: AppInstallationToken,
+          replacing: string | null = null,
+        ) =>
           Effect.sync(() => {
             const row = rows.get(shop);
             if (
               row === undefined ||
               (row.accessTokenExpiresAt !== null &&
+                row.accessToken !== replacing &&
                 !DateTime.isLessThan(row.accessTokenExpiresAt, token.accessTokenExpiresAt))
             )
               return false;

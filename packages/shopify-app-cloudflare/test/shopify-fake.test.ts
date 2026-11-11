@@ -135,12 +135,39 @@ describe("ShopifyFake's token endpoint", () => {
     }).pipe(Effect.provide(layer)),
   );
 
-  it.effect("rule 2: a client secret or a scope in the request answers 400", () =>
+  it.effect(
+    "rule 2: a client secret, a scope, an Authorization header or another assertion type answers 400",
+    () =>
+      Effect.gen(function* () {
+        const fake = yield* ShopifyFake;
+        yield* fake.install(SHOP);
+        assert.strictEqual((yield* post({ client_secret: "secret" })).status, 400);
+        assert.strictEqual((yield* post({ scope: "read_orders" })).status, 400);
+        assert.strictEqual((yield* post({ client_assertion_type: "basic" })).status, 400);
+        const withBasic = yield* Effect.promise(async () => {
+          const response = await abstractFetch(TOKEN_URL, {
+            method: "POST",
+            headers: { Authorization: "Basic c2VjcmV0" },
+            body: new URLSearchParams({
+              grant_type: "client_credentials",
+              client_id: FAKE_SHOPIFY_API_KEY,
+              client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+              client_assertion: "",
+            }).toString(),
+          });
+          return response.status;
+        });
+        assert.strictEqual(withBasic, 400, "an Authorization header beside the assertion");
+      }).pipe(Effect.provide(layer)),
+  );
+
+  it.effect("rule 8: revoking a key ends the tokens issued under it", () =>
     Effect.gen(function* () {
       const fake = yield* ShopifyFake;
       yield* fake.install(SHOP);
-      assert.strictEqual((yield* post({ client_secret: "secret" })).status, 400);
-      assert.strictEqual((yield* post({ scope: "read_orders" })).status, 400);
+      const { accessToken } = yield* mint;
+      yield* fake.revokeKey(FAKE_APP_TOKEN_KID);
+      assert.isFalse(yield* fake.accepts(SHOP, accessToken));
     }).pipe(Effect.provide(layer)),
   );
 

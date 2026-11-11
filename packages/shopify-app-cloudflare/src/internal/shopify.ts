@@ -178,7 +178,7 @@ const make = Effect.gen(function* () {
           ),
         ),
       );
-    const written = yield* installations.updateToken(shop, tokenColumns(minted));
+    const written = yield* installations.updateToken(shop, tokenColumns(minted), rejected);
     if (!written && Option.isNone(yield* installations.find(shop)))
       return yield* new AppNotInstalledError({ shop });
     yield* Effect.logInfo(`Shopify.ensureSession: shop=${shop} status=minted`).pipe(
