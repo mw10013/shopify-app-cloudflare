@@ -9,8 +9,7 @@ const decodeInstant = Schema.decodeSync(Schema.DateTimeUtcFromMillis);
 
 /**
  * A `DateTime.Utc` across a server function's answer and the loader data SSR hands the browser,
- * as epoch ms: TanStack's serializer refuses an object with a prototype of its own. Ported from
- * baton's `src/web/start.ts`.
+ * as epoch ms: TanStack's serializer refuses an object with a prototype of its own.
  */
 const dateTimeUtcAdapter = createSerializationAdapter({
   key: "DateTime.Utc",

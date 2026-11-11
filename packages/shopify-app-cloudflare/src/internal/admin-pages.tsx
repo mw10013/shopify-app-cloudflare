@@ -44,7 +44,6 @@ function Instant({ value }: { readonly value: DateTime.Utc | null }) {
   return value === null ? "—" : DateTime.formatIso(value);
 }
 
-/** A token's presence, never the token. */
 function Presence({ present }: { readonly present: boolean }) {
   return (
     <s-badge tone={present ? "success" : "critical"}>{present ? "Present" : "Missing"}</s-badge>
@@ -202,7 +201,6 @@ export function AdminShopLayout(props: AdminShopLayoutProps) {
   );
 }
 
-/** Refresh plan's banner when the failure carries no message of its own. */
 const REFRESH_PLAN_FAILED = "Could not refresh the plan from Shopify.";
 
 const planBadge = Match.typeTags<

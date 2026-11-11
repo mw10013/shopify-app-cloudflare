@@ -23,7 +23,6 @@ const MODIFIERS = ["metaKey", "ctrlKey", "shiftKey", "altKey"] as const;
 const opensElsewhere = (event: Event) =>
   MODIFIERS.some((key) => key in event && Reflect.get(event, key) === true);
 
-/** The `href` and click handler of `link` for an `s-link` or `s-button`. */
 export const linkProps = ({ href, onClick }: PageLink) => ({
   href,
   onClick: (event: Event) => {

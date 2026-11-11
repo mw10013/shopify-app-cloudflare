@@ -23,18 +23,17 @@ import { ShopifyUnavailableError } from "./contract.ts";
 import { ShopActors } from "./shop-actors.ts";
 import { AppInstallations } from "./shopify-access.ts";
 import { serveAdmin } from "./site-admin.ts";
-import { type PlanCacheRow, SubscriptionPlan } from "./subscription-plan.ts";
+import { isPlanCacheFresh, type PlanCacheRow, SubscriptionPlan } from "./subscription-plan.ts";
 
-/** The row's cached plan at `now`, read through `catalog` as the merchant path reads it. */
 const cachedPlan = (
   { planHandle, planHandleExpiresAt }: Pick<PlanCacheRow, "planHandle" | "planHandleExpiresAt">,
   now: DateTime.Utc,
   catalog: PlanCatalog,
 ): CachedPlan => {
-  if (planHandleExpiresAt === null)
-    return planHandle === null ? { _tag: "NeverFetched" } : { _tag: "Stale", handle: planHandle };
-  if (DateTime.isGreaterThanOrEqualTo(now, planHandleExpiresAt))
-    return { _tag: "Stale", handle: planHandle };
+  if (!isPlanCacheFresh(planHandleExpiresAt, now))
+    return planHandle === null && planHandleExpiresAt === null
+      ? { _tag: "NeverFetched" }
+      : { _tag: "Stale", handle: planHandle };
   if (planHandle === null) return { _tag: "Unsubscribed" };
   return Option.match(catalog.parse(planHandle), {
     onNone: (): CachedPlan => ({ _tag: "Unrecognized", handle: planHandle }),
