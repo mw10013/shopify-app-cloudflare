@@ -397,23 +397,6 @@ const background: readonly RequiredBehavior[] = [
     { needs: interleave },
   ),
   behavior(
-    "16",
-    "a row from the refresh design: one mint; refresh columns null afterwards",
-    Effect.gen(function* () {
-      yield* seedAt({
-        refreshToken: "shprt_old",
-        refreshTokenExpiresAt: DateTime.addDuration(yield* DateTime.now, Duration.days(30)),
-      });
-      assert.equal((yield* storedRow).refreshToken, "shprt_old");
-      yield* ensure;
-      assert.equal((yield* mints).length, 1);
-      const row = yield* storedRow;
-      assert.equal(row.refreshToken, null);
-      assert.equal(row.refreshTokenExpiresAt, null);
-    }),
-    { needs: ["legacyRow"] },
-  ),
-  behavior(
     "17",
     "a row whose shop the fake has uninstalled: AppNotInstalledError, logged status=orphaned; row unchanged",
     Effect.gen(function* () {

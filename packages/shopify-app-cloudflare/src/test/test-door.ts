@@ -56,8 +56,7 @@ export const SHOPIFY_TEST_DOOR_PATH = "/api/test/shopify";
 
 /**
  * What the door's harness can do. A case runs in the test Backend's isolate, so the fake's
- * intercept gates its mints. Time is the runtime's, and the store is the production one, which
- * writes no refresh column, so `clock` and `legacyRow` are in-process only.
+ * intercept gates its mints. Time is the runtime's, so `clock` is in-process only.
  */
 export const SHOPIFY_TEST_DOOR_CAN: ReadonlySet<HarnessCapability> = new Set(["interleave"]);
 
@@ -156,11 +155,9 @@ const make = Effect.gen(function* () {
 
   // A case calls the harness from inside a fake's reply too, which runs with no context: each
   // call that reaches D1 is scoped, since the D1 client is memoized on the running call's `Scope`.
-  const legacy = () =>
-    Effect.die(new Error("ShopifyTestDoor: a row from the refresh design is in-process only"));
   const harnessOf = (logs: Effect.Effect<readonly HarnessLogLine[]>): ShopifyHarnessShape => ({
     can: SHOPIFY_TEST_DOOR_CAN,
-    seed: (row) => Effect.scoped(seedInstallation(installations, fake, row, legacy)),
+    seed: (row) => Effect.scoped(seedInstallation(installations, fake, row)),
     stored: (shop) => Effect.scoped(installations.find(shop)),
     uninstall: (shop) => Effect.scoped(uninstall(installations, fake, shop)),
     authenticateMerchant: (idToken) =>
@@ -223,8 +220,7 @@ const make = Effect.gen(function* () {
         ShopifyCalls: () => fake.calls,
         ScriptPartner: ({ shopGid, answer }) => Effect.as(partner.script(shopGid, answer), {}),
         PartnerAsked: () => partner.asked,
-        Seed: ({ row }) =>
-          Effect.as(Effect.scoped(seedInstallation(installations, fake, row, legacy)), {}),
+        Seed: ({ row }) => Effect.as(Effect.scoped(seedInstallation(installations, fake, row)), {}),
         Stored: ({ shop }) => Effect.map(Effect.scoped(installations.find(shop)), Option.getOrNull),
       }),
     ),

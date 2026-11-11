@@ -88,6 +88,29 @@ const EXPANSIONS: readonly RegExp[] = [
   /^alter table \w+ add (?:column )?\w+ /u,
 ];
 
+/**
+ * Columns, by table, that neither this package version nor the previous one reads, so a migration
+ * may null them. They stay, since the previous version still names them in its writes.
+ */
+const RETIRED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
+  appinstallation: ["refreshtoken", "refreshtokenexpiresat"],
+};
+
+/** An `update` of every row that sets only retired columns, each to null. */
+const clearsRetired = (s: string) => {
+  const { table = "", assignments = "" } =
+    /^update (?<table>\w+) set (?<assignments>.+)$/u.exec(s)?.groups ?? {};
+  const retired = RETIRED_COLUMNS[table] ?? [];
+  return (
+    retired.length > 0 &&
+    assignments
+      .split(",")
+      .every((assignment) =>
+        retired.includes(/^(?<column>\w+) = null$/u.exec(assignment.trim())?.groups?.column ?? ""),
+      )
+  );
+};
+
 /** A `not null` column whose default is missing or `null`, which an old insert would fail. */
 const requiredWithoutDefault = (s: string) =>
   /\bnot null\b/u.test(s) && !/\bdefault (?!null\b)\S/u.test(s);
@@ -104,16 +127,19 @@ const CONTRACTIONS: readonly { readonly name: string; readonly test: (s: string)
     name: "not null without a default",
     test: (s) => /^alter table\b.*\badd\b/u.test(s) && requiredWithoutDefault(s),
   },
-  { name: "not an expansion", test: (s) => !EXPANSIONS.some((form) => form.test(s)) },
+  {
+    name: "not an expansion",
+    test: (s) => !EXPANSIONS.some((form) => form.test(s)) && !clearsRetired(s),
+  },
 ];
 
 /**
  * Each statement of `sql` that breaks expand-before-contract, with the rule it breaks: a drop, a
  * rename, an `insert or replace` (a delete that cascades), or a column added `not null` with no
  * non-null default, which the previous app version's inserts would fail. The check is an
- * allowlist: only `create table if not exists`, `create index if not exists` and `alter table …
- * add column` are expansions, so any other statement (a `delete`, an `update`, a unique index)
- * is refused as "not an expansion".
+ * allowlist: only `create table if not exists`, `create index if not exists`, `alter table …
+ * add column` and an `update` that nulls retired columns on every row are admitted, so any other
+ * statement (a `delete`, another `update`, a unique index) is refused as "not an expansion".
  */
 export const contractions = (sql: string) =>
   statements(sql).flatMap((statement) => {

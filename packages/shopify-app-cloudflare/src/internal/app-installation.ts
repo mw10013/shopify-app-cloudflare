@@ -16,7 +16,8 @@ const StoredInstant = Schema.NullOr(Schema.DateTimeUtcFromMillis);
 
 /**
  * An `AppInstallation` row: the app installed on one shop, from the first mint until
- * uninstall, with every column the package's migrations create. Apps add no column here; their
+ * uninstall, with every column the package's migrations create but the two refresh columns,
+ * unused since the application-only grant and always null. Apps add no column here; their
  * per-shop data lives in their own tables, which cascade from this one. A row with a column a
  * later migration added still decodes: the struct ignores a property it does not name, so the
  * previous package version keeps reading the table after an expand.
@@ -27,10 +28,6 @@ export const AppInstallation = Schema.Struct({
   scope: Schema.NullOr(Schema.String),
   accessToken: Schema.NullOr(Schema.String),
   accessTokenExpiresAt: StoredInstant,
-  /** Unused since the application-only grant; written null. Kept: migrations never drop. */
-  refreshToken: Schema.NullOr(Schema.String),
-  /** Unused; written null. */
-  refreshTokenExpiresAt: StoredInstant,
   /**
    * The cached plan handle. A plain string, not `PlanHandle`: every row decodes on the merchant
    * path, so a stored handle outside the catalog must read as a cache miss (`PlanCatalog.parse`),
@@ -55,13 +52,12 @@ export const AppInstallation = Schema.Struct({
 export type AppInstallation = typeof AppInstallation.Type;
 
 /**
- * An `AppInstallation` with its tokens replaced by whether each is present, as
+ * An `AppInstallation` with its token replaced by whether it is present, as
  * `AppInstallations.find` answers it. Its instants encode as epoch milliseconds.
  */
 export const AppInstallationRedacted = Schema.Struct({
-  ...Struct.omit(AppInstallation.fields, ["accessToken", "refreshToken"]),
+  ...Struct.omit(AppInstallation.fields, ["accessToken"]),
   hasAccessToken: Schema.Boolean,
-  hasRefreshToken: Schema.Boolean,
 });
 export type AppInstallationRedacted = typeof AppInstallationRedacted.Type;
 

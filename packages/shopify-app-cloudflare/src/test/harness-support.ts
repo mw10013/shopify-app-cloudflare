@@ -29,15 +29,13 @@ import type {
 import { signWebhook } from "./webhook.ts";
 
 /**
- * Stores `row` as a mint would: inserted, or its token written over an existing row. A row from
- * the refresh design is `legacy`'s to write, since no store method writes a refresh token. Unless
+ * Stores `row` as a mint would: inserted, or its token written over an existing row. Unless
  * `installed` is false, the fake installs the app on the shop and recognizes the seeded token.
  */
 export const seedInstallation = (
   installations: AppInstallationStore["Service"],
   fake: ShopifyFake["Service"],
   row: SeedInstallation,
-  legacy: (row: SeedInstallation) => Effect.Effect<void>,
 ) =>
   Effect.gen(function* () {
     const token = {
@@ -56,7 +54,6 @@ export const seedInstallation = (
         accessToken: token.accessToken,
         accessTokenExpiresAt: token.accessTokenExpiresAt,
       });
-    if ((row.refreshToken ?? row.refreshTokenExpiresAt ?? null) !== null) yield* legacy(row);
     if (row.planHandleExpiresAt !== undefined && row.planHandleExpiresAt !== null)
       yield* installations.updatePlan({
         shop: row.shop,

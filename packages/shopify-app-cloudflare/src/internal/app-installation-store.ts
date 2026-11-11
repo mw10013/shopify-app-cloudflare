@@ -31,7 +31,7 @@ const SqliteBoolean = Schema.Number.pipe(
 
 /**
  * An `AppInstallation` as a first mint inserts it: the shop, its id and the minted token. The
- * plan columns stay null (never fetched), the refresh columns null, and `installedAt` is stamped.
+ * plan columns stay null (never fetched) and `installedAt` is stamped.
  */
 export const AppInstallationInsert = Schema.Struct(
   Struct.pick(AppInstallation.fields, [
@@ -64,13 +64,12 @@ export const AppInstallationPlan = Schema.Struct(
 export type AppInstallationPlan = typeof AppInstallationPlan.Type;
 
 /**
- * {@link AppInstallationRedacted} as the redacted reads select it: each `has…Token` is the 1 or 0
- * of `… is not null`, so a token never leaves D1 on this path.
+ * {@link AppInstallationRedacted} as the redacted reads select it: `hasAccessToken` is the 1 or 0
+ * of `accessToken is not null`, so the token never leaves D1 on this path.
  */
 const RedactedRow = Schema.Struct({
   ...AppInstallationRedacted.fields,
   hasAccessToken: SqliteBoolean,
-  hasRefreshToken: SqliteBoolean,
 });
 
 /** What `getRedactedPage` reads: a keyset page on `shop`, either way. */
@@ -138,8 +137,8 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
       const row = yield* encodeInsert(installation);
       const installedAt = DateTime.toEpochMillis(yield* DateTime.now);
       const inserted = yield* decodeShops(
-        yield* sql`insert into AppInstallation (shop, shopGid, scope, accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt, installedAt)
-      values (${row.shop}, ${row.shopGid}, ${row.scope}, ${row.accessToken}, ${row.accessTokenExpiresAt}, null, null, ${installedAt})
+        yield* sql`insert into AppInstallation (shop, shopGid, scope, accessToken, accessTokenExpiresAt, installedAt)
+      values (${row.shop}, ${row.shopGid}, ${row.scope}, ${row.accessToken}, ${row.accessTokenExpiresAt}, ${installedAt})
       on conflict (shop) do nothing
       returning shop`,
       );
@@ -147,11 +146,11 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
     }, Effect.orDie);
 
     /**
-     * A mint's write to an existing row: the token, its expiry and scope, and both refresh columns
-     * null. Answers whether it wrote. It never inserts, so a mint never recreates an uninstalled
-     * shop's row, and never replaces a token with one that expires sooner: concurrent mints may
-     * write in either order, and each token stays valid until its own expiry. The exception is
-     * `replacing`, a token the Admin API just answered 401, which any new token replaces.
+     * A mint's write to an existing row: the token, its expiry and scope. Answers whether it
+     * wrote. It never inserts, so a mint never recreates an uninstalled shop's row, and never
+     * replaces a token with one that expires sooner: concurrent mints may write in either order,
+     * and each token stays valid until its own expiry. The exception is `replacing`, a token the
+     * Admin API just answered 401, which any new token replaces.
      */
     const updateToken = Effect.fn("AppInstallationStore.updateToken")(function* (
       shop: ShopDomain,
@@ -163,9 +162,7 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
         yield* sql`update AppInstallation set
         scope = ${encoded.scope},
         accessToken = ${encoded.accessToken},
-        accessTokenExpiresAt = ${encoded.accessTokenExpiresAt},
-        refreshToken = null,
-        refreshTokenExpiresAt = null
+        accessTokenExpiresAt = ${encoded.accessTokenExpiresAt}
       where shop = ${shop} and (accessTokenExpiresAt is null or accessTokenExpiresAt < ${encoded.accessTokenExpiresAt} or accessToken = ${replacing})
       returning shop`,
       );
@@ -234,7 +231,7 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
     );
 
     /**
-     * One row with both tokens projected away in SQL, not {@link find} with fields dropped after:
+     * One row with its token projected away in SQL, not {@link find} with fields dropped after:
      * its caller's answer is serialized to a browser, and a token that never leaves D1 cannot
      * reach that payload.
      */
@@ -242,10 +239,9 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
       shop: ShopDomain,
     ) {
       const [row] = yield* decodeRedactedRows(
-        yield* sql`select shop, shopGid, scope, accessTokenExpiresAt, refreshTokenExpiresAt,
+        yield* sql`select shop, shopGid, scope, accessTokenExpiresAt,
             planHandle, planHandleExpiresAt, planBoundaryAt, installedAt,
-            (accessToken is not null) as hasAccessToken,
-            (refreshToken is not null) as hasRefreshToken
+            (accessToken is not null) as hasAccessToken
           from AppInstallation
           where shop = ${shop}`,
       );
@@ -268,10 +264,9 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
         ...(input.filter ? [sql`shop like ${`%${input.filter}%`}`] : []),
       ];
       const fetched = yield* decodeRedactedRows(
-        yield* sql`select shop, shopGid, scope, accessTokenExpiresAt, refreshTokenExpiresAt,
+        yield* sql`select shop, shopGid, scope, accessTokenExpiresAt,
             planHandle, planHandleExpiresAt, planBoundaryAt, installedAt,
-            (accessToken is not null) as hasAccessToken,
-            (refreshToken is not null) as hasRefreshToken
+            (accessToken is not null) as hasAccessToken
           from AppInstallation
           ${clauses.length > 0 ? sql`where ${sql.and(clauses)}` : sql``}
           order by shop ${sql.literal(input.before === undefined ? "asc" : "desc")}
@@ -301,14 +296,9 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
     };
   });
 
-const redact = ({
-  accessToken,
-  refreshToken,
-  ...row
-}: AppInstallation): AppInstallationRedacted => ({
+const redact = ({ accessToken, ...row }: AppInstallation): AppInstallationRedacted => ({
   ...row,
   hasAccessToken: accessToken !== null,
-  hasRefreshToken: refreshToken !== null,
 });
 
 /**
@@ -324,8 +314,8 @@ const redact = ({
  * | `scope` on `app/scopes_update`                        | the webhooks   | `updateScope`                     |
  * | `planHandle`, `planHandleExpiresAt`, `planBoundaryAt` | the plan check | `updatePlan`, `shortenPlanExpiry` |
  *
- * The refresh columns are unused and only ever written null. No write needs ordering: `insert`
- * never overwrites and `updateToken` never inserts or shortens a token's life.
+ * No write needs ordering: `insert` never overwrites and `updateToken` never inserts or shortens
+ * a token's life.
  */
 export class AppInstallationStore extends Context.Service<
   AppInstallationStore,
@@ -355,8 +345,6 @@ export class AppInstallationStore extends Context.Service<
             if (rows.has(installation.shop)) return false;
             rows.set(installation.shop, {
               ...installation,
-              refreshToken: null,
-              refreshTokenExpiresAt: null,
               planHandle: null,
               planHandleExpiresAt: null,
               planBoundaryAt: null,
@@ -378,7 +366,7 @@ export class AppInstallationStore extends Context.Service<
                 !DateTime.isLessThan(row.accessTokenExpiresAt, token.accessTokenExpiresAt))
             )
               return false;
-            rows.set(shop, { ...row, ...token, refreshToken: null, refreshTokenExpiresAt: null });
+            rows.set(shop, { ...row, ...token });
             return true;
           }),
         updateScope: (shop: ShopDomain, scope: string | null) => edit(shop, { scope }),

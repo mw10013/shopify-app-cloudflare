@@ -26,8 +26,8 @@ import {
 import { ShopifyFake } from "#test/shopify-fake.ts";
 import { ShopifyHarness } from "#test/shopify-harness.ts";
 
-import { D1Test, type D1TestOptions } from "./d1-test.ts";
-import { d1Store, legacyWriter, testTiers } from "./shopify-app-test.ts";
+import type { D1TestOptions } from "./d1-test.ts";
+import { d1Store, testTiers } from "./shopify-app-test.ts";
 
 const ShopId = Schema.Struct({ shop: Schema.Struct({ id: Schema.String }) });
 
@@ -54,10 +54,9 @@ export const inProcessHarness = (
       const webhooks = yield* Webhooks;
       const installations = yield* AppInstallationStore;
       const fake = yield* ShopifyFake;
-      const legacy = legacyWriter(yield* D1Test);
       return {
-        can: new Set(["clock", "interleave", "legacyRow"] as const),
-        seed: (row) => Effect.scoped(seedInstallation(installations, fake, row, legacy)),
+        can: new Set(["clock", "interleave"] as const),
+        seed: (row) => Effect.scoped(seedInstallation(installations, fake, row)),
         stored: installations.find,
         uninstall: (shop) => Effect.scoped(uninstall(installations, fake, shop)),
         authenticateMerchant: (idToken) =>

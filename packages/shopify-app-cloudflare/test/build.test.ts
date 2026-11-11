@@ -245,7 +245,11 @@ describe("the built package", () => {
     assert.strictEqual(PACKAGE_MIGRATIONS_DIR, inScratch("migrations"));
     assert.deepStrictEqual(
       readdirSync(PACKAGE_MIGRATIONS_DIR).filter((name) => name.startsWith("0000_sac_")),
-      ["0000_sac_01_app_installation.sql", "0000_sac_02_better_auth.sql"],
+      [
+        "0000_sac_01_app_installation.sql",
+        "0000_sac_02_better_auth.sql",
+        "0000_sac_03_clear_refresh_tokens.sql",
+      ],
     );
   });
 });

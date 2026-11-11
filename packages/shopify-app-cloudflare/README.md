@@ -40,6 +40,12 @@ Each Shopify app (one `client_id`, so one per stage's toml) signs its applicatio
 - The flag is `--dotenv`, not `--env-file`: Node exits on `--env-file <file>` anywhere in its argv when the file is missing.
 - Rotation: run `new` on the same file, register the new JWK beside the old (Shopify allows two keys per app), deploy, then revoke the old `kid` in the Dev Dashboard once its tokens have expired, an hour after the deploy. `new` names the old `kid` when it replaces one.
 
+## Retiring the refresh columns
+
+- Copy the package's `0000_sac_03_clear_refresh_tokens.sql` into the app's `migrations/`, which `expectMigrationsSynced` checks. It nulls `refreshToken` and `refreshTokenExpiresAt` on every `AppInstallation` row. The columns stay. Deploy 0.12.0 first, so a rollback never lands on a version that reads them.
+- `AppInstallation` drops `refreshToken` and `refreshTokenExpiresAt`, and `AppInstallationRedacted` drops `hasRefreshToken` and `refreshTokenExpiresAt`. Code that read them drops the read.
+- Tests: `SeedInstallation` drops `refreshToken` and `refreshTokenExpiresAt`, and the `legacyRow` harness capability is gone.
+
 ## Upgrading to application-only tokens
 
 Every Admin API token now comes from Shopify's application-only grant, signed with the app's own key. Token exchange, refresh tokens and the `ShopGrantor` Durable Object are gone.
