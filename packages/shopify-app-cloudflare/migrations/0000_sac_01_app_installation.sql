@@ -32,8 +32,6 @@ create table if not exists AppInstallation (
   scope text,
   accessToken text,
   accessTokenExpiresAt integer,
-  refreshToken text,
-  refreshTokenExpiresAt integer,
   planHandle text,
   planHandleExpiresAt integer,
   planBoundaryAt integer,

@@ -45,16 +45,6 @@ describe("N8. the package's migrations only expand", () => {
     const rules = (sql: string) => contractions(sql).map(({ name }) => name);
     assert.deepStrictEqual(rules("delete from AppInstallation"), ["not an expansion"]);
     assert.deepStrictEqual(rules("update AppInstallation set scope = null"), ["not an expansion"]);
-    assert.deepStrictEqual(rules("update AppInstallation set refreshToken = null, scope = null"), [
-      "not an expansion",
-    ]);
-    assert.deepStrictEqual(
-      rules("update AppInstallation set refreshToken = null where shop = 'a'"),
-      ["not an expansion"],
-    );
-    assert.deepStrictEqual(rules("update AppInstallation set refreshToken = 'x'"), [
-      "not an expansion",
-    ]);
     assert.deepStrictEqual(
       rules("create unique index if not exists U on AppInstallation (shopGid)"),
       ["not an expansion"],
@@ -62,7 +52,7 @@ describe("N8. the package's migrations only expand", () => {
     assert.deepStrictEqual(rules("create table AppInstallation (shop text)"), ["not an expansion"]);
   });
 
-  it("the check admits a new table, an index, a nullable or defaulted column and a clear of retired columns, and reads no comment", () => {
+  it("the check admits a new table, an index, and a nullable or defaulted column, and reads no comment", () => {
     assert.deepStrictEqual(
       contractions(`
         -- drop nothing; rename nothing
@@ -71,7 +61,6 @@ describe("N8. the package's migrations only expand", () => {
         create index if not exists TIndex on T (n);
         alter table AppInstallation add column dropAt integer;
         alter table AppInstallation add column x integer not null default 0;
-        update AppInstallation set refreshToken = null, refreshTokenExpiresAt = null;
       `),
       [],
     );

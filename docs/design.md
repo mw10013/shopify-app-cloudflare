@@ -147,7 +147,7 @@ These rules hold for every release, because each app's production upgrades on it
 
 ## Decisions
 
-- Every Admin API token comes from the application-only grant: a `client_credentials` request signed with the app's ES256 key, with no merchant and no refresh token. A mint retires no other token and Shopify answers concurrent mints with one token, so nothing orders them: the per-shop grantor Durable Object, abandoned-attempt adoption, the uninstall epoch and the merchant-only repair states of the refresh design are gone. The refresh columns of `AppInstallation` stay, because migrations never drop. `0000_sac_03_clear_refresh_tokens.sql` nulls them, and the package never names them again.
+- Every Admin API token comes from the application-only grant: a `client_credentials` request signed with the app's ES256 key, with no merchant and no refresh token. A mint retires no other token and Shopify answers concurrent mints with one token, so nothing orders them: the per-shop grantor Durable Object, abandoned-attempt adoption, the uninstall epoch and the merchant-only repair states of the refresh design are gone. `AppInstallation` has no refresh columns.
 
 - A failed webhook HMAC logs at `Error`. A wrong API secret makes every real delivery fail, including `app/uninstalled`, and nothing else reports it. If scanner noise gets expensive, the fix is sampling, not a lower level.
 - Plan handles are an allowlist in every app.
