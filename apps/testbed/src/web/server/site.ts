@@ -94,7 +94,7 @@ export const getAdminShop = createServerFn({ method: "GET" })
     backend()
       .adminShop(requestInfo(), data)
       .then(decodeAdminShopData)
-      .catch(rescueAdmin(`/admin/shop/${data.shop}`)),
+      .catch(rescueAdmin(`/admin/shops/${data.shop}`)),
   );
 
 /** Answers `null` once the plan was re-read, else the sentence the Overview shows. */
@@ -105,5 +105,5 @@ export const refreshPlan = createServerFn({ method: "POST" })
       .refreshPlan(requestInfo(), data)
       .then(() => null)
       .catch(rescue(ShopifyUnavailableError, ({ message }) => message))
-      .catch(rescueAdmin(`/admin/shop/${data.shop}`)),
+      .catch(rescueAdmin(`/admin/shops/${data.shop}`)),
   );

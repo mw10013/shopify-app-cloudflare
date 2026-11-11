@@ -1,6 +1,6 @@
 /**
- * The common admin pages: the Shops list, the shop layout whose tabs are its child routes, and the
- * shop's Overview. They hold no server call: an app's route loads the data and passes callbacks.
+ * The Shops pages' route options: the Shops list, the shop page whose tabs are its child routes,
+ * and the shop's Overview. Each data route takes the app's server functions and owns the rest.
  *
  * @module
  */
@@ -9,40 +9,37 @@ import {
   type AnyRouter,
   Outlet,
   useChildMatches,
+  useLoaderData,
   useMatch,
+  useParams,
   useRouter,
+  useSearch,
 } from "@tanstack/react-router";
-import * as DateTime from "effect/DateTime";
 import * as Match from "effect/Match";
-import { type ReactNode, useState } from "react";
+import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
+import { useState } from "react";
 
-import type {
-  AdminShopData,
+import {
+  type AdminShopData,
+  type AdminShopRequest,
   AppInstallationsPageRequest,
-  CachedPlan,
-  ShopSearch,
+  type CachedPlan,
 } from "./admin-contract.ts";
-import { Breadcrumb, linkProps, type PageLink } from "./admin-link.tsx";
+import { Field, Fields, Instant } from "./admin-fields.tsx";
+import {
+  AdminLink,
+  AdminLinkButton,
+  type AdminMatch,
+  REDIRECTED,
+  routeOf,
+  searchOrFirstPage,
+  type ServerCall,
+  STALE_RELOAD_MODE,
+  useServerCall,
+} from "./admin-section.tsx";
 import type { AppInstallationRedactedPage } from "./app-installation.ts";
-import type { ShopDomain } from "./domain.ts";
-
-/** A child route of {@link AdminShopLayout} shown as a tab: its label, and its place by `order`. */
-export interface AdminTab {
-  readonly label: string;
-  readonly order: number;
-}
-
-declare module "@tanstack/react-router" {
-  interface StaticDataRouteOption {
-    /** Shows this child of `AdminShopLayout`'s route as a tab. Absent: no tab. */
-    readonly adminTab?: AdminTab;
-  }
-}
-
-/** An instant as UTC ISO text, the same on the server and in the browser. */
-function Instant({ value }: { readonly value: DateTime.Utc | null }) {
-  return value === null ? "—" : DateTime.formatIso(value);
-}
+import { ShopDomain } from "./domain.ts";
 
 function Presence({ present }: { readonly present: boolean }) {
   return (
@@ -50,41 +47,41 @@ function Presence({ present }: { readonly present: boolean }) {
   );
 }
 
-export interface AdminShopsPageProps {
-  readonly page: AppInstallationRedactedPage;
-  /** The search `page` was read with. */
-  readonly filter: ShopSearch | undefined;
-  /** The breadcrumb to the admin's index. */
-  readonly adminLink: PageLink;
-  readonly shopLink: (shop: ShopDomain) => PageLink;
-  /** Takes the app's route to `search`: the next or previous page, or a new search. */
-  readonly onNavigate: (search: AppInstallationsPageRequest) => void;
-  /** The app's own page actions, such as its sign-out button, slotted into the page. */
-  readonly children?: ReactNode;
-}
+/** The `/admin/shops` route's options: the Shops page of the admin home. */
+export const adminShops = {
+  staticData: {
+    admin: {
+      title: "Shops",
+      summary: "Each installed shop's installation, cached plan and access token.",
+      order: 10,
+    },
+  },
+};
 
-/** Every installed shop's `AppInstallation` row, tokens redacted, a page at a time, searched by shop. */
-export function AdminShopsPage(props: AdminShopsPageProps) {
-  const { page, filter } = props;
+function AdminShopsList() {
+  const router: AnyRouter = useRouter();
+  const page = useLoaderData({ strict: false }) as unknown as AppInstallationRedactedPage;
+  const { filter } = useSearch({ strict: false }) as unknown as AppInstallationsPageRequest;
+  const navigate = (search: AppInstallationsPageRequest) => {
+    void router.navigate({ to: ".", search: () => search });
+  };
   const search = (text: string) => {
     const next = text.trim();
     if (next === (filter ?? "")) return;
-    props.onNavigate(next === "" ? {} : { filter: next });
+    navigate(next === "" ? {} : { filter: next });
   };
   return (
-    <s-page heading="Shops" inlineSize="large">
-      <Breadcrumb link={props.adminLink} label="Admin" />
-      {props.children}
+    <>
       <s-section padding="none" accessibilityLabel="Shops table">
         <s-table
           paginate={page.hasPreviousPage || page.hasNextPage}
           hasPreviousPage={page.hasPreviousPage}
           hasNextPage={page.hasNextPage}
           onPreviousPage={() => {
-            if (page.startCursor !== null) props.onNavigate({ before: page.startCursor, filter });
+            if (page.startCursor !== null) navigate({ before: page.startCursor, filter });
           }}
           onNextPage={() => {
-            if (page.endCursor !== null) props.onNavigate({ after: page.endCursor, filter });
+            if (page.endCursor !== null) navigate({ after: page.endCursor, filter });
           }}
         >
           <s-search-field
@@ -110,7 +107,9 @@ export function AdminShopsPage(props: AdminShopsPageProps) {
             {page.appInstallations.map((row) => (
               <s-table-row key={row.shop} id={row.shop}>
                 <s-table-cell>
-                  <s-link {...linkProps(props.shopLink(row.shop))}>{row.shop}</s-link>
+                  <AdminLink to="/admin/shops/$shop" params={{ shop: row.shop }}>
+                    {row.shop}
+                  </AdminLink>
                 </s-table-cell>
                 <s-table-cell>
                   <Instant value={row.installedAt} />
@@ -129,77 +128,89 @@ export function AdminShopsPage(props: AdminShopsPageProps) {
         </s-table>
       </s-section>
       {page.appInstallations.length === 0 && <s-banner tone="info">No shops.</s-banner>}
-    </s-page>
+    </>
   );
 }
 
-export interface AdminShopLayoutProps {
-  readonly shop: ShopDomain;
-  /** The breadcrumb to the Shops list. */
-  readonly shopsLink: PageLink;
-  /** The app's own page actions, such as its sign-out button, slotted into the page. */
-  readonly children?: ReactNode;
-}
+/**
+ * The `/admin/shops/` route's options: every installed shop's `AppInstallation` row, tokens
+ * redacted, a page at a time, searched by shop. `load` is the app's server function over
+ * `appInstallationsPage`.
+ */
+export const adminShopsList = ({
+  load,
+}: {
+  readonly load: ServerCall<AppInstallationsPageRequest, AppInstallationRedactedPage>;
+}) => ({
+  validateSearch: searchOrFirstPage(AppInstallationsPageRequest, {
+    after: undefined,
+    before: undefined,
+    filter: undefined,
+  }),
+  loaderDeps: ({
+    search: { after, before, filter },
+  }: {
+    readonly search: AppInstallationsPageRequest;
+  }) => ({ after, before, filter }),
+  loader: {
+    handler: ({ deps }: { readonly deps: AppInstallationsPageRequest }) => load({ data: deps }),
+    staleReloadMode: STALE_RELOAD_MODE,
+  },
+  component: AdminShopsList,
+});
+
+const decodeShopDomain = Schema.decodeUnknownOption(ShopDomain);
 
 /**
- * What the layout reads of a match. A match is `any` in the package and the app's own route union
- * in an app, so the layout reads it through `unknown` to check alike in both.
+ * The shop page: a tab for each child route whose `staticData.adminTab` is set, in `order`, and
+ * the child's sections beneath them. An app adds a tab by adding a child route.
  */
-interface Match {
-  readonly routeId: string;
-  readonly params: Readonly<Record<string, string>>;
-}
-
-/** What the layout reads of a child route; TanStack leaves a route's `children` untyped. */
-interface ChildRoute {
-  readonly id: string;
-  readonly fullPath: string;
-  readonly options: { readonly staticData?: { readonly adminTab?: AdminTab } };
-}
-
-/**
- * The layout of the app's `/admin/shop/$shop` route: the shop's page, a tab for each child route
- * whose `staticData.adminTab` is set, in `order`, and the child's page beneath them. An app adds a
- * tab by adding a child route; the layout lists none itself.
- */
-export function AdminShopLayout(props: AdminShopLayoutProps) {
+function AdminShop() {
   const router: AnyRouter = useRouter();
-  const { routeId, params } = useMatch({ strict: false }) as unknown as Match;
-  const active = (useChildMatches() as unknown as readonly Match[])[0]?.routeId;
-  const children = (router.routesById[routeId] as { readonly children?: readonly ChildRoute[] })
-    .children;
-  const tabs = (children ?? [])
+  const { routeId, params } = useMatch({ strict: false }) as unknown as AdminMatch;
+  const active = (useChildMatches() as unknown as readonly AdminMatch[])[0]?.routeId;
+  const tabs = (routeOf(router, routeId).children ?? [])
     .flatMap((route) => {
       const tab = route.options.staticData?.adminTab;
       return tab === undefined ? [] : [{ ...tab, route }];
     })
     .toSorted((a, b) => a.order - b.order);
   return (
-    <s-page heading={props.shop} inlineSize="large">
-      <Breadcrumb link={props.shopsLink} label="Shops" />
-      {props.children}
-      <s-stack gap="base">
-        <s-stack direction="inline" gap="small-200" accessibilityLabel="Shop pages">
-          {tabs.map(({ label, route }) => (
-            <s-button
-              key={route.id}
-              variant={route.id === active ? "primary" : "secondary"}
-              {...linkProps({
-                href: router.buildLocation({ to: route.fullPath, params }).href,
-                onClick: () => {
-                  void router.navigate({ to: route.fullPath, params });
-                },
-              })}
-            >
-              {label}
-            </s-button>
-          ))}
-        </s-stack>
-        <Outlet />
+    <s-stack gap="base">
+      <s-stack direction="inline" gap="small-200" accessibilityLabel="Shop pages">
+        {tabs.map(({ label, route }) => (
+          <AdminLinkButton
+            key={route.id}
+            to={route.fullPath}
+            params={params}
+            variant={route.id === active ? "primary" : "secondary"}
+          >
+            {label}
+          </AdminLinkButton>
+        ))}
       </s-stack>
-    </s-page>
+      <Outlet />
+    </s-stack>
   );
 }
+
+/**
+ * The `/admin/shops/$shop` route's options: the shop's domain as the heading, its tabs, and a
+ * `$shop` that is not a shop domain failing as the page's error.
+ */
+export const adminShop = {
+  staticData: { admin: { title: ({ shop }: Readonly<Record<string, string>>) => shop ?? "" } },
+  params: {
+    parse: ({ shop }: { readonly shop: string }) => ({
+      shop: Option.getOrThrowWith(
+        decodeShopDomain(shop),
+        () => new Error(`${shop} is not a shop domain.`),
+      ),
+    }),
+    stringify: ({ shop }: { readonly shop: ShopDomain }) => ({ shop }),
+  },
+  component: AdminShop,
+};
 
 const REFRESH_PLAN_FAILED = "Could not refresh the plan from Shopify.";
 
@@ -216,37 +227,14 @@ const planBadge = Match.typeTags<
 
 const storedHandle = (plan: CachedPlan) => ("handle" in plan ? plan.handle : null);
 
-function Field({ label, children }: { readonly label: string; readonly children: ReactNode }) {
-  return (
-    <s-stack gap="small-300">
-      <s-text color="subdued">{label}</s-text>
-      {children}
-    </s-stack>
-  );
-}
+/** Refresh plan's server function: `null` once the plan was re-read, else the banner's sentence. */
+type RefreshPlan = ServerCall<AdminShopRequest, string | null>;
 
-function Fields({ children }: { readonly children: ReactNode }) {
-  return (
-    <s-grid gridTemplateColumns="repeat(auto-fit, minmax(240px, 1fr))" gap="base">
-      {children}
-    </s-grid>
-  );
-}
-
-export interface AdminShopOverviewPageProps {
-  readonly data: AdminShopData;
-  /**
-   * Refresh plan's press: the app's server function, then its loader read again. Answers `null`
-   * once the new plan is shown, else the banner's sentence.
-   */
-  readonly onRefreshPlan: () => Promise<string | null>;
-}
-
-/**
- * The shop's Overview tab, point in time: its cached plan with Refresh plan, and its installation.
- * Rendered inside {@link AdminShopLayout}, so it is sections, not a page.
- */
-export function AdminShopOverviewPage({ data, onRefreshPlan }: AdminShopOverviewPageProps) {
+function AdminShopOverview({ refreshPlan }: { readonly refreshPlan: RefreshPlan }) {
+  const router: AnyRouter = useRouter();
+  const data = useLoaderData({ strict: false }) as unknown as AdminShopData;
+  const { shop } = useParams({ strict: false }) as unknown as AdminShopRequest;
+  const refresh = useServerCall(refreshPlan);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   if (data._tag === "NotFound")
@@ -257,16 +245,10 @@ export function AdminShopOverviewPage({ data, onRefreshPlan }: AdminShopOverview
     );
   const { appInstallation, plan, shopActorId } = data;
   const badge = planBadge(plan);
-  const refresh = () => {
-    setRefreshError(null);
-    setRefreshing(true);
-    void onRefreshPlan()
-      .then(setRefreshError, () => {
-        setRefreshError(REFRESH_PLAN_FAILED);
-      })
-      .finally(() => {
-        setRefreshing(false);
-      });
+  const press = async () => {
+    const failure = await refresh({ shop });
+    if (failure === null) await router.invalidate({ sync: true });
+    return failure === REDIRECTED ? null : failure;
   };
   return (
     <>
@@ -287,7 +269,21 @@ export function AdminShopOverviewPage({ data, onRefreshPlan }: AdminShopOverview
           </Fields>
           <s-stack gap="small-200">
             <s-box>
-              <s-button variant="secondary" loading={refreshing} onClick={refresh}>
+              <s-button
+                variant="secondary"
+                loading={refreshing}
+                onClick={() => {
+                  setRefreshError(null);
+                  setRefreshing(true);
+                  void press()
+                    .then(setRefreshError, () => {
+                      setRefreshError(REFRESH_PLAN_FAILED);
+                    })
+                    .finally(() => {
+                      setRefreshing(false);
+                    });
+                }}
+              >
                 Refresh plan
               </s-button>
             </s-box>
@@ -317,3 +313,24 @@ export function AdminShopOverviewPage({ data, onRefreshPlan }: AdminShopOverview
     </>
   );
 }
+
+/**
+ * The `/admin/shops/$shop/` route's options: the Overview tab, point in time, with the shop's
+ * cached plan, Refresh plan and its installation. `load` is the app's server function over
+ * `adminShop`, and `refreshPlan` its server function over `refreshPlan`.
+ */
+export const adminShopOverview = ({
+  load,
+  refreshPlan,
+}: {
+  readonly load: ServerCall<AdminShopRequest, AdminShopData>;
+  readonly refreshPlan: RefreshPlan;
+}) => ({
+  staticData: { adminTab: { label: "Overview", order: 0 } },
+  loader: {
+    handler: ({ params: { shop } }: { readonly params: AdminShopRequest }) =>
+      load({ data: { shop } }),
+    staleReloadMode: STALE_RELOAD_MODE,
+  },
+  component: () => <AdminShopOverview refreshPlan={refreshPlan} />,
+});

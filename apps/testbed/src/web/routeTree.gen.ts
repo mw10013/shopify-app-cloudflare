@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAccountRouteImport } from './routes/admin.account'
 import { Route as AdminOrphanShopActorObjectsRouteImport } from './routes/admin.orphan-shop-actor-objects'
 import { Route as AdminShopActorObjectsRouteImport } from './routes/admin.shop-actor-objects'
 import { Route as AdminShopsRouteImport } from './routes/admin.shops'
@@ -21,13 +22,14 @@ import { Route as ApiControlRouteImport } from './routes/api.control'
 import { Route as AuthExitIframeRouteImport } from './routes/auth.exit-iframe'
 import { Route as AuthSessionTokenRouteImport } from './routes/auth.session-token'
 import { Route as WebhooksSplatRouteImport } from './routes/webhooks.$'
-import { Route as AdminShopShopRouteImport } from './routes/admin.shop.$shop'
+import { Route as AdminShopsIndexRouteImport } from './routes/admin.shops.index'
+import { Route as AdminShopsShopRouteImport } from './routes/admin.shops.$shop'
 import { Route as ApiActorKeyRouteImport } from './routes/api.actor.$key'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 import { Route as ApiE2eStatusRouteImport } from './routes/api.e2e.status'
 import { Route as ApiE2eWebhooksRouteImport } from './routes/api.e2e.webhooks'
-import { Route as AdminShopShopIndexRouteImport } from './routes/admin.shop.$shop.index'
-import { Route as AdminShopShopActorRouteImport } from './routes/admin.shop.$shop.actor'
+import { Route as AdminShopsShopIndexRouteImport } from './routes/admin.shops.$shop.index'
+import { Route as AdminShopsShopActorRouteImport } from './routes/admin.shops.$shop.actor'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -47,6 +49,11 @@ const AppRoute = AppRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAccountRoute = AdminAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminOrphanShopActorObjectsRoute =
@@ -90,10 +97,15 @@ const WebhooksSplatRoute = WebhooksSplatRouteImport.update({
   path: '/webhooks/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminShopShopRoute = AdminShopShopRouteImport.update({
-  id: '/shop/$shop',
-  path: '/shop/$shop',
-  getParentRoute: () => AdminRoute,
+const AdminShopsIndexRoute = AdminShopsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminShopsRoute,
+} as any)
+const AdminShopsShopRoute = AdminShopsShopRouteImport.update({
+  id: '/$shop',
+  path: '/$shop',
+  getParentRoute: () => AdminShopsRoute,
 } as any)
 const ApiActorKeyRoute = ApiActorKeyRouteImport.update({
   id: '/api/actor/$key',
@@ -115,44 +127,46 @@ const ApiE2eWebhooksRoute = ApiE2eWebhooksRouteImport.update({
   path: '/api/e2e/webhooks',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminShopShopIndexRoute = AdminShopShopIndexRouteImport.update({
+const AdminShopsShopIndexRoute = AdminShopsShopIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AdminShopShopRoute,
+  getParentRoute: () => AdminShopsShopRoute,
 } as any)
-const AdminShopShopActorRoute = AdminShopShopActorRouteImport.update({
+const AdminShopsShopActorRoute = AdminShopsShopActorRouteImport.update({
   id: '/actor',
   path: '/actor',
-  getParentRoute: () => AdminShopShopRoute,
+  getParentRoute: () => AdminShopsShopRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/app': typeof AppRoute
+  '/admin/account': typeof AdminAccountRoute
   '/admin/orphan-shop-actor-objects': typeof AdminOrphanShopActorObjectsRoute
   '/admin/shop-actor-objects': typeof AdminShopActorObjectsRoute
-  '/admin/shops': typeof AdminShopsRoute
+  '/admin/shops': typeof AdminShopsRouteWithChildren
   '/admin/sign-in': typeof AdminSignInRoute
   '/api/control': typeof ApiControlRoute
   '/auth/exit-iframe': typeof AuthExitIframeRoute
   '/auth/session-token': typeof AuthSessionTokenRoute
   '/webhooks/$': typeof WebhooksSplatRoute
   '/admin/': typeof AdminIndexRoute
-  '/admin/shop/$shop': typeof AdminShopShopRouteWithChildren
+  '/admin/shops/$shop': typeof AdminShopsShopRouteWithChildren
   '/api/actor/$key': typeof ApiActorKeyRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/e2e/status': typeof ApiE2eStatusRoute
   '/api/e2e/webhooks': typeof ApiE2eWebhooksRoute
-  '/admin/shop/$shop/actor': typeof AdminShopShopActorRoute
-  '/admin/shop/$shop/': typeof AdminShopShopIndexRoute
+  '/admin/shops/': typeof AdminShopsIndexRoute
+  '/admin/shops/$shop/actor': typeof AdminShopsShopActorRoute
+  '/admin/shops/$shop/': typeof AdminShopsShopIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppRoute
+  '/admin/account': typeof AdminAccountRoute
   '/admin/orphan-shop-actor-objects': typeof AdminOrphanShopActorObjectsRoute
   '/admin/shop-actor-objects': typeof AdminShopActorObjectsRoute
-  '/admin/shops': typeof AdminShopsRoute
   '/admin/sign-in': typeof AdminSignInRoute
   '/api/control': typeof ApiControlRoute
   '/auth/exit-iframe': typeof AuthExitIframeRoute
@@ -163,30 +177,33 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/e2e/status': typeof ApiE2eStatusRoute
   '/api/e2e/webhooks': typeof ApiE2eWebhooksRoute
-  '/admin/shop/$shop/actor': typeof AdminShopShopActorRoute
-  '/admin/shop/$shop': typeof AdminShopShopIndexRoute
+  '/admin/shops': typeof AdminShopsIndexRoute
+  '/admin/shops/$shop/actor': typeof AdminShopsShopActorRoute
+  '/admin/shops/$shop': typeof AdminShopsShopIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/app': typeof AppRoute
+  '/admin/account': typeof AdminAccountRoute
   '/admin/orphan-shop-actor-objects': typeof AdminOrphanShopActorObjectsRoute
   '/admin/shop-actor-objects': typeof AdminShopActorObjectsRoute
-  '/admin/shops': typeof AdminShopsRoute
+  '/admin/shops': typeof AdminShopsRouteWithChildren
   '/admin_/sign-in': typeof AdminSignInRoute
   '/api/control': typeof ApiControlRoute
   '/auth/exit-iframe': typeof AuthExitIframeRoute
   '/auth/session-token': typeof AuthSessionTokenRoute
   '/webhooks/$': typeof WebhooksSplatRoute
   '/admin/': typeof AdminIndexRoute
-  '/admin/shop/$shop': typeof AdminShopShopRouteWithChildren
+  '/admin/shops/$shop': typeof AdminShopsShopRouteWithChildren
   '/api/actor/$key': typeof ApiActorKeyRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/e2e/status': typeof ApiE2eStatusRoute
   '/api/e2e/webhooks': typeof ApiE2eWebhooksRoute
-  '/admin/shop/$shop/actor': typeof AdminShopShopActorRoute
-  '/admin/shop/$shop/': typeof AdminShopShopIndexRoute
+  '/admin/shops/': typeof AdminShopsIndexRoute
+  '/admin/shops/$shop/actor': typeof AdminShopsShopActorRoute
+  '/admin/shops/$shop/': typeof AdminShopsShopIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -194,6 +211,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/app'
+    | '/admin/account'
     | '/admin/orphan-shop-actor-objects'
     | '/admin/shop-actor-objects'
     | '/admin/shops'
@@ -203,20 +221,21 @@ export interface FileRouteTypes {
     | '/auth/session-token'
     | '/webhooks/$'
     | '/admin/'
-    | '/admin/shop/$shop'
+    | '/admin/shops/$shop'
     | '/api/actor/$key'
     | '/api/auth/$'
     | '/api/e2e/status'
     | '/api/e2e/webhooks'
-    | '/admin/shop/$shop/actor'
-    | '/admin/shop/$shop/'
+    | '/admin/shops/'
+    | '/admin/shops/$shop/actor'
+    | '/admin/shops/$shop/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/app'
+    | '/admin/account'
     | '/admin/orphan-shop-actor-objects'
     | '/admin/shop-actor-objects'
-    | '/admin/shops'
     | '/admin/sign-in'
     | '/api/control'
     | '/auth/exit-iframe'
@@ -227,13 +246,15 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/e2e/status'
     | '/api/e2e/webhooks'
-    | '/admin/shop/$shop/actor'
-    | '/admin/shop/$shop'
+    | '/admin/shops'
+    | '/admin/shops/$shop/actor'
+    | '/admin/shops/$shop'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/app'
+    | '/admin/account'
     | '/admin/orphan-shop-actor-objects'
     | '/admin/shop-actor-objects'
     | '/admin/shops'
@@ -243,13 +264,14 @@ export interface FileRouteTypes {
     | '/auth/session-token'
     | '/webhooks/$'
     | '/admin/'
-    | '/admin/shop/$shop'
+    | '/admin/shops/$shop'
     | '/api/actor/$key'
     | '/api/auth/$'
     | '/api/e2e/status'
     | '/api/e2e/webhooks'
-    | '/admin/shop/$shop/actor'
-    | '/admin/shop/$shop/'
+    | '/admin/shops/'
+    | '/admin/shops/$shop/actor'
+    | '/admin/shops/$shop/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -295,6 +317,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/account': {
+      id: '/admin/account'
+      path: '/account'
+      fullPath: '/admin/account'
+      preLoaderRoute: typeof AdminAccountRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/orphan-shop-actor-objects': {
@@ -353,12 +382,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WebhooksSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/shop/$shop': {
-      id: '/admin/shop/$shop'
-      path: '/shop/$shop'
-      fullPath: '/admin/shop/$shop'
-      preLoaderRoute: typeof AdminShopShopRouteImport
-      parentRoute: typeof AdminRoute
+    '/admin/shops/': {
+      id: '/admin/shops/'
+      path: '/'
+      fullPath: '/admin/shops/'
+      preLoaderRoute: typeof AdminShopsIndexRouteImport
+      parentRoute: typeof AdminShopsRoute
+    }
+    '/admin/shops/$shop': {
+      id: '/admin/shops/$shop'
+      path: '/$shop'
+      fullPath: '/admin/shops/$shop'
+      preLoaderRoute: typeof AdminShopsShopRouteImport
+      parentRoute: typeof AdminShopsRoute
     }
     '/api/actor/$key': {
       id: '/api/actor/$key'
@@ -388,51 +424,65 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiE2eWebhooksRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/shop/$shop/': {
-      id: '/admin/shop/$shop/'
+    '/admin/shops/$shop/': {
+      id: '/admin/shops/$shop/'
       path: '/'
-      fullPath: '/admin/shop/$shop/'
-      preLoaderRoute: typeof AdminShopShopIndexRouteImport
-      parentRoute: typeof AdminShopShopRoute
+      fullPath: '/admin/shops/$shop/'
+      preLoaderRoute: typeof AdminShopsShopIndexRouteImport
+      parentRoute: typeof AdminShopsShopRoute
     }
-    '/admin/shop/$shop/actor': {
-      id: '/admin/shop/$shop/actor'
+    '/admin/shops/$shop/actor': {
+      id: '/admin/shops/$shop/actor'
       path: '/actor'
-      fullPath: '/admin/shop/$shop/actor'
-      preLoaderRoute: typeof AdminShopShopActorRouteImport
-      parentRoute: typeof AdminShopShopRoute
+      fullPath: '/admin/shops/$shop/actor'
+      preLoaderRoute: typeof AdminShopsShopActorRouteImport
+      parentRoute: typeof AdminShopsShopRoute
     }
   }
 }
 
-interface AdminShopShopRouteChildren {
-  AdminShopShopActorRoute: typeof AdminShopShopActorRoute
-  AdminShopShopIndexRoute: typeof AdminShopShopIndexRoute
+interface AdminShopsShopRouteChildren {
+  AdminShopsShopActorRoute: typeof AdminShopsShopActorRoute
+  AdminShopsShopIndexRoute: typeof AdminShopsShopIndexRoute
 }
 
-const AdminShopShopRouteChildren: AdminShopShopRouteChildren = {
-  AdminShopShopActorRoute: AdminShopShopActorRoute,
-  AdminShopShopIndexRoute: AdminShopShopIndexRoute,
+const AdminShopsShopRouteChildren: AdminShopsShopRouteChildren = {
+  AdminShopsShopActorRoute: AdminShopsShopActorRoute,
+  AdminShopsShopIndexRoute: AdminShopsShopIndexRoute,
 }
 
-const AdminShopShopRouteWithChildren = AdminShopShopRoute._addFileChildren(
-  AdminShopShopRouteChildren,
+const AdminShopsShopRouteWithChildren = AdminShopsShopRoute._addFileChildren(
+  AdminShopsShopRouteChildren,
+)
+
+interface AdminShopsRouteChildren {
+  AdminShopsShopRoute: typeof AdminShopsShopRouteWithChildren
+  AdminShopsIndexRoute: typeof AdminShopsIndexRoute
+}
+
+const AdminShopsRouteChildren: AdminShopsRouteChildren = {
+  AdminShopsShopRoute: AdminShopsShopRouteWithChildren,
+  AdminShopsIndexRoute: AdminShopsIndexRoute,
+}
+
+const AdminShopsRouteWithChildren = AdminShopsRoute._addFileChildren(
+  AdminShopsRouteChildren,
 )
 
 interface AdminRouteChildren {
+  AdminAccountRoute: typeof AdminAccountRoute
   AdminOrphanShopActorObjectsRoute: typeof AdminOrphanShopActorObjectsRoute
   AdminShopActorObjectsRoute: typeof AdminShopActorObjectsRoute
-  AdminShopsRoute: typeof AdminShopsRoute
+  AdminShopsRoute: typeof AdminShopsRouteWithChildren
   AdminIndexRoute: typeof AdminIndexRoute
-  AdminShopShopRoute: typeof AdminShopShopRouteWithChildren
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAccountRoute: AdminAccountRoute,
   AdminOrphanShopActorObjectsRoute: AdminOrphanShopActorObjectsRoute,
   AdminShopActorObjectsRoute: AdminShopActorObjectsRoute,
-  AdminShopsRoute: AdminShopsRoute,
+  AdminShopsRoute: AdminShopsRouteWithChildren,
   AdminIndexRoute: AdminIndexRoute,
-  AdminShopShopRoute: AdminShopShopRouteWithChildren,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

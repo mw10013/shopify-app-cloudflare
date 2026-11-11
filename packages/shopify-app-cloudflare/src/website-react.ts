@@ -1,21 +1,28 @@
 /**
  * The Website's React half: the shop socket's holder and banners, the live route helpers over the
- * app's router and actor client, the common admin pages and the orphan sweep's admin pages. Needs
- * the optional peers `react`, `@tanstack/react-router` and `@effect/atom-react`.
+ * app's router and actor client, and the admin section's route options (its layout, home, Shops
+ * pages and the orphan sweep's pages). Needs the optional peers `react`, `@tanstack/react-router`
+ * and `@effect/atom-react`.
  *
  * @module
  */
 
+export { Field, Fields, Instant } from "#internal/admin-fields.tsx";
 export {
-  AdminShopLayout,
-  type AdminShopLayoutProps,
-  AdminShopOverviewPage,
-  type AdminShopOverviewPageProps,
-  AdminShopsPage,
-  type AdminShopsPageProps,
-  type AdminTab,
+  adminShop,
+  adminShopOverview,
+  adminShops,
+  adminShopsList,
 } from "#internal/admin-pages.tsx";
-export type { PageLink } from "#internal/admin-link.tsx";
+export {
+  AdminLink,
+  AdminLinkButton,
+  type AdminPage,
+  type AdminTab,
+  adminHome,
+  adminLayout,
+  type ServerCall,
+} from "#internal/admin-section.tsx";
 export {
   keepLastAnswer,
   type LiveClient,
@@ -28,12 +35,8 @@ export {
   STALE_ON_NOTICE_ONLY,
 } from "#internal/live-route.ts";
 export {
-  type DestroyOutcome,
-  OrphanShopActorObjectsPage,
-  type OrphanShopActorObjectsPageProps,
-  ShopActorObjectsPage,
-  type ShopActorObjectsPageProps,
-  type ShopActorObjectsSearch,
+  adminOrphanShopActorObjects,
+  adminShopActorObjects,
 } from "#internal/shop-actor-objects-pages.tsx";
 export {
   SignInPage,

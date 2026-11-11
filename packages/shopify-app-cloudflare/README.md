@@ -18,15 +18,46 @@ The `stores` command runs inside an app with `vp exec stores`: `acquire <env>`, 
 
 An uninstall deletes the shop's row before it destroys the shop's `ShopActor`, so a destroy that failed leaves an object nothing accounts for. `ShopActorObjects` from `/backend` lists the stage's objects through Cloudflare's REST API, rules which are orphans and destroys one by id (`OrphanInstalledError` when the shop is installed again). `ShopActorObjects.layerConfig` needs `ShopActors` and `AppInstallations` in the Backend's init, `yield* shopActorObjectMethods` serves the three behind the admin gate (see [Site sign-in](#site-sign-in)), with no unguarded form, and `ShopActorObjects.layerTest(pages)` lists a fixed set in an app's unit tests.
 
-`bindShopActorObjects` from `/stack` binds `CLOUDFLARE_ACCOUNT_ID`, the script that hosts `ShopActor` and, only on staging and production, a Workers Scripts Read token as `CLOUDFLARE_WORKERS_API_TOKEN`. On any other stage listing dies saying so. `ShopActorObjectsPage` and `OrphanShopActorObjectsPage` from `/website/react` render the two admin pages from data and callbacks; their `adminLink: { href, onClick }` links the Admin breadcrumb to `href`, and a plain click runs `onClick`, the app's client navigation, instead. The app keeps its route files and server functions, because TanStack Start's compiler is not known to rewrite a `createServerFn` under `node_modules`.
+`bindShopActorObjects` from `/stack` binds `CLOUDFLARE_ACCOUNT_ID`, the script that hosts `ShopActor` and, only on staging and production, a Workers Scripts Read token as `CLOUDFLARE_WORKERS_API_TOKEN`. On any other stage listing dies saying so. Their two admin pages are `adminShopActorObjects` and `adminOrphanShopActorObjects` in [Admin pages](#admin-pages).
 
 ## Admin pages
 
-The Shops list, the shop layout and the shop's Overview come from the package, so no app keeps its own.
+Every app's admin section is the same pages from the package, under one `/admin` layout. The route tree is the section's navigation: a route joins it by declaring `staticData.admin`, and the layout draws the page around it.
+
+```
+/admin                        adminLayout: the page, its heading, breadcrumb, Sign out and errors
+  /                           adminHome: lists /admin's children that have a summary
+  /shops                      adminShops
+    /                         adminShopsList({ load })
+    /$shop                    adminShop: the shop domain as heading, a tab per child route
+      /                       adminShopOverview({ load, refreshPlan }): the Overview tab
+  /shop-actor-objects         adminShopActorObjects({ load })
+  /orphan-shop-actor-objects  adminOrphanShopActorObjects({ load, destroy })
+/admin_/sign-in               SignInPage
+```
 
 - **Backend.** `yield* adminShopMethods(catalog)` serves `appInstallationsPage`, `adminShop` and `refreshPlan` behind the admin gate. It needs `AppInstallations`, `SubscriptionPlan` and `ShopActors`. Viewing a shop reads its cached plan and never calls Shopify; Refresh plan re-reads it, and declares `ShopifyUnavailableError`.
-- **Website.** One server function per method, each `backend().<method>(requestInfo(), data)`, decoded with `AppInstallationRedactedPage` or `AdminShopData` from `/contract`. The Website registers a `DateTime.Utc` serialization adapter, since the rows carry instants.
-- **Routes.** `admin.shops.tsx` renders `AdminShopsPage`, `admin.shop.$shop.tsx` renders `AdminShopLayout`, and `admin.shop.$shop.index.tsx` renders `AdminShopOverviewPage` with `staticData: { adminTab: { label: "Overview", order: 0 } }`. The layout shows a tab for each child route whose `staticData.adminTab` is set, in `order`; an app's own shop page is a child route with its own `adminTab` (`order: 10` and up) that renders sections, not a page.
+- **Website.** One server function per method, each `backend().<method>(requestInfo(), data)`, decoded with the answer's schema from `/contract`, its admin refusal redirecting to `/admin/sign-in` with the page's path. The Website registers a `DateTime.Utc` serialization adapter, since the rows carry instants.
+- **Routes.** Each route file spreads the package's route options into `createFileRoute`, or passes them whole. A page that loads data or acts is a function of the app's server functions, which must be created in app code: TanStack Start's compiler is not known to rewrite a `createServerFn` under `node_modules`. The package owns everything else: the component, `validateSearch` (a stale or malformed cursor or search reads as the first page), `loaderDeps`, `staleReloadMode: "blocking"` and the `$shop` param's parse. The app adds only its guard, a `beforeLoad` on `/admin`.
+
+```ts
+export const Route = createFileRoute("/admin")({
+  ...adminLayout,
+  beforeLoad: async ({ location }) => {
+    if ((await getSignedInUser()) === null)
+      throw redirect({ to: "/admin/sign-in", search: { redirect: location.href } });
+  },
+});
+
+export const Route = createFileRoute("/admin/shops/$shop/")(
+  adminShopOverview({ load: getAdminShop, refreshPlan }),
+);
+```
+
+- **Navigation.** A route's `staticData.admin` is `{ title, summary?, order? }`. The heading is the deepest matched route's `title`, and the breadcrumb links to the matched route above it that has one. The home page lists `/admin`'s children that have a `summary`, by `order` (the package's take 10, 20 and 30). `title` may be a function of the route's params, as the shop page's is; such a route has no `summary`. A failure anywhere under `/admin` is a critical banner inside the same page, with its heading, breadcrumb and Sign out.
+- **An app's own page.** A child route of `/admin` with `staticData: { admin: { title, summary, order } }` whose component renders `s-section`s, never an `s-page`. It appears on the home page.
+- **An app's own tab.** A child route of `/admin/shops/$shop` with `staticData: { adminTab: { label, order } }` (`order` 10 and up; Overview is 0) that renders sections.
+- **Fields.** `Fields`, `Field` and `Instant` from `/website/react` lay out read-only values as the package's pages do. `Instant` renders a `<time>` in UTC ISO on the server and in the viewer's zone once hydrated.
 
 ## Site sign-in
 
@@ -37,7 +68,7 @@ The site's own users (its admins, and Baton's members) sign in with a six-digit 
 - **Stack.** `bindSiteAuth(backend, { authOrigin, environment })` binds the Website's URL and what the environment takes. On staging and production codes are `mailed`, and each address gets `SIGN_IN_CODES_PER_DAY` (10) codes from the sign-in page per UTC day, refused past that as `TooManyRequestsError`, like the per-minute limit. Everywhere else codes are `inline` (they come back to the page) and uncapped. `seedSiteUsers(database, [{ email, role: "admin" }], { sql? })` is the only way an admin is made; `sql` is the app's own seed, run after the users in the same Action, so the app needs no second seed Action (two at once on local D1 fail with `SQLITE_BUSY`).
 - **Control door.** Mount `SiteAuthControlRpcs` with `siteAuthControlHandlers`: `IssueSignInCode` answers a code in one call, never mailed and never counted against the daily cap, for a test runner on a stage that mails codes.
 - **Website.** The app's `api.auth.$` route is `server: { handlers: authHandlers(env) }`. Its server function for a code is `signInCodeResult(backend().requestSignInCode(requestInfoOf(getRequest()), data))`. `SignInPage` (with an optional `footer`, such as a help link) and `SignOutButton` come from `/website/react`.
-- **Tests.** `SiteAuthTest` from `/test/node` runs it all over `D1Test`. The package's browser tests click through `SignInPage` and the two orphan pages, so an app tests only its routes' wiring.
+- **Tests.** `SiteAuthTest` from `/test/node` runs it all over `D1Test`. The package's browser tests click through `SignInPage` and the admin section under a router built as above, so an app tests only its own pages.
 
 ## App token keys
 
@@ -47,6 +78,15 @@ Each Shopify app (one `client_id`, so one per stage's toml) signs its applicatio
 - `verify --config <toml> --dotenv <file> --shop <shop>.myshopify.com` mints once with the file's key. Shopify checks the key before the installation, so any existing store answers: a token or `400 app_not_installed` means registered, `401 invalid_client` means not registered yet or a wrong `kid`, and it exits 1 on that or any other answer. It never prints the token.
 - The flag is `--dotenv`, not `--env-file`: Node exits on `--env-file <file>` anywhere in its argv when the file is missing.
 - Rotation: run `new` on the same file, register the new JWK beside the old (Shopify allows two keys per app), deploy, then revoke the old `kid` in the Dev Dashboard once its tokens have expired, an hour after the deploy. `new` names the old `kid` when it replaces one.
+
+## Upgrading to 0.14
+
+The admin page components are now route options; no page takes `children`, links or callbacks, and `PageLink`, `AdminShopsPage`, `AdminShopLayout`, `AdminShopOverviewPage`, `ShopActorObjectsPage` and `OrphanShopActorObjectsPage` are gone.
+
+- `/admin/shop/$shop` moves to `/admin/shops/$shop`. Rename `admin.shop.$shop*.tsx` to `admin.shops.$shop*.tsx`, and change the paths in the server functions' admin redirects.
+- `admin.shops.tsx` becomes `createFileRoute("/admin/shops")(adminShops)`, and the list moves to `admin.shops.index.tsx`, `adminShopsList({ load })`.
+- Replace each admin route file's body with the package's options, as in [Admin pages](#admin-pages): `admin.tsx` spreads `adminLayout` beside its `beforeLoad`, and `admin.index.tsx` is `adminHome`. Delete the app's own admin home, its Sign out buttons, its `errorComponent`s and its search schemas for these pages.
+- An app's own admin page adds `staticData.admin` with a `summary` to appear on the home page, and renders sections. An app's own shop tab keeps its `adminTab` and moves with the route.
 
 ## Upgrading to 0.13
 
