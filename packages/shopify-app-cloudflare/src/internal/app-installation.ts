@@ -19,8 +19,7 @@ const StoredInstant = Schema.NullOr(Schema.DateTimeUtcFromMillis);
  * uninstall, with every column the package's migrations create but the two refresh columns,
  * unused since the application-only grant and always null. Apps add no column here; their
  * per-shop data lives in their own tables, which cascade from this one. A row with a column a
- * later migration added still decodes: the struct ignores a property it does not name, so the
- * previous package version keeps reading the table after an expand.
+ * later migration added still decodes: the struct ignores a property it does not name.
  */
 export const AppInstallation = Schema.Struct({
   shop: ShopDomain,
