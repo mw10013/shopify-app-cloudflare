@@ -1,8 +1,8 @@
 /**
  * What crosses between an app's Workers and the browser: the brands, the errors and the failure
- * schemas, the redacted `AppInstallation` records `AppInstallations` answers and the orphan sweep's
- * objects and batches. Free of `@shopify/shopify-api`, so the Website imports it without loading
- * the library.
+ * schemas, the redacted `AppInstallation` records `AppInstallations` answers, the common admin
+ * pages' requests and answers, and the orphan sweep's objects and batches. Free of
+ * `@shopify/shopify-api`, so the Website imports it without loading the library.
  *
  * @module
  */
@@ -24,6 +24,14 @@ export {
   AppInstallationRedacted,
   AppInstallationRedactedPage,
 } from "#internal/app-installation.ts";
+export {
+  AdminShopData,
+  AdminShopRequest,
+  APP_INSTALLATIONS_PAGE_SIZE,
+  AppInstallationsPageRequest,
+  CachedPlan,
+  ShopSearch,
+} from "#internal/admin-contract.ts";
 export {
   DestroyOrphanRequest,
   OrphanInstalledError,

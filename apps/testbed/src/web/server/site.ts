@@ -1,10 +1,15 @@
 import {
   AdminRefusal,
+  AdminShopData,
+  AdminShopRequest,
+  AppInstallationRedactedPage,
+  AppInstallationsPageRequest,
   DestroyOrphanRequest,
   OrphanInstalledError,
   OrphanShopActorObjectsData,
   ShopActorObjectsData,
   ShopActorObjectsRequest,
+  ShopifyUnavailableError,
   SignInCodeRequest,
   UnauthorizedError,
 } from "@mw10013/shopify-app-cloudflare/contract";
@@ -41,6 +46,8 @@ const rescueAdmin = (path: string) =>
     }),
   );
 
+const decodeAppInstallationRedactedPage = Schema.decodeSync(AppInstallationRedactedPage);
+const decodeAdminShopData = Schema.decodeSync(AdminShopData);
 const decodeShopActorObjectsData = Schema.decodeSync(ShopActorObjectsData);
 const decodeOrphanShopActorObjectsData = Schema.decodeSync(OrphanShopActorObjectsData);
 
@@ -70,4 +77,33 @@ export const destroyOrphan = createServerFn({ method: "POST" })
       .then(() => null)
       .catch(rescue(OrphanInstalledError, () => ({ _tag: "OrphanInstalledError" as const })))
       .catch(rescueAdmin("/admin/orphan-shop-actor-objects")),
+  );
+
+export const listAppInstallations = createServerFn({ method: "GET" })
+  .validator(Schema.toStandardSchemaV1(AppInstallationsPageRequest))
+  .handler(({ data }) =>
+    backend()
+      .appInstallationsPage(requestInfo(), data)
+      .then(decodeAppInstallationRedactedPage)
+      .catch(rescueAdmin("/admin/shops")),
+  );
+
+export const getAdminShop = createServerFn({ method: "GET" })
+  .validator(Schema.toStandardSchemaV1(AdminShopRequest))
+  .handler(({ data }) =>
+    backend()
+      .adminShop(requestInfo(), data)
+      .then(decodeAdminShopData)
+      .catch(rescueAdmin(`/admin/shop/${data.shop}`)),
+  );
+
+/** Answers `null` once the plan was re-read, else the sentence the Overview shows. */
+export const refreshPlan = createServerFn({ method: "POST" })
+  .validator(Schema.toStandardSchemaV1(AdminShopRequest))
+  .handler(({ data }) =>
+    backend()
+      .refreshPlan(requestInfo(), data)
+      .then(() => null)
+      .catch(rescue(ShopifyUnavailableError, ({ message }) => message))
+      .catch(rescueAdmin(`/admin/shop/${data.shop}`)),
   );

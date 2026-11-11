@@ -63,6 +63,10 @@ export const planHandleExpiresAt = (
   return DateTime.isGreaterThan(settled, now) ? DateTime.min(maxAge, settled) : maxAge;
 };
 
+/** Whether a cache deadline of `expiresAt` still holds at `now`: never fetched is not fresh. */
+export const isPlanCacheFresh = (expiresAt: DateTime.Utc | null, now: DateTime.Utc) =>
+  expiresAt !== null && DateTime.isLessThan(now, expiresAt);
+
 /** What the plan check reads of an `AppInstallation` row. */
 export type PlanCacheRow = Pick<
   AppInstallation,
@@ -81,11 +85,7 @@ export const cachedStatus = (
   now: DateTime.Utc,
   catalog: PlanCatalog,
 ): Option.Option<PlanStatus> => {
-  if (
-    row.planHandleExpiresAt === null ||
-    DateTime.isGreaterThanOrEqualTo(now, row.planHandleExpiresAt)
-  )
-    return Option.none();
+  if (!isPlanCacheFresh(row.planHandleExpiresAt, now)) return Option.none();
   if (row.planHandle === null) return Option.some(UNSUBSCRIBED);
   return Option.map(catalog.parse(row.planHandle), (handle): PlanStatus => ({
     _tag: "Subscribed",

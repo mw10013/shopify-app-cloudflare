@@ -52,6 +52,7 @@ describe("/backend", () => {
       "scheduledJob",
       "ShopActorObjects",
       "shopActorObjectMethods",
+      "adminShopMethods",
       "OrphanInstalledError",
       "SHOP_ACTOR_OBJECTS_LIMIT",
       "Auth",
@@ -87,7 +88,7 @@ describe("/website", () => {
 });
 
 describe("/website/react", () => {
-  it("exports the socket holder, its banners, the live route helpers and the orphan sweep's pages", async () => {
+  it("exports the socket holder, its banners, the live route helpers and the admin pages", async () => {
     const exported = Object.keys(await import("@mw10013/shopify-app-cloudflare/website/react"));
     for (const name of [
       "ShopSocket",
@@ -96,6 +97,9 @@ describe("/website/react", () => {
       "makeLiveReads",
       "makeLiveRoutes",
       "keepLastAnswer",
+      "AdminShopsPage",
+      "AdminShopLayout",
+      "AdminShopOverviewPage",
       "OrphanShopActorObjectsPage",
       "ShopActorObjectsPage",
       "SignInPage",

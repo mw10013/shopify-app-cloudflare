@@ -8,6 +8,7 @@
 
 import { type ReactNode, useState } from "react";
 
+import { Breadcrumb, type PageLink } from "./admin-link.tsx";
 import {
   type OrphanShopActorObjectsData,
   SHOP_ACTOR_OBJECTS_LIMIT,
@@ -18,38 +19,10 @@ import {
 const INVENTORY_TABLE_LIMIT = 50;
 
 interface AdminPageProps {
-  /**
-   * The breadcrumb to the admin's index at `href`. A plain click calls `onClick`, the app's client
-   * navigation, in place of loading `href`; a click with a modifier key opens `href` elsewhere.
-   */
-  readonly adminLink: { readonly href: string; readonly onClick: () => void };
+  /** The breadcrumb to the admin's index. */
+  readonly adminLink: PageLink;
   /** The app's own page actions, such as its log-out button, slotted into the page. */
   readonly children?: ReactNode;
-}
-
-const MODIFIERS = ["metaKey", "ctrlKey", "shiftKey", "altKey"] as const;
-
-/**
- * Polaris types a click as `Event` while React hands its synthetic mouse event, so the modifier
- * keys are read by name.
- */
-const opensElsewhere = (event: Event) =>
-  MODIFIERS.some((key) => key in event && Reflect.get(event, key) === true);
-
-function AdminBreadcrumb({ href, onClick }: AdminPageProps["adminLink"]) {
-  return (
-    <s-link
-      slot="breadcrumb-actions"
-      href={href}
-      onClick={(event) => {
-        if (opensElsewhere(event)) return;
-        event.preventDefault();
-        onClick();
-      }}
-    >
-      Admin
-    </s-link>
-  );
 }
 
 function StoredData({ hasStoredData }: Pick<ShopActorObject, "hasStoredData">) {
@@ -91,7 +64,7 @@ export function ShopActorObjectsPage(props: ShopActorObjectsPageProps) {
     (page + 1) * INVENTORY_TABLE_LIMIT < data.objects.length || data.cursor !== undefined;
   return (
     <s-page heading="Shop Actor Objects" inlineSize="large">
-      <AdminBreadcrumb {...props.adminLink} />
+      <Breadcrumb link={props.adminLink} label="Admin" />
       {props.children}
       <s-section padding="none" accessibilityLabel="Shop Actor objects table">
         <s-table
@@ -169,7 +142,7 @@ export function OrphanShopActorObjectsPage(props: OrphanShopActorObjectsPageProp
   const hasNextPage = data.cursor !== undefined;
   return (
     <s-page heading="Orphan Shop Actor Objects" inlineSize="large">
-      <AdminBreadcrumb {...props.adminLink} />
+      <Breadcrumb link={props.adminLink} label="Admin" />
       {props.children}
       {installedAgain && (
         <s-banner tone="warning">
