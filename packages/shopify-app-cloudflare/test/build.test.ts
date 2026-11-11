@@ -155,7 +155,7 @@ describe("the built package", () => {
   });
 
   it("ships each bin as an executable script with its shebang", () => {
-    assert.deepStrictEqual(Object.keys(manifest.bin), ["stores"]);
+    assert.deepStrictEqual(Object.keys(manifest.bin), ["app-token-key", "stores"]);
     for (const target of Object.values(manifest.bin)) {
       assert.include(builtFiles(), inScratch(target));
       assert.isTrue(readFileSync(inScratch(target), "utf8").startsWith("#!/usr/bin/env node\n"));
