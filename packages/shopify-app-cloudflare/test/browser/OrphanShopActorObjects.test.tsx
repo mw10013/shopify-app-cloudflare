@@ -1,12 +1,8 @@
 import type { OrphanShopActorObjectsData } from "@mw10013/shopify-app-cloudflare/contract";
-import {
-  OrphanShopActorObjectsPage,
-  type OrphanShopActorObjectsPageProps,
-} from "@mw10013/shopify-app-cloudflare/website/react";
-import * as Function from "effect/Function";
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
-import { render } from "vitest-browser-react";
+
+import { type AdminCalls, renderAdmin } from "./admin-router.tsx";
 
 const INSTALLED_AGAIN = "This shop was installed again, so its object is no longer an orphan.";
 
@@ -18,22 +14,13 @@ const batch: OrphanShopActorObjectsData = {
   ],
 };
 
-const orphanPage = (
-  data: OrphanShopActorObjectsData,
-  props: Partial<OrphanShopActorObjectsPageProps> = {},
-) =>
-  render(
-    <OrphanShopActorObjectsPage
-      data={data}
-      cursor={undefined}
-      adminLink={{ href: "/admin", onClick: Function.constVoid }}
-      onNavigate={Function.constVoid}
-      onDestroy={() => Promise.resolve("Destroyed")}
-      {...props}
-    />,
-  );
+const orphanPage = (data: OrphanShopActorObjectsData, calls: AdminCalls = {}) =>
+  renderAdmin("/admin/orphan-shop-actor-objects", {
+    orphans: () => Promise.resolve(data),
+    ...calls,
+  }).then(({ screen }) => screen);
 
-describe("OrphanShopActorObjectsPage", () => {
+describe("Orphan Shop Actor Objects", () => {
   beforeEach(async () => {
     await page.viewport(1280, 800);
   });
@@ -57,30 +44,12 @@ describe("OrphanShopActorObjectsPage", () => {
     expect(screen.getByRole("button", { name: "Destroy" }).elements()).toHaveLength(2);
   });
 
-  it("the Admin breadcrumb links to its href, and a click runs the app's navigation in place of loading it", async () => {
-    let clicks = 0;
-    const screen = await orphanPage(batch, {
-      adminLink: {
-        href: "/admin",
-        onClick: () => {
-          clicks++;
-        },
-      },
-    });
-    const admin = screen.getByRole("link", { name: "Admin" });
-    await expect.element(admin).toHaveAttribute("href", "/admin");
-    const before = location.href;
-    await admin.click();
-    expect(clicks).toBe(1);
-    expect(location.href).toBe(before);
-  });
-
   it("Destroy presses with its row's object id", async () => {
     const destroyed: string[] = [];
     const screen = await orphanPage(batch, {
-      onDestroy: (id) => {
+      destroy: ({ data: { id } }) => {
         destroyed.push(id);
-        return Promise.resolve("Destroyed");
+        return Promise.resolve(null);
       },
     });
     await screen.getByRole("button", { name: "Destroy" }).last().click();
@@ -89,10 +58,10 @@ describe("OrphanShopActorObjectsPage", () => {
   });
 
   it("Destroy of a shop installed again shows the warning, and the next Destroy clears it", async () => {
-    const outcomes: ("Destroyed" | "InstalledAgain")[] = ["InstalledAgain", "Destroyed"];
+    const outcomes = [{ _tag: "OrphanInstalledError" as const }, null];
     const screen = await orphanPage(
       { orphans: [{ id: "reinstalled", hasStoredData: true }] },
-      { onDestroy: () => Promise.resolve(outcomes.shift() ?? "Destroyed") },
+      { destroy: () => Promise.resolve(outcomes.shift() ?? null) },
     );
     await screen.getByRole("button", { name: "Destroy" }).click();
     await expect.element(screen.getByText(INSTALLED_AGAIN)).toBeVisible();
@@ -118,18 +87,42 @@ describe("OrphanShopActorObjectsPage", () => {
     expect(screen.getByText("No orphans").query()).toBeNull();
   });
 
-  it("the next batch goes to the batch's cursor, and back returns to the one before", async () => {
-    const navigated: (string | undefined)[] = [];
-    const screen = await orphanPage(
-      { ...batch, cursor: "second" },
-      {
-        onNavigate: (cursor) => {
-          navigated.push(cursor);
-        },
+  it("Destroy reads the batch again", async () => {
+    let reads = 0;
+    const screen = await orphanPage(batch, {
+      orphans: () => {
+        reads++;
+        return Promise.resolve(batch);
       },
-    );
+    });
+    await expect.element(screen.getByText("tombstone", { exact: true })).toBeVisible();
+    await screen.getByRole("button", { name: "Destroy" }).first().click();
+    await expect.poll(() => reads).toBe(2);
+  });
+
+  it("the next batch goes to the batch's cursor, and back returns to the one before", async () => {
+    const cursors: (string | undefined)[] = [];
+    const { router, screen } = await renderAdmin("/admin/orphan-shop-actor-objects", {
+      orphans: ({ data: { cursor } }) => {
+        cursors.push(cursor);
+        return Promise.resolve({ ...batch, cursor: cursor === undefined ? "second" : undefined });
+      },
+    });
     await screen.getByRole("button", { name: "Go to next page" }).click();
+    await expect.poll(() => router.state.location.search).toEqual({ cursor: "second" });
     await screen.getByRole("button", { name: "Go to previous page" }).click();
-    expect(navigated).toStrictEqual(["second", undefined]);
+    await expect.poll(() => router.state.location.search).toEqual({});
+    expect(cursors).toStrictEqual([undefined, "second", undefined]);
+  });
+
+  it("a stale cursor reads as the first batch", async () => {
+    const cursors: (string | undefined)[] = [];
+    await renderAdmin("/admin/orphan-shop-actor-objects?cursor=%22%22", {
+      orphans: ({ data: { cursor } }) => {
+        cursors.push(cursor);
+        return Promise.resolve(batch);
+      },
+    });
+    await expect.poll(() => cursors).toStrictEqual([undefined]);
   });
 });

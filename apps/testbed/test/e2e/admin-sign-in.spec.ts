@@ -16,6 +16,7 @@ test("an admin signs in with the code the page shows, and out again", async ({ p
   await page.getByRole("button", { name: "Sign in" }).click();
 
   await page.waitForURL(`${site}/admin`);
+  await page.getByRole("link", { name: "Account" }).click();
   await expect(page.getByTestId("signed-in-as")).toHaveText(TEST_ADMIN);
 
   await page.getByRole("button", { name: "Sign out" }).click();

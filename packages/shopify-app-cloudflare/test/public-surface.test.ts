@@ -88,7 +88,7 @@ describe("/website", () => {
 });
 
 describe("/website/react", () => {
-  it("exports the socket holder, its banners, the live route helpers and the admin pages", async () => {
+  it("exports the socket holder, its banners, the live route helpers and the admin route options", async () => {
     const exported = Object.keys(await import("@mw10013/shopify-app-cloudflare/website/react"));
     for (const name of [
       "ShopSocket",
@@ -97,11 +97,17 @@ describe("/website/react", () => {
       "makeLiveReads",
       "makeLiveRoutes",
       "keepLastAnswer",
-      "AdminShopsPage",
-      "AdminShopLayout",
-      "AdminShopOverviewPage",
-      "OrphanShopActorObjectsPage",
-      "ShopActorObjectsPage",
+      "adminLayout",
+      "adminHome",
+      "adminShops",
+      "adminShopsList",
+      "adminShop",
+      "adminShopOverview",
+      "adminShopActorObjects",
+      "adminOrphanShopActorObjects",
+      "Field",
+      "Fields",
+      "Instant",
       "SignInPage",
       "SignOutButton",
       "verifySignInCode",

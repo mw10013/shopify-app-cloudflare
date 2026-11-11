@@ -1,29 +1,31 @@
 /**
- * The admin pages of the orphan sweep: the stage's `ShopActor` objects, and the orphans among
- * them with a Destroy each. They hold no server call: an app's route loads the data and passes
- * callbacks.
+ * The orphan sweep's admin route options: the stage's `ShopActor` objects, and the orphans among
+ * them with a Destroy each. Each takes the app's server functions and owns the rest.
  *
  * @module
  */
 
-import { type ReactNode, useState } from "react";
+import { type AnyRouter, useLoaderData, useRouter, useSearch } from "@tanstack/react-router";
+import * as Schema from "effect/Schema";
+import { useState } from "react";
 
-import { Breadcrumb, type PageLink } from "./admin-link.tsx";
 import {
+  REDIRECTED,
+  searchOrFirstPage,
+  type ServerCall,
+  STALE_RELOAD_MODE,
+  useServerCall,
+} from "./admin-section.tsx";
+import {
+  type DestroyOrphanRequest,
   type OrphanShopActorObjectsData,
   SHOP_ACTOR_OBJECTS_LIMIT,
   type ShopActorObject,
   type ShopActorObjectsData,
+  ShopActorObjectsRequest,
 } from "./shop-actor-objects-contract.ts";
 
 const INVENTORY_TABLE_LIMIT = 50;
-
-interface AdminPageProps {
-  /** The breadcrumb to the admin's index. */
-  readonly adminLink: PageLink;
-  /** The app's own page actions, such as its log-out button, slotted into the page. */
-  readonly children?: ReactNode;
-}
 
 function StoredData({ hasStoredData }: Pick<ShopActorObject, "hasStoredData">) {
   if (hasStoredData === undefined) return <s-text tone="neutral">undefined</s-text>;
@@ -32,28 +34,28 @@ function StoredData({ hasStoredData }: Pick<ShopActorObject, "hasStoredData">) {
   );
 }
 
-/** The inventory's search: the batch's `cursor` and the table page within it. */
-export interface ShopActorObjectsSearch {
-  readonly cursor?: string | undefined;
-  readonly page?: number | undefined;
-}
+/** The inventory's search: the batch's `cursor` and the table page within it, from 0. */
+const ShopActorObjectsSearch = Schema.Struct({
+  ...ShopActorObjectsRequest.fields,
+  page: Schema.optional(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
+});
+type ShopActorObjectsSearch = typeof ShopActorObjectsSearch.Type;
 
-export interface ShopActorObjectsPageProps extends AdminPageProps {
-  readonly data: ShopActorObjectsData;
-  /** The cursor `data` was read with, none for the first batch. */
-  readonly cursor: string | undefined;
-  /** The table page within the batch, from 0. */
-  readonly page: number;
-  /** Takes the app's route to `search`. */
-  readonly onNavigate: (search: ShopActorObjectsSearch) => void;
-}
+const useNavigateSearch = () => {
+  const router: AnyRouter = useRouter();
+  return (search: ShopActorObjectsSearch) => {
+    void router.navigate({ to: ".", search: () => search });
+  };
+};
 
 /**
  * Every `ShopActor` object of one batch, {@link INVENTORY_TABLE_LIMIT} to a table page, with its
  * stored data as Cloudflare reports it.
  */
-export function ShopActorObjectsPage(props: ShopActorObjectsPageProps) {
-  const { data, cursor, page } = props;
+function ShopActorObjects() {
+  const data = useLoaderData({ strict: false }) as unknown as ShopActorObjectsData;
+  const { cursor, page = 0 } = useSearch({ strict: false }) as unknown as ShopActorObjectsSearch;
+  const navigate = useNavigateSearch();
   const [history, setHistory] = useState<(string | undefined)[]>([]);
   const objects = data.objects.slice(
     page * INVENTORY_TABLE_LIMIT,
@@ -63,9 +65,7 @@ export function ShopActorObjectsPage(props: ShopActorObjectsPageProps) {
   const hasNextPage =
     (page + 1) * INVENTORY_TABLE_LIMIT < data.objects.length || data.cursor !== undefined;
   return (
-    <s-page heading="Shop Actor Objects" inlineSize="large">
-      <Breadcrumb link={props.adminLink} label="Admin" />
-      {props.children}
+    <>
       <s-section padding="none" accessibilityLabel="Shop Actor objects table">
         <s-table
           paginate={hasPreviousPage || hasNextPage}
@@ -73,20 +73,20 @@ export function ShopActorObjectsPage(props: ShopActorObjectsPageProps) {
           hasNextPage={hasNextPage}
           onPreviousPage={() => {
             if (page > 0) {
-              props.onNavigate({ cursor, page: page - 1 });
+              navigate({ cursor, page: page - 1 });
               return;
             }
             const previous = history.at(-1);
             setHistory(history.slice(0, -1));
-            props.onNavigate({ cursor: previous });
+            navigate({ cursor: previous });
           }}
           onNextPage={() => {
             if ((page + 1) * INVENTORY_TABLE_LIMIT < data.objects.length) {
-              props.onNavigate({ cursor, page: page + 1 });
+              navigate({ cursor, page: page + 1 });
               return;
             }
             setHistory([...history, cursor]);
-            props.onNavigate({ cursor: data.cursor });
+            navigate({ cursor: data.cursor });
           }}
         >
           <s-table-header-row>
@@ -112,38 +112,58 @@ export function ShopActorObjectsPage(props: ShopActorObjectsPageProps) {
         </s-table>
       </s-section>
       {data.objects.length === 0 && <s-banner tone="info">No Shop Actor objects found.</s-banner>}
-    </s-page>
+    </>
   );
 }
 
-/** How a press of Destroy ended. `Redirected`: the app's server function sent the browser away. */
-export type DestroyOutcome = "Destroyed" | "InstalledAgain" | "Redirected";
+/**
+ * The `/admin/shop-actor-objects` route's options. `load` is the app's server function over
+ * `shopActorObjects`.
+ */
+export const adminShopActorObjects = ({
+  load,
+}: {
+  readonly load: ServerCall<ShopActorObjectsRequest, ShopActorObjectsData>;
+}) => ({
+  staticData: {
+    admin: {
+      title: "Shop Actor Objects",
+      summary: "The stage's Shop Actor Durable Objects, with their stored data.",
+      order: 20,
+    },
+  },
+  validateSearch: searchOrFirstPage(ShopActorObjectsSearch, { cursor: undefined, page: undefined }),
+  loaderDeps: ({ search: { cursor } }: { readonly search: ShopActorObjectsSearch }) => ({ cursor }),
+  loader: {
+    handler: ({ deps }: { readonly deps: ShopActorObjectsRequest }) => load({ data: deps }),
+    staleReloadMode: STALE_RELOAD_MODE,
+  },
+  component: ShopActorObjects,
+});
 
-export interface OrphanShopActorObjectsPageProps extends AdminPageProps {
-  readonly data: OrphanShopActorObjectsData;
-  /** The cursor `data` was read with, none for the first batch. */
-  readonly cursor: string | undefined;
-  /** Takes the app's route to the batch at `cursor`, the first when none. */
-  readonly onNavigate: (cursor: string | undefined) => void;
-  /** Destroys the object `id`; the app's route reloads its loader after. */
-  readonly onDestroy: (id: string) => Promise<DestroyOutcome>;
-}
+/** Destroy's server function: `null` once the object is emptied, else why it was not. */
+type DestroyOrphan = ServerCall<
+  DestroyOrphanRequest,
+  null | { readonly _tag: "OrphanInstalledError" }
+>;
 
 /**
  * The orphans in one batch of the stage's `ShopActor` objects, each with Destroy, which empties
  * it by id and never creates one. A tombstone (`hasStoredData: false`) is listed without
  * Destroy: it holds nothing, and destroying it again changes nothing.
  */
-export function OrphanShopActorObjectsPage(props: OrphanShopActorObjectsPageProps) {
-  const { data, cursor } = props;
+function OrphanShopActorObjects({ destroy }: { readonly destroy: DestroyOrphan }) {
+  const router: AnyRouter = useRouter();
+  const data = useLoaderData({ strict: false }) as unknown as OrphanShopActorObjectsData;
+  const { cursor } = useSearch({ strict: false }) as unknown as ShopActorObjectsRequest;
+  const navigate = useNavigateSearch();
+  const call = useServerCall(destroy);
   const [history, setHistory] = useState<(string | undefined)[]>([]);
   const [destroyingId, setDestroyingId] = useState<string>();
   const [installedAgain, setInstalledAgain] = useState(false);
   const hasNextPage = data.cursor !== undefined;
   return (
-    <s-page heading="Orphan Shop Actor Objects" inlineSize="large">
-      <Breadcrumb link={props.adminLink} label="Admin" />
-      {props.children}
+    <>
       {installedAgain && (
         <s-banner tone="warning">
           This shop was installed again, so its object is no longer an orphan.
@@ -157,11 +177,11 @@ export function OrphanShopActorObjectsPage(props: OrphanShopActorObjectsPageProp
           onPreviousPage={() => {
             const previous = history.at(-1);
             setHistory(history.slice(0, -1));
-            props.onNavigate(previous);
+            navigate(previous === undefined ? {} : { cursor: previous });
           }}
           onNextPage={() => {
             setHistory([...history, cursor]);
-            props.onNavigate(data.cursor);
+            navigate(data.cursor === undefined ? {} : { cursor: data.cursor });
           }}
         >
           <s-table-header-row>
@@ -191,10 +211,11 @@ export function OrphanShopActorObjectsPage(props: OrphanShopActorObjectsPageProp
                       onClick={() => {
                         setDestroyingId(object.id);
                         setInstalledAgain(false);
-                        void props
-                          .onDestroy(object.id)
-                          .then((outcome) => {
-                            setInstalledAgain(outcome === "InstalledAgain");
+                        void call({ id: object.id })
+                          .then(async (outcome) => {
+                            if (outcome === REDIRECTED) return;
+                            setInstalledAgain(outcome !== null);
+                            await router.invalidate({ sync: true });
                           })
                           .finally(() => {
                             setDestroyingId(undefined);
@@ -218,6 +239,35 @@ export function OrphanShopActorObjectsPage(props: OrphanShopActorObjectsPageProp
         ) : (
           <s-banner tone="success">No orphans.</s-banner>
         ))}
-    </s-page>
+    </>
   );
 }
+
+/**
+ * The `/admin/orphan-shop-actor-objects` route's options. `load` is the app's server function
+ * over `orphanShopActorObjects`, and `destroy` its server function over `destroyOrphan`.
+ */
+export const adminOrphanShopActorObjects = ({
+  load,
+  destroy,
+}: {
+  readonly load: ServerCall<ShopActorObjectsRequest, OrphanShopActorObjectsData>;
+  readonly destroy: DestroyOrphan;
+}) => ({
+  staticData: {
+    admin: {
+      title: "Orphan Shop Actor Objects",
+      summary: "Shop Actor objects with no installed shop, each with Destroy.",
+      order: 30,
+    },
+  },
+  validateSearch: searchOrFirstPage(ShopActorObjectsRequest, { cursor: undefined }),
+  loaderDeps: ({ search: { cursor } }: { readonly search: ShopActorObjectsRequest }) => ({
+    cursor,
+  }),
+  loader: {
+    handler: ({ deps }: { readonly deps: ShopActorObjectsRequest }) => load({ data: deps }),
+    staleReloadMode: STALE_RELOAD_MODE,
+  },
+  component: () => <OrphanShopActorObjects destroy={destroy} />,
+});
