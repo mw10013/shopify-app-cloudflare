@@ -9,6 +9,7 @@ import { CloudflareD1 } from "@alchemy.run/better-auth/CloudflareD1";
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import {
   actorUpgrade,
+  adminShopMethods,
   Auth,
   AUTH_BASE_PATH,
   isActorPath,
@@ -32,7 +33,7 @@ import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import * as Layer from "effect/Layer";
 
-import { testbedApp } from "./app.ts";
+import { catalog, testbedApp } from "./app.ts";
 import { control } from "./control.ts";
 import { backendMethods, counterMethods, siteMethods } from "./methods.ts";
 import { Database, Email, SignInLimit } from "./resources.ts";
@@ -50,6 +51,7 @@ export const backendBody = Effect.gen(function* () {
   const counter = yield* counterMethods;
   const site = yield* siteMethods;
   const admin = yield* shopActorObjectMethods;
+  const adminShop = yield* adminShopMethods(catalog);
   const auth = yield* Auth;
   const door = yield* control;
   const upgrade = yield* actorUpgrade(ShopActor);
@@ -68,7 +70,7 @@ export const backendBody = Effect.gen(function* () {
     if (door.isPath(pathname)) return yield* door.serve(request);
     return HttpServerResponse.empty({ status: 404 });
   });
-  return { fetch, ...methods, ...counter, ...site, ...admin };
+  return { fetch, ...methods, ...counter, ...site, ...admin, ...adminShop };
 });
 
 /**

@@ -1,11 +1,21 @@
 /**
  * The Website's React half: the shop socket's holder and banners, the live route helpers over the
- * app's router and actor client, and the orphan sweep's admin pages. Needs the optional peers `react`, `@tanstack/react-router`
- * and `@effect/atom-react`.
+ * app's router and actor client, the common admin pages and the orphan sweep's admin pages. Needs
+ * the optional peers `react`, `@tanstack/react-router` and `@effect/atom-react`.
  *
  * @module
  */
 
+export {
+  AdminShopLayout,
+  type AdminShopLayoutProps,
+  AdminShopOverviewPage,
+  type AdminShopOverviewPageProps,
+  AdminShopsPage,
+  type AdminShopsPageProps,
+  type AdminTab,
+} from "#internal/admin-pages.tsx";
+export type { PageLink } from "#internal/admin-link.tsx";
 export {
   keepLastAnswer,
   type LiveClient,

@@ -19,6 +19,7 @@ function AdminHome() {
       <s-section>
         <s-stack gap="base">
           <s-paragraph data-testid="signed-in-as">{user.email}</s-paragraph>
+          <Link to="/admin/shops">Shops</Link>
           <Link to="/admin/shop-actor-objects">Shop Actor Objects</Link>
           <Link to="/admin/orphan-shop-actor-objects">Orphan Shop Actor Objects</Link>
         </s-stack>

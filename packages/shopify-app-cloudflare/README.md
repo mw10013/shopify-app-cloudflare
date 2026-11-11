@@ -20,6 +20,14 @@ An uninstall deletes the shop's row before it destroys the shop's `ShopActor`, s
 
 `bindShopActorObjects` from `/stack` binds `CLOUDFLARE_ACCOUNT_ID`, the script that hosts `ShopActor` and, only on staging and production, a Workers Scripts Read token as `CLOUDFLARE_WORKERS_API_TOKEN`. On any other stage listing dies saying so. `ShopActorObjectsPage` and `OrphanShopActorObjectsPage` from `/website/react` render the two admin pages from data and callbacks; their `adminLink: { href, onClick }` links the Admin breadcrumb to `href`, and a plain click runs `onClick`, the app's client navigation, instead. The app keeps its route files and server functions, because TanStack Start's compiler is not known to rewrite a `createServerFn` under `node_modules`.
 
+## Admin pages
+
+The Shops list, the shop layout and the shop's Overview come from the package, so no app keeps its own.
+
+- **Backend.** `yield* adminShopMethods(catalog)` serves `appInstallationsPage`, `adminShop` and `refreshPlan` behind the admin gate. It needs `AppInstallations`, `SubscriptionPlan` and `ShopActors`. Viewing a shop reads its cached plan and never calls Shopify; Refresh plan re-reads it, and declares `ShopifyUnavailableError`.
+- **Website.** One server function per method, each `backend().<method>(requestInfo(), data)`, decoded with `AppInstallationRedactedPage` or `AdminShopData` from `/contract`. The Website registers a `DateTime.Utc` serialization adapter, since the rows carry instants.
+- **Routes.** `admin.shops.tsx` renders `AdminShopsPage`, `admin.shop.$shop.tsx` renders `AdminShopLayout`, and `admin.shop.$shop.index.tsx` renders `AdminShopOverviewPage` with `staticData: { adminTab: { label: "Overview", order: 0 } }`. The layout shows a tab for each child route whose `staticData.adminTab` is set, in `order`; an app's own shop page is a child route with its own `adminTab` (`order: 10` and up) that renders sections, not a page.
+
 ## Site sign-in
 
 The site's own users (its admins, and Baton's members) sign in with a six-digit code sent by email, through Better Auth's email OTP plugin; there is no password and no magic link. `0000_sac_02_better_auth.sql` holds Better Auth's tables and the package's `SignInCodeCount`, and Better Auth runs with `migrate: false`.
@@ -39,6 +47,10 @@ Each Shopify app (one `client_id`, so one per stage's toml) signs its applicatio
 - `verify --config <toml> --dotenv <file> --shop <shop>.myshopify.com` mints once with the file's key. Shopify checks the key before the installation, so any existing store answers: a token or `400 app_not_installed` means registered, `401 invalid_client` means not registered yet or a wrong `kid`, and it exits 1 on that or any other answer. It never prints the token.
 - The flag is `--dotenv`, not `--env-file`: Node exits on `--env-file <file>` anywhere in its argv when the file is missing.
 - Rotation: run `new` on the same file, register the new JWK beside the old (Shopify allows two keys per app), deploy, then revoke the old `kid` in the Dev Dashboard once its tokens have expired, an hour after the deploy. `new` names the old `kid` when it replaces one.
+
+## Upgrading to 0.13
+
+- Replace the app's Shops and shop pages with the routes in [Admin pages](#admin-pages), and its admin Backend methods with `adminShopMethods(catalog)`. Each per-shop page the app keeps becomes a child route of `admin.shop.$shop.tsx` with an `adminTab`.
 
 ## Dropping the refresh columns
 

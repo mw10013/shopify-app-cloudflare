@@ -92,6 +92,7 @@ export {
   type StubMethods,
   ShopNotInstalledError,
 } from "#internal/shop-actor-kit.ts";
+export { adminShopMethods } from "#internal/admin-shop-methods.ts";
 export {
   ShopActorObjects,
   type ShopActorObjectsShape,
