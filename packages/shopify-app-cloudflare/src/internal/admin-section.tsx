@@ -46,8 +46,6 @@ declare module "@tanstack/react-router" {
   }
 }
 
-const ADMIN_SIGN_IN_PATH = "/admin/sign-in";
-
 /**
  * What the section reads of a match and a route. Each is `any` in the package and the app's own
  * union in an app, so the section reads them through `unknown` to check alike in both.
@@ -133,7 +131,8 @@ export const useServerCall = <Input, Output>(call: ServerCall<Input, Output>) =>
 
 /**
  * The section's one page. Its heading is the deepest matched admin page's title, its breadcrumb
- * the admin page above that, and Sign out returns to the sign-in page.
+ * the admin page above that. Sign out reloads the matches, so the app's `/admin` guard sends the
+ * signed-out visitor to the app's own sign-in page.
  */
 function AdminChrome({ children }: { readonly children: ReactNode }) {
   const router: AnyRouter = useRouter();
@@ -159,7 +158,7 @@ function AdminChrome({ children }: { readonly children: ReactNode }) {
       <SignOutButton
         slot="secondary-actions"
         onSignedOut={() => {
-          void router.navigate({ to: ADMIN_SIGN_IN_PATH });
+          void router.invalidate();
         }}
       />
       {children}
