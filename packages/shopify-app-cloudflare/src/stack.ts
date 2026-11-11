@@ -6,9 +6,9 @@
  * @module
  */
 
+export { type AppIdentity, readAppIdentity } from "#internal/app-identity.ts";
 export { PartnerConfig, type SignInCodeDeliveryMode } from "#internal/bindings.ts";
 export {
-  type AppIdentity,
   type BindableWorker,
   bindE2eSession,
   bindShopActorObjects,
@@ -17,7 +17,6 @@ export {
   deployedShopifyApp,
   fakeShopifyApp,
   partnerBindingFromConfig,
-  readAppIdentity,
   seedSiteUsers,
   type ShopifyAppBinding,
   shopifyCliApp,

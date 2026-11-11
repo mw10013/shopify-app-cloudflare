@@ -31,11 +31,20 @@ The site's own users (its admins, and Baton's members) sign in with a six-digit 
 - **Website.** The app's `api.auth.$` route is `server: { handlers: authHandlers(env) }`. Its server function for a code is `signInCodeResult(backend().requestSignInCode(requestInfoOf(getRequest()), data))`. `SignInPage` (with an optional `footer`, such as a help link) and `SignOutButton` come from `/website/react`.
 - **Tests.** `SiteAuthTest` from `/test/node` runs it all over `D1Test`. The package's browser tests click through `SignInPage` and the two orphan pages, so an app tests only its routes' wiring.
 
+## App token keys
+
+Each Shopify app (one `client_id`, so one per stage's toml) signs its application-only token requests with its own P-256 key. The `app-token-key` command runs inside an app with `vp exec app-token-key`. The Shopify CLI has no command for an app's public keys, so registering one stays a paste in the Dev Dashboard.
+
+- `new --config <shopify.app[.<name>].toml> --dotenv <.env | .env.<stage>>` reads the toml's `handle`, makes a key pair and writes `SHOPIFY_APP_TOKEN_KEY` (the PKCS #8 base64 body on one line) and `SHOPIFY_APP_TOKEN_KID` into the file, replacing their old values in place and leaving every other line as it was. It creates a missing file with mode 0600. The `kid` is `<handle>-<YYYYMMDD>` (UTC), `-2`, `-3` when the file already holds that day's. It prints the public JWK alone on stdout, so `| pbcopy` copies it, and the next steps on stderr: paste it under Dev Dashboard > the app > Settings > Credentials > Public keys > Add key, store the private key in KeePassXC, and for `.env.<stage>` push it with `vp run stage up <stage>`. It never prints the private key.
+- `verify --config <toml> --dotenv <file> --shop <shop>.myshopify.com` mints once with the file's key. Shopify checks the key before the installation, so any existing store answers: a token or `400 app_not_installed` means registered, `401 invalid_client` means not registered yet or a wrong `kid`, and it exits 1 on that or any other answer. It never prints the token.
+- The flag is `--dotenv`, not `--env-file`: Node exits on `--env-file <file>` anywhere in its argv when the file is missing.
+- Rotation: run `new` on the same file, register the new JWK beside the old (Shopify allows two keys per app), deploy, then revoke the old `kid` in the Dev Dashboard once its tokens have expired, an hour after the deploy. `new` names the old `kid` when it replaces one.
+
 ## Upgrading to application-only tokens
 
 Every Admin API token now comes from Shopify's application-only grant, signed with the app's own key. Token exchange, refresh tokens and the `ShopGrantor` Durable Object are gone.
 
-- Generate a P-256 key pair, register its public JWK (`ES256`) in the Dev Dashboard, and set `SHOPIFY_APP_TOKEN_KEY` (the private key, PKCS #8 PEM) and `SHOPIFY_APP_TOKEN_KID` (the `kid` it is registered under) on every stage before deploying: in `.env` for `dev` and `e2e`, and in each deployed stage's environment beside `SHOPIFY_API_SECRET`. `shopifyCliApp` and `deployedShopifyApp` read them and `bindShopifyApp` binds them. A Backend without them, or with a key that does not import, fails at startup naming the variable. `ShopifyCredentials` gains `appTokenKey` and `appTokenKid`.
+- Give every stage's app a signing key before deploying, with the `app-token-key` command (below): in `.env` for `dev` and `e2e`, in `.env.<stage>` for each deployed stage, beside `SHOPIFY_API_SECRET`. `shopifyCliApp` and `deployedShopifyApp` read `SHOPIFY_APP_TOKEN_KEY` and `SHOPIFY_APP_TOKEN_KID`, and `bindShopifyApp` binds them. A Backend without them, or with a key that does not import, fails at startup naming the variable. `ShopifyCredentials` gains `appTokenKey` and `appTokenKid`.
 - The deploy that takes this release deletes the `ShopGrantor` class, so it goes out at 100%, not as a gradual rollout. The class stored nothing.
 - `ReauthenticationRequiredError` is gone from `/contract`, `ShopifyAccessFailure` and `EnsureSessionFailure`. A handler that matched it drops the branch.
 - Installed shops need nothing: the next request mints and writes the row's refresh columns null.

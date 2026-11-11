@@ -9,6 +9,7 @@
     "directory": "packages/shopify-app-cloudflare"
   },
   "bin": {
+    "app-token-key": "./src/dev/app-token-key/bin.ts",
     "stores": "./src/dev/stores/bin.ts"
   },
   "files": [
