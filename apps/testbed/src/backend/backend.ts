@@ -72,10 +72,10 @@ export const backendBody = Effect.gen(function* () {
 });
 
 /**
- * Tier 1 over the testbed's D1 database: building it here binds the database and the package's
- * `ShopGrantor` Durable Object to this Worker. The credentials and the Partner values come from
- * the bindings the stack makes (`bindShopifyApp`); without Partner credentials, billing dies on
- * its first Partner call while webhooks, the grantor and a shop with a cached plan work.
+ * Tier 1 over the testbed's D1 database: building it here binds the database to this Worker. The
+ * credentials, the token signing key and the Partner values come from the bindings the stack
+ * makes (`bindShopifyApp`); without Partner credentials, billing dies on its first Partner call
+ * while webhooks, minting and a shop with a cached plan work.
  */
 const shopifyAccess = Layer.unwrap(
   Effect.map(Cloudflare.D1.QueryDatabase(Database), (database) =>

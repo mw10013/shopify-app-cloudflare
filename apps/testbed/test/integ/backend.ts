@@ -16,7 +16,8 @@ import { backendBody, backendProps, provideBackend, testbedHooks } from "#backen
  * Partner API and hooks that record each call before the testbed's own ({@link testbedHooks}),
  * and the door in front of its `fetch` at
  * {@link SHOPIFY_TEST_DOOR_PATH}. The door installs the Shopify fake in place of the library's
- * fetch, so the `ShopGrantor` Durable Object, in the same isolate, grants against it.
+ * fetch, so the Backend's mints and Admin calls reach it; the stack binds the fake app's signing
+ * key, which the fake registers.
  *
  * Its own logical id keeps its bundle and logs apart from the dev server's `Backend`; nothing in
  * `src/` imports it, so the production bundle never carries the door.

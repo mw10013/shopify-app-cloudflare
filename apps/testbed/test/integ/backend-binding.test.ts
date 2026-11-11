@@ -44,9 +44,10 @@ const fresh = Effect.gen(function* () {
 });
 
 test(
-  "authenticateMerchant over BACKEND: a first install exchanges against the fake and answers the shop",
+  "authenticateMerchant over BACKEND: a first install mints against the fake and answers the shop",
   Effect.gen(function* () {
-    const { websiteUrl } = yield* fresh;
+    const { backendUrl, websiteUrl } = yield* fresh;
+    yield* door(backendUrl, (client) => client.InstallShopify({ shop: SHOP }));
     const outcome = yield* call(websiteUrl, "authenticateMerchant", {
       idToken: yield* mintIdToken({ shop: SHOP }),
     });

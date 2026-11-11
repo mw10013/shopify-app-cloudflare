@@ -43,7 +43,7 @@ const fresh = Effect.gen(function* () {
   return urls;
 });
 
-/** A row with a fresh access token, so the guard does not exchange, and `answer` scripted. */
+/** A row with a fresh access token, so the guard does not mint, and `answer` scripted. */
 const seedWithPartner = (
   backendUrl: string,
   answer: { readonly _tag: "None" } | { readonly _tag: "Failure"; readonly reason: "partner-down" },
