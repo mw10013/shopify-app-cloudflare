@@ -20,7 +20,10 @@ test("an admin signs in with the code the page shows, and out again", async ({ p
   await expect(page.getByTestId("signed-in-as")).toHaveText(TEST_ADMIN);
 
   await page.getByRole("button", { name: "Sign out" }).click();
-  await page.waitForURL(/\/admin\/sign-in$/u);
+  await page.waitForURL(
+    (url) =>
+      url.pathname === "/admin/sign-in" && url.searchParams.get("redirect") === "/admin/account",
+  );
   await page.goto(`${site}/admin`);
   await page.waitForURL(/\/admin\/sign-in\?/u);
 });
