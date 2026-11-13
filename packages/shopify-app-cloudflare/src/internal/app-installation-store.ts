@@ -77,17 +77,17 @@ const redactedPage = (
   fetched: readonly AppInstallationRedacted[],
   { after, before, limit }: RedactedPageInput,
 ): AppInstallationRedactedPage => {
-  const overflow = fetched.length > limit;
-  const appInstallations =
-    before === undefined ? fetched.slice(0, limit) : fetched.slice(0, limit).toReversed();
+  const rows = fetched.slice(0, limit);
+  const moreInReadDirection = fetched.length > limit;
+  const forward = before === undefined;
+  const appInstallations = forward ? rows : rows.toReversed();
   return {
     appInstallations,
     limit,
     startCursor: appInstallations[0]?.shop ?? null,
     endCursor: appInstallations.at(-1)?.shop ?? null,
-    hasPreviousPage:
-      before === undefined ? after !== undefined && appInstallations.length > 0 : overflow,
-    hasNextPage: before === undefined ? overflow : appInstallations.length > 0,
+    hasPreviousPage: forward ? after !== undefined && rows.length > 0 : moreInReadDirection,
+    hasNextPage: forward ? moreInReadDirection : rows.length > 0,
   };
 };
 
@@ -121,6 +121,11 @@ const make = <R>(database: SQL.D1DatabaseSource<never, R>) =>
       return inserted.length > 0;
     }, Effect.orDie);
 
+    /**
+     * A mint's write to an existing row; answers whether it wrote. Never replaces a token with one
+     * that expires sooner, since concurrent mints land in either order and minting retires none,
+     * except `replacing`, a token the Admin API just answered 401.
+     */
     const updateToken = Effect.fn("AppInstallationStore.updateToken")(function* (
       shop: ShopDomain,
       token: AppInstallationToken,

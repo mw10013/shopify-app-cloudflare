@@ -152,6 +152,8 @@ const make = Effect.gen(function* () {
 
   const ShopId = Schema.Struct({ shop: Schema.Struct({ id: Schema.String }) });
 
+  // Alchemy's SQL.D1 memoizes its client on the running `Scope` and erases that from the type; a
+  // fake's reply calls the harness with no `Scope`.
   const harnessOf = (logs: Effect.Effect<readonly HarnessLogLine[]>): ShopifyHarnessShape => ({
     can: SHOPIFY_TEST_DOOR_CAN,
     seed: (row) => Effect.scoped(seedInstallation(installations, fake, row)),

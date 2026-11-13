@@ -284,6 +284,34 @@ describe.each([
     }).pipe(Effect.provide(layer([row]))),
   );
 
+  it.effect("a backward redacted page answers in shop order with both flags", () =>
+    Effect.gen(function* () {
+      const installations = yield* AppInstallationStore;
+      const [a, b, c] = ["a", "b", "c"].map((name) => shopDomain(`${name}.myshopify.com`));
+      const shops = (page: AppInstallationRedactedPage) => page.appInstallations.map((s) => s.shop);
+      const two = yield* installations.getRedactedPage({ limit: 2, before: c });
+      assert.deepStrictEqual(shops(two), [a, b]);
+      assert.isFalse(two.hasPreviousPage);
+      assert.isTrue(two.hasNextPage);
+      const one = yield* installations.getRedactedPage({ limit: 1, before: c });
+      assert.deepStrictEqual(shops(one), [b]);
+      assert.isTrue(one.hasPreviousPage);
+      assert.isTrue(one.hasNextPage);
+    }).pipe(
+      Effect.provide(
+        layer(
+          ["a", "b", "c"].map((name, index) => ({
+            ...row,
+            shop: shopDomain(`${name}.myshopify.com`),
+            shopGid: Schema.decodeUnknownSync(AppInstallation.fields.shopGid)(
+              `gid://shopify/Shop/${String(index + 10)}`,
+            ),
+          })),
+        ),
+      ),
+    ),
+  );
+
   it.effect("a redacted page crosses a binding through the /contract schema unchanged", () =>
     Effect.gen(function* () {
       const installations = yield* AppInstallationStore;

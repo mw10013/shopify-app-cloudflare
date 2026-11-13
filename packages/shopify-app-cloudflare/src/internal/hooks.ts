@@ -33,7 +33,10 @@ export interface PlanRevalidation {
  * | `afterPlanRevalidated` | logged at Warning and swallowed: the plan answer is right anyway  |
  */
 export interface ShopifyHooksShape {
-  /** On `app/uninstalled`, before the `AppInstallation` row goes. */
+  /**
+   * On `app/uninstalled`, before the `AppInstallation` row goes. Runs again on a redelivery, when
+   * the row may already be gone.
+   */
   readonly beforeUninstall: (shop: ShopDomain) => Effect.Effect<void>;
   /** On `app/uninstalled`, after the row and its cascade are gone. Idempotent: Shopify redelivers. */
   readonly afterUninstall: (shop: ShopDomain) => Effect.Effect<void>;
