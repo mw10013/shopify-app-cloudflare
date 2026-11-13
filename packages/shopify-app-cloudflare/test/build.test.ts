@@ -46,12 +46,13 @@ const builtFiles = () =>
     .filter((file) => file.endsWith(".mjs") || file.endsWith(".d.mts"))
     .map((file) => path.join(dist, file));
 
+const LINE_ANCHORED_FROM_BARE_OR_DYNAMIC_IMPORT_SPECIFIER =
+  /^(?:import|export)\s[^;"']*?from\s*["'](?<named>[^"']+)["']|^import\s*["'](?<bare>[^"']+)["']|\bimport\(\s*["'](?<dynamic>[^"']+)["']\s*\)/gmu;
+
 const specifiersOf = (file: string) =>
-  [
-    ...readFileSync(file, "utf8").matchAll(
-      /^(?:import|export)\s[^;"']*?from\s*["'](?<named>[^"']+)["']|^import\s*["'](?<bare>[^"']+)["']|\bimport\(\s*["'](?<dynamic>[^"']+)["']\s*\)/gmu,
-    ),
-  ].map(({ groups }) => groups?.named ?? groups?.bare ?? groups?.dynamic ?? "");
+  [...readFileSync(file, "utf8").matchAll(LINE_ANCHORED_FROM_BARE_OR_DYNAMIC_IMPORT_SPECIFIER)].map(
+    ({ groups }) => groups?.named ?? groups?.bare ?? groups?.dynamic ?? "",
+  );
 
 const isRelative = (specifier: string) => specifier.startsWith(".");
 

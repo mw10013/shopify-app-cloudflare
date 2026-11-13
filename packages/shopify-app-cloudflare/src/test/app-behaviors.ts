@@ -22,10 +22,10 @@ import {
   behavior,
   BEHAVIOR_SHOP,
   BEHAVIOR_SHOP_GID,
+  expiredRowAt,
   failureOf,
   logged,
   type RequiredBehavior,
-  rowAt,
   seedAt,
   stored,
   storedRow,
@@ -292,8 +292,8 @@ const billing: readonly RequiredBehavior[] = [
     Effect.gen(function* () {
       const harness = yield* ShopifyHarness;
       const now = yield* DateTime.now;
-      yield* harness.seed(rowAt(now));
-      yield* harness.seed(rowAt(now, { shop: OTHER_SHOP, shopGid: OTHER_SHOP_GID }));
+      yield* harness.seed(expiredRowAt(now));
+      yield* harness.seed(expiredRowAt(now, { shop: OTHER_SHOP, shopGid: OTHER_SHOP_GID }));
       yield* script(OTHER_SHOP_GID, { _tag: "Failure", reason: "partner-down" });
       assert.deepEqual(yield* harness.plans.revalidateStalePlans, { shops: 2, failed: 1 });
       assert.ok((yield* storedRow).planHandleExpiresAt !== null);

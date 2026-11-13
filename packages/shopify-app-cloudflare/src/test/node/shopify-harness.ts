@@ -17,7 +17,7 @@ import { SubscriptionPlan } from "#internal/subscription-plan.ts";
 import { Webhooks } from "#internal/webhooks.ts";
 import { behaviorApp } from "#test/behavior-app.ts";
 import {
-  capturedLogs,
+  capturedLogsPrintingWarnings,
   deliverTo,
   recordingHooks,
   seedInstallation,
@@ -44,7 +44,7 @@ export const inProcessHarness = (
 ) => {
   const app = behaviorApp(options.app);
   const hooks = recordingHooks();
-  const logs = capturedLogs();
+  const logs = capturedLogsPrintingWarnings();
   const harness = Layer.effect(
     ShopifyHarness,
     Effect.gen(function* () {

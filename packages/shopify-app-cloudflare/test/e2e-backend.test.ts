@@ -22,7 +22,12 @@ import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 
-import { e2eStatus, e2eWebhooks, tokenMatches, withE2eRoutes } from "#test/e2e-backend.ts";
+import {
+  e2eStatus,
+  e2eWebhooks,
+  tokenMatchesInConstantTime,
+  withE2eRoutes,
+} from "#test/e2e-backend.ts";
 import {
   E2E_SESSION_BINDING,
   E2E_SESSION_FILE,
@@ -138,14 +143,14 @@ describe("the e2e status route", () => {
   );
 });
 
-describe("tokenMatches", () => {
+describe("tokenMatchesInConstantTime", () => {
   it("only the same token matches", () => {
     const expected = Redacted.make(TOKEN);
-    assert.isTrue(tokenMatches(expected, TOKEN));
-    assert.isFalse(tokenMatches(expected, undefined));
-    assert.isFalse(tokenMatches(expected, ""));
-    assert.isFalse(tokenMatches(expected, `${TOKEN}a`));
-    assert.isFalse(tokenMatches(expected, "b".repeat(64)));
+    assert.isTrue(tokenMatchesInConstantTime(expected, TOKEN));
+    assert.isFalse(tokenMatchesInConstantTime(expected, undefined));
+    assert.isFalse(tokenMatchesInConstantTime(expected, ""));
+    assert.isFalse(tokenMatchesInConstantTime(expected, `${TOKEN}a`));
+    assert.isFalse(tokenMatchesInConstantTime(expected, "b".repeat(64)));
   });
 });
 

@@ -50,7 +50,7 @@ const SHOP = BEHAVIOR_SHOP;
 
 const SEEDED_SCOPE = "read_orders";
 
-export const rowAt = (
+export const expiredRowAt = (
   now: DateTime.Utc,
   over: Partial<SeedInstallation> = {},
 ): SeedInstallation => ({
@@ -65,7 +65,7 @@ export const rowAt = (
 export const seedAt = (over: Partial<SeedInstallation> = {}) =>
   Effect.gen(function* () {
     const harness = yield* ShopifyHarness;
-    yield* harness.seed(rowAt(yield* DateTime.now, over));
+    yield* harness.seed(expiredRowAt(yield* DateTime.now, over));
   });
 
 const seedFresh = Effect.gen(function* () {
@@ -136,7 +136,7 @@ const makeGate = Effect.sync(() => {
   };
 });
 
-const together = <A, B, E1, E2, R1, R2>(
+const runBothHeldAtTokenEndpoint = <A, B, E1, E2, R1, R2>(
   first: Effect.Effect<A, E1, R1>,
   second: Effect.Effect<B, E2, R2>,
 ) =>
@@ -371,7 +371,7 @@ const background: readonly RequiredBehavior[] = [
     "two concurrent callers on a stale token: both answer a token the fake accepts; the row holds the one that expires later",
     Effect.gen(function* () {
       yield* seedAt();
-      const [first, second] = yield* together(ensure, ensure);
+      const [first, second] = yield* runBothHeldAtTokenEndpoint(ensure, ensure);
       assert.ok(yield* accepted(first.accessToken));
       assert.ok(yield* accepted(second.accessToken));
       const later = DateTime.max(first.accessTokenExpiresAt, second.accessTokenExpiresAt);
@@ -453,7 +453,7 @@ const merchant: readonly RequiredBehavior[] = [
     "two concurrent first installs: one row; both merchants answered",
     Effect.gen(function* () {
       yield* (yield* ShopifyFake).install(SHOP);
-      const [first, second] = yield* together(authenticate, authenticate);
+      const [first, second] = yield* runBothHeldAtTokenEndpoint(authenticate, authenticate);
       assert.deepEqual(first, { shop: SHOP, shopGid: FAKE_SHOP_GID });
       assert.deepEqual(second, first);
       assert.equal((yield* storedRow).shopGid, FAKE_SHOP_GID);
@@ -556,7 +556,7 @@ const admin: readonly RequiredBehavior[] = [
       const shopify = yield* ShopifyFake;
       const now = yield* DateTime.now;
       yield* seedFresh;
-      const raced = rowAt(now, {
+      const raced = expiredRowAt(now, {
         accessToken: "shpat_raced",
         accessTokenExpiresAt: DateTime.addDuration(now, Duration.hours(2)),
       });

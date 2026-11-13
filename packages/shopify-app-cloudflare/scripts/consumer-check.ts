@@ -288,7 +288,7 @@ const packageErrors = (output: string) => {
 
 interface Step {
   readonly name: string;
-  readonly gates: boolean;
+  readonly blocksLaterSteps: boolean;
   readonly check: Effect.Effect<
     string,
     unknown,
@@ -312,7 +312,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
   return [
     {
       name: "spec",
-      gates: true,
+      blocksLaterSteps: true,
       check: Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         yield* fs.makeDirectory(home, { recursive: true });
@@ -322,7 +322,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: "write package.json",
-      gates: true,
+      blocksLaterSteps: true,
       check: Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         yield* fs.makeDirectory(project);
@@ -337,7 +337,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: "pnpm install writes the lockfile",
-      gates: true,
+      blocksLaterSteps: true,
       check: Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         yield* succeeded(
@@ -350,7 +350,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: "pnpm install --frozen-lockfile into a cold store",
-      gates: true,
+      blocksLaterSteps: true,
       check: Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         yield* fs.remove(path.join(project, "node_modules"), { recursive: true });
@@ -367,7 +367,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: `tsc --noEmit over all ${String(SUBPATHS.length)} entries`,
-      gates: false,
+      blocksLaterSteps: false,
       check: Effect.gen(function* () {
         const { ok, output } = yield* inProject(bin("tsc"), ["--noEmit", "-p", "tsconfig.json"]);
         const { ours, others } = packageErrors(output);
@@ -379,7 +379,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: "import the entries in Node",
-      gates: false,
+      blocksLaterSteps: false,
       check: Effect.gen(function* () {
         const output = yield* succeeded(yield* inProject("node", ["node-imports.mjs"]));
         const imported = JSON.parse(output.trim().split("\n").at(-1) ?? "[]") as readonly {
@@ -398,7 +398,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: "the stores bin lists an empty pool",
-      gates: false,
+      blocksLaterSteps: false,
       check: Effect.gen(function* () {
         const output = yield* succeeded(yield* inProject(bin("stores"), ["list"]));
         if (!output.includes("stores: 0 pooled"))
@@ -408,7 +408,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: "workerd serves /backend, /website and /test/e2e/backend",
-      gates: false,
+      blocksLaterSteps: false,
       check: Effect.gen(function* () {
         yield* succeeded(yield* inProject("node", ["bundle-worker.mjs"]));
         const output = yield* succeeded(yield* inProject("node", ["run-worker.mjs"]));
@@ -417,7 +417,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: "playwright test --list from node_modules",
-      gates: false,
+      blocksLaterSteps: false,
       check: Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const output = yield* succeeded(yield* inProject(bin("playwright"), ["test", "--list"]));
@@ -445,7 +445,7 @@ const check = Effect.fn("ConsumerCheck.check")(function* (spec: string | undefin
   );
   const results: StepResult[] = [];
   let blockedBy: string | undefined;
-  for (const { name, gates, check: stepCheck } of steps(root, spec)) {
+  for (const { name, blocksLaterSteps, check: stepCheck } of steps(root, spec)) {
     if (blockedBy !== undefined) {
       results.push({ name, status: "SKIP", detail: `${blockedBy} failed` });
       continue;
@@ -459,7 +459,7 @@ const check = Effect.fn("ConsumerCheck.check")(function* (spec: string | undefin
         status: "FAIL",
         detail: failure instanceof CheckFailedError ? failure.message : String(failure),
       });
-      if (gates) blockedBy = name;
+      if (blocksLaterSteps) blockedBy = name;
     }
   }
   return { results, kept: keep ? root : undefined };

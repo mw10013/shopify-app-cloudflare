@@ -53,7 +53,10 @@ const decodeShop = Schema.decodeUnknownOption(ShopDomain);
 const encodeStatus = Schema.encodeEffect(E2eShopStatus);
 const encodeDeliveries = Schema.encodeEffect(E2eWebhookDeliveries);
 
-export const tokenMatches = (expected: Redacted.Redacted, given: string | undefined) => {
+export const tokenMatchesInConstantTime = (
+  expected: Redacted.Redacted,
+  given: string | undefined,
+) => {
   if (given === undefined) return false;
   const a = new TextEncoder().encode(Redacted.value(expected));
   const b = new TextEncoder().encode(given);
@@ -63,7 +66,9 @@ export const tokenMatches = (expected: Redacted.Redacted, given: string | undefi
 const authorized = (
   access: Option.Option<E2eAccess>,
   request: HttpServerRequest.HttpServerRequest,
-) => Option.isSome(access) && tokenMatches(access.value.token, request.headers[E2E_TOKEN_HEADER]);
+) =>
+  Option.isSome(access) &&
+  tokenMatchesInConstantTime(access.value.token, request.headers[E2E_TOKEN_HEADER]);
 
 export const e2eStatus = Effect.fn("E2eStatus.make")(function* (access: Option.Option<E2eAccess>) {
   const installations = yield* AppInstallations;

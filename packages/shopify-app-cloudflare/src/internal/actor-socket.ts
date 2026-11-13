@@ -74,7 +74,9 @@ class PendingAccept extends Context.Service<
   }
 >()("app/PendingAccept") {}
 
-class RequestLifetime extends RpcMiddleware.Service<RequestLifetime>()("app/RequestLifetime") {}
+class KeepAliveUntilCallEnds extends RpcMiddleware.Service<KeepAliveUntilCallEnds>()(
+  "app/RequestLifetime",
+) {}
 
 export const UNIDENTIFIED_REASON = "unidentified connection";
 
@@ -130,7 +132,7 @@ export const make = Effect.fn("ActorSocket.make")(function* <
       Effect.gen(function* () {
         const memoMap = Layer.makeMemoMapUnsafe();
         const context = yield* Layer.buildWithMemoMap(options.handlers, memoMap, instanceScope);
-        const lifetime = Layer.succeed(RequestLifetime, (effect) =>
+        const lifetime = Layer.succeed(KeepAliveUntilCallEnds, (effect) =>
           Effect.withFiber((fiber) =>
             // RpcServer sends Exit before finalization and drops sends after disconnect.
             state
@@ -144,7 +146,7 @@ export const make = Effect.fn("ActorSocket.make")(function* <
         );
         // `context` holds every handler and middleware of `Rpcs`; TypeScript cannot subtract them
         // from the server's requirements for a generic `Rpcs`.
-        const server = RpcServer.layer(options.group.middleware(RequestLifetime)).pipe(
+        const server = RpcServer.layer(options.group.middleware(KeepAliveUntilCallEnds)).pipe(
           Layer.provide(
             Layer.mergeAll(
               Layer.succeedContext(context),

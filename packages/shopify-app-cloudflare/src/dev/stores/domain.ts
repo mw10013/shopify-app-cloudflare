@@ -42,16 +42,16 @@ export const LeaseKey = Schema.Struct({
 });
 export type LeaseKey = typeof LeaseKey.Type;
 
-const Open = <const Fields extends Schema.Struct.Fields>(fields: Fields) =>
+const StructKeepingUnknownFields = <const Fields extends Schema.Struct.Fields>(fields: Fields) =>
   Schema.StructWithRest(Schema.Struct(fields), [Schema.Record(Schema.String, Schema.Unknown)]);
 
-export const StoreGrant = Open({
+export const StoreGrant = StructKeepingUnknownFields({
   domain: StoreDomain,
   config: Schema.NonEmptyString,
 });
 export type StoreGrant = typeof StoreGrant.Type;
 
-export const Lease = Open({
+export const Lease = StructKeepingUnknownFields({
   key: LeaseKey,
   project: ProjectName,
   store: StoreGrant,
@@ -59,7 +59,7 @@ export const Lease = Open({
 });
 export type Lease = typeof Lease.Type;
 
-export const State = Open({ leases: Schema.Array(Lease) });
+export const State = StructKeepingUnknownFields({ leases: Schema.Array(Lease) });
 export type State = typeof State.Type;
 
 export const EMPTY_STATE: State = { leases: [] };

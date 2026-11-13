@@ -34,7 +34,7 @@ import { Webhooks } from "#internal/webhooks.ts";
 
 import { behaviorApp } from "./behavior-app.ts";
 import {
-  capturedLogs,
+  capturedLogsPrintingWarnings,
   deliverTo,
   recordingHooks,
   seedInstallation,
@@ -193,7 +193,7 @@ const make = Effect.gen(function* () {
         new Error(`ShopifyTestDoor.runBehavior: "${name}" needs ${missing.join(", ")}`),
       );
     yield* reset;
-    const logs = capturedLogs();
+    const logs = capturedLogsPrintingWarnings();
     const exit = yield* behavior.run.pipe(
       Effect.provideService(ShopifyHarness, harnessOf(logs.lines)),
       Effect.provideService(ShopifyFake, fake),

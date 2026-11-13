@@ -109,7 +109,7 @@ export const recordingHooks = (app: ShopifyHooksShape = ShopifyHooks.noop) => {
   };
 };
 
-export const capturedLogs = () => {
+export const capturedLogsPrintingWarnings = () => {
   const lines: HarnessLogLine[] = [];
   const logger = Logger.make((options) => {
     const { message, logLevel } = options;
