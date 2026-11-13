@@ -91,7 +91,6 @@ export const storeAuthMissing = Effect.fn("StoreAuth.missing")(function* (
   return session === undefined ? [...wanted] : missingScopes(wanted, session.scopes);
 });
 
-/** Never production, whose store is merchants'. */
 const requireTestStore = (store: string) =>
   Schema.decodeUnknownEffect(StoreFor(["pool", "staging"], "a pool or staging store"))(store).pipe(
     Effect.mapError(

@@ -1,10 +1,3 @@
-/**
- * Defects as they cross Workers RPC: a Durable Object's methods rebuild each defect as a plain
- * `Error` chain, so the Backend method that called the object logs its full cause.
- *
- * @module
- */
-
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 

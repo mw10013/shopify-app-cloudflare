@@ -36,10 +36,6 @@ afterEach(() => {
     fs.rmSync(directory, { recursive: true, force: true });
 });
 
-/**
- * Puts a `shopify` on PATH that runs `script` with the CLI's arguments, in a
- * directory that also holds a one-store `pool.json` and `files`.
- */
 const stubShopify = (script: string, files: Readonly<Record<string, unknown>> = {}) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "stores-shopify-"));
   directories.push(directory);

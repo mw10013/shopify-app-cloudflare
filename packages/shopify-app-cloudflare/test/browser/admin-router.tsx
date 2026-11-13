@@ -31,12 +31,10 @@ import {
 } from "@tanstack/react-router";
 import { render } from "vitest-browser-react";
 
-/** What the app's `/admin` guard reads. */
 export interface Session {
   signedIn: boolean;
 }
 
-/** A server function's failure once the session ended, as the Backend's binding rejects with it. */
 export const UNAUTHORIZED = { _tag: "UnauthorizedError" } as const;
 
 const SIGNED_IN: Session = { signedIn: true };
@@ -59,7 +57,6 @@ function SignIn({ session }: { readonly session: Session }) {
   );
 }
 
-/** The server functions an app hands the admin routes, each a test's own. */
 export interface AdminCalls {
   readonly shops?: ServerCall<AppInstallationsPageRequest, AppInstallationRedactedPage>;
   readonly shop?: ServerCall<AdminShopRequest, AdminShopData>;
@@ -78,11 +75,6 @@ const EMPTY_PAGE: AppInstallationRedactedPage = {
   hasNextPage: false,
 };
 
-/**
- * An app's admin section as the README tells it to write one: SAC's route options spread under
- * `/admin` beside the app's guard, its own sign-in page outside the layout, an app page with a
- * summary, and an app tab on the shop page.
- */
 export const adminRouter = (path: string, calls: AdminCalls = {}, session: Session = SIGNED_IN) => {
   const root = createRootRoute();
   const admin = createRoute({

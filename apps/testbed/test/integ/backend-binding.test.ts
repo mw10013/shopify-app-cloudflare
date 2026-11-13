@@ -20,11 +20,6 @@ import { door } from "./door.ts";
 import { fileStage } from "./file-stage.ts";
 import Stack from "./stack.ts";
 
-/**
- * The test Backend over its bindings: `authenticateMerchant` and `appHome` called by the test Website over
- * `BACKEND`, a signed webhook through the Website's `/webhooks/*` forward, and the daily cron
- * through workerd's scheduled trigger. Each case starts from the door's `Reset`.
- */
 const { test, beforeAll, afterAll, deploy, destroy } = Test.make({
   providers: Cloudflare.providers(),
   stage: fileStage("backendbinding"),
@@ -36,7 +31,6 @@ afterAll.skipIf(!!process.env.NO_DESTROY)(destroy(Stack));
 const SHOP = Schema.decodeUnknownSync(ShopDomain)("binding-shop.myshopify.com");
 const SHOP_GID = Schema.decodeUnknownSync(ShopGid)("gid://shopify/Shop/9");
 
-/** The stack, its door reset first. */
 const fresh = Effect.gen(function* () {
   const urls = yield* stack;
   yield* door(urls.backendUrl, (client) => client.Reset({}));

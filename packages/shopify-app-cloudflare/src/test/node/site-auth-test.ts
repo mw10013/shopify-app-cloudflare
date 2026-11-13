@@ -24,7 +24,6 @@ export const SITE_AUTH_TEST_ORIGIN = "http://site.test";
 
 const decodeRequested = Schema.decodeUnknownSync(SignInCodeRequested);
 
-/** `request`'s answer from `Auth.serve`, as the Backend's `fetch` gives it. */
 const serve = Effect.fn("SiteAuthTest.serve")(function* (request: Request) {
   const auth = yield* Auth;
   const response = yield* auth.serve.pipe(
@@ -34,7 +33,6 @@ const serve = Effect.fn("SiteAuthTest.serve")(function* (request: Request) {
   return HttpServerResponse.toWeb(response);
 });
 
-/** A POST to one of Better Auth's endpoints from the Website's origin. */
 const authRequest = (path: string, body: unknown, cookie?: string) =>
   new Request(`${SITE_AUTH_TEST_ORIGIN}${AUTH_BASE_PATH}${path}`, {
     method: "POST",
@@ -46,22 +44,15 @@ const authRequest = (path: string, body: unknown, cookie?: string) =>
     body: JSON.stringify(body),
   });
 
-/** The `cookie` header a browser would send back after `response`. */
 const cookieOf = (response: Response) =>
   response.headers
     .getSetCookie()
     .map((cookie) => cookie.split(";")[0])
     .join("; ");
 
-/** Checks `code` for `email` as the sign-in page does, and answers Better Auth's response. */
 const verify = (email: Email, code: string) =>
   serve(authRequest("/sign-in/email-otp", { email, otp: code }));
 
-/**
- * Requests a code for `email` through `requestSignInCode`, as the sign-in page does, checks it,
- * and answers the session's `cookie` header. Needs inline delivery; dies when no code comes back
- * or Better Auth refuses it.
- */
 const signIn = Effect.fn("SiteAuthTest.signIn")(function* (email: Email) {
   const methods = yield* signInMethods;
   const answer = yield* methods

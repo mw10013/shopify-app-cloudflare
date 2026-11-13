@@ -50,10 +50,6 @@ const loadE2e = loadServer("e2e");
 const toUserError = (error: { readonly message: string }) =>
   new CliError.UserError({ cause: error, userMessage: error.message });
 
-/**
- * The e2e server installs the dev app on its store, so the lease must be a pool store, checked
- * before anything touches the stage or the store.
- */
 const requirePoolStore = (server: Server) =>
   Schema.decodeUnknownEffect(StoreFor(["pool"], "a pool store"))(server.store).pipe(
     Effect.mapError(
@@ -66,11 +62,6 @@ const requirePoolStore = (server: Server) =>
 
 const sessionPath = () => path.join(app().root, E2E_SESSION_FILE);
 
-/**
- * How a start treats the session: `fresh` writes a new one, which the stack binds as it comes up;
- * `kept` requires the one already written, for the server's shop: an adopted server was started
- * with it, and a reinstall keeps it so the suite's status reads go on working.
- */
 type SessionMode = "fresh" | "kept";
 
 const prepareSession = (server: Server, mode: SessionMode) =>
@@ -136,7 +127,6 @@ const expectsResetWebhook = Effect.gen(function* () {
   return !cached;
 });
 
-/** What the server's log says of its current run, from that run's {@link RUN_MARKER} on. */
 const readRun = (log: string) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -214,7 +204,6 @@ export interface E2eServerOptions<R = never> {
   ) => Effect.Effect<void, ServerError, R>;
 }
 
-/** The {@link E2eServerOptions} `restartFiles` changed since `since`, a directory by any file in it. */
 const changedSince = (restartFiles: readonly string[], since: Date) =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
@@ -252,10 +241,6 @@ export const e2eServerCommand = <R = never>({
   storeScopes,
   prepareStore,
 }: E2eServerOptions<R>) => {
-  /**
-   * Store auth on every start, then the app's own preparation: {@link authorizeStore} does
-   * nothing when the store already has every scope.
-   */
   const prepare = (server: Server, running: RunningServer) =>
     Effect.gen(function* () {
       if (storeScopes.length > 0)
@@ -265,13 +250,6 @@ export const e2eServerCommand = <R = never>({
       if (prepareStore !== undefined) yield* prepareStore(server, running);
     });
 
-  /**
-   * The store is recorded as soon as the server runs on it, so a later start knows which store
-   * the stage holds even when store auth fails. A server this invocation started is stopped when
-   * it is not ready in time, store preparation fails, or the invocation is interrupted (a killed
-   * restart): a later start adopts a running server without waiting for it, so none is left
-   * unconfirmed. An adopted one keeps running.
-   */
   const start = (mode: SessionMode) =>
     Effect.gen(function* () {
       const server = yield* loadE2e;
@@ -315,11 +293,6 @@ export const e2eServerCommand = <R = never>({
     ),
   );
 
-  /**
-   * The spec pack's restart (its `E2eApp` `restart`): an uninstall ends the Shopify CLI's dev
-   * preview on the store, and only a new `shopify app dev` installs one again. Keeps the stage's
-   * data and the session, and prints the new server as JSON on its last line.
-   */
   const reinstallCommand = Command.make("reinstall", {}, () =>
     Effect.gen(function* () {
       yield* step("stop", stopServer("e2e"));

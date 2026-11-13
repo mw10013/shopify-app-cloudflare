@@ -21,7 +21,6 @@ const migrationsDir = fileURLToPath(new URL("../../migrations", import.meta.url)
 const SHOP = Schema.decodeUnknownSync(ShopDomain)("methods-shop.myshopify.com");
 const SHOP_GID = Schema.decodeUnknownSync(ShopGid)("gid://shopify/Shop/8");
 
-/** What crossed the binding: the failure as the Website would receive it. */
 const crossed = <A, E>(effect: Effect.Effect<A, E>) =>
   Effect.map(Effect.exit(effect), (exit) => {
     assert.isTrue(Exit.isFailure(exit));
@@ -82,7 +81,6 @@ describe("Backend.appHome over the binding", () => {
     Effect.gen(function* () {
       const methods = yield* backendMethods;
       const answer = yield* methods.appHome({ idToken: yield* mintIdToken({ shop: SHOP }) });
-      // The seed's insert ran at the test clock's start.
       assert.deepStrictEqual(answer, {
         shop: SHOP,
         planHandle: "testbed-basic",

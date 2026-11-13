@@ -1,11 +1,3 @@
-/**
- * `MerchantGate`: the one way to a merchant. Every caller that holds an ID token, the App Home
- * guard, a screen read, the socket gate and the Manage plan press, goes through it, so none
- * re-derives the token check or the plan check.
- *
- * @module
- */
-
 import * as Context from "effect/Context";
 import type * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -107,9 +99,6 @@ const make = Effect.gen(function* () {
     options: { readonly billingRedirect?: boolean | undefined } = {},
   ) {
     const { shop, shopGid, stored } = yield* merchant.authenticateMerchant(idToken);
-    // A first install read no row before its mint, so the plan check reads the new one. None
-    // means an uninstall deleted it since: nothing the merchant can act on, so it reads as an
-    // outage.
     const row = Option.isSome(stored) ? stored : yield* installations.find(shop);
     if (Option.isNone(row))
       return yield* unavailable("MerchantGate.authenticateMerchant", shop, "uninstalled");
@@ -124,7 +113,6 @@ const make = Effect.gen(function* () {
     } satisfies MerchantAuthenticated;
   });
 
-  /** The verified shop's row, never minted; no row is `AppNotInstalledError`. */
   const installedRow = Effect.fnUntraced(function* (idToken: string) {
     const { shop } = yield* client.decodeIdToken(idToken);
     const row = yield* installations.find(shop);

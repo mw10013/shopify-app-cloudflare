@@ -1,10 +1,3 @@
-/**
- * `PartnerApi`: the Partner API, billing's one external seam. One query, the shop's app
- * subscription, and the plan selection page's URL.
- *
- * @module
- */
-
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import type * as DateTime from "effect/DateTime";
@@ -27,7 +20,6 @@ import type { ShopDomain, ShopGid } from "./domain.ts";
 import { isAlchemyRuntime, unavailable } from "./shopify-client.ts";
 import { PARTNER_API_VERSION } from "./versions.ts";
 
-/** Stand-ins while the stack is planned, when nothing calls the Partner API; they only decode. */
 const PLANNING_HANDLE = "planning";
 const PLANNING_CONFIG: PartnerConfig = {
   SHOPIFY_PARTNER_ORG_ID: "0",
@@ -81,11 +73,6 @@ const ACTIVE_SUBSCRIPTION_QUERY = `query ActiveSubscription($appId: ID!, $shopId
   }
 }`;
 
-/**
- * Every field past `items` is optional or nullable, so an answer that omits one still decodes:
- * losing a shop's access because Shopify stopped sending a bookkeeping field would be the worst
- * trade.
- */
 const ActiveSubscriptionResponse = Schema.Struct({
   data: Schema.optional(
     Schema.Struct({
@@ -110,20 +97,11 @@ const ActiveSubscriptionResponse = Schema.Struct({
 
 const decodeInstant = Schema.decodeUnknownOption(Schema.DateTimeUtcFromString);
 
-/** An ISO instant, or null when absent or unreadable. */
 const instantOrNull = (value: string | null | undefined): DateTime.Utc | null =>
   Option.getOrNull(decodeInstant(value));
 
-/** `PARTNER_RETRIES` transient retries, exponential from 500 ms, jittered: about 1.5 s. */
 export const PARTNER_RETRIES = 2;
 
-/**
- * How long one attempt waits for the Partner API's whole response, its headers and its body, the
- * same as a mint attempt's deadline (`MINT_ATTEMPT_DEADLINE`): the merchant gate waits on this
- * call. An attempt past it is abandoned and counts as transient, so it is retried, and once the
- * retries are spent it is `ShopifyUnavailableError`. With the retries, a hung Partner API holds a
- * page about 16.5 s.
- */
 export const PARTNER_ATTEMPT_DEADLINE = Duration.seconds(5);
 
 /** What {@link PartnerApi.layer} takes: the app's handle and its Partner credentials. */
@@ -133,7 +111,6 @@ export interface PartnerApiOptions {
   readonly partner: PartnerConfig;
 }
 
-/** The shop's plan selection page for the app whose handle is `handle`. */
 const planSelectionUrlOf = (handle: string) => (shop: ShopDomain) =>
   `https://admin.shopify.com/store/${shop.replace(/\.myshopify\.com$/u, "")}/charges/${handle}/pricing_plans`;
 
@@ -152,12 +129,7 @@ const make = Effect.fnUntraced(function* ({ handle, partner: config }: PartnerAp
       ),
     ),
     HttpClient.filterStatusOk,
-    // Reads the body inside the attempt, so the deadline covers it too: a 200 whose body never
-    // finishes would otherwise hold the gate past every deadline. The response caches it, so the
-    // decode below reads it again for free.
     HttpClient.tap((response) => response.text),
-    // Before the retries, so each attempt has its own deadline; a timed out attempt is a
-    // transient `TransportError`, and the retries still honor a `Retry-After`.
     HttpClient.timeout(PARTNER_ATTEMPT_DEADLINE),
     HttpClient.retryTransient({
       schedule: Schedule.exponential("500 millis").pipe(Schedule.jittered),
@@ -187,13 +159,10 @@ const make = Effect.fnUntraced(function* ({ handle, partner: config }: PartnerAp
           : Effect.die(error),
       ),
     );
-    // The query is fixed, so a GraphQL error means it, or the app's Partner configuration, is wrong.
     if (errors !== undefined && errors.length > 0)
       return yield* Effect.die(
         new Error(`Partner API errors: ${errors.map((each) => each.message).join("; ")}`),
       );
-    // Only an explicit `activeSubscription: null` is a verified absence: an answer without `data`
-    // would otherwise cache Unsubscribed for a paying merchant.
     if (data === undefined)
       return yield* Effect.die(new Error("Partner API answered with neither data nor errors"));
     const subscription = data.activeSubscription;
@@ -215,10 +184,6 @@ const make = Effect.fnUntraced(function* ({ handle, partner: config }: PartnerAp
   } satisfies PartnerApiShape;
 });
 
-/**
- * {@link PartnerApi} over `config` and the `HttpClient` in context, which a test scripts. Not
- * exported from the package, so no transport type reaches an app.
- */
 export const layerHttpClient = (options: PartnerApiOptions) =>
   Layer.effect(PartnerApi, make(options));
 

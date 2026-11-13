@@ -8,7 +8,6 @@ import * as Layer from "effect/Layer";
 import { AppTokens } from "#internal/app-tokens.ts";
 import { FAKE_APP_TOKEN_KEY, FAKE_APP_TOKEN_KID, FAKE_SHOPIFY_API_KEY } from "#test/fake-app.ts";
 
-/** Builds `AppTokens.layerConfig` over `env` as a Worker built by Alchemy would at startup. */
 const startup = (env: Record<string, string>) =>
   Effect.acquireUseRelease(
     Effect.sync(() => {

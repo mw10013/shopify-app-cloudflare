@@ -1,10 +1,3 @@
-/**
- * `ShopActors`: the Backend's lifecycle calls on its shop actors, and the hooks that make the
- * package's uninstall and plan check reach them.
- *
- * @module
- */
-
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
@@ -20,7 +13,6 @@ import {
   type ShopNotInstalledError,
 } from "./shop-actor-kit.ts";
 
-/** The `Error` a stub call was rejected with by the actor, if it was. */
 const rejection = (error: unknown) =>
   error instanceof Cloudflare.RpcCallError && error.cause instanceof Error
     ? error.cause
@@ -40,7 +32,6 @@ const isAbort = (error: unknown, reason: string) => {
   );
 };
 
-/** Whether a stub call failed with the actor's refusal to activate: an empty store, no row. */
 const isRefusedNotInstalled = (cause: Cause.Cause<unknown>) =>
   Predicate.isTagged(
     rejection(Cause.squash(cause)),

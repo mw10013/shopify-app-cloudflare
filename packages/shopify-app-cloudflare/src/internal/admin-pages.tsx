@@ -1,10 +1,3 @@
-/**
- * The Shops pages' route options: the Shops list, the shop page whose tabs are its child routes,
- * and the shop's Overview. Each data route takes the app's server functions and owns the rest.
- *
- * @module
- */
-
 import {
   type AnyRouter,
   Outlet,
@@ -161,10 +154,6 @@ export const adminShopsList = ({
 
 const decodeShopDomain = Schema.decodeUnknownOption(ShopDomain);
 
-/**
- * The shop page: a tab for each child route whose `staticData.adminTab` is set, in `order`, and
- * the child's sections beneath them. An app adds a tab by adding a child route.
- */
 function AdminShop() {
   const router: AnyRouter = useRouter();
   const { routeId, params } = useMatch({ strict: false }) as unknown as AdminMatch;
@@ -227,7 +216,6 @@ const planBadge = Match.typeTags<
 
 const storedHandle = (plan: CachedPlan) => ("handle" in plan ? plan.handle : null);
 
-/** Refresh plan's server function: `null` once the plan was re-read, else the banner's sentence. */
 type RefreshPlan = ServerCall<AdminShopRequest, string | null>;
 
 function AdminShopOverview({ refreshPlan }: { readonly refreshPlan: RefreshPlan }) {

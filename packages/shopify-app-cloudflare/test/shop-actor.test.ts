@@ -63,7 +63,6 @@ describe("logDefect", () => {
   );
 });
 
-/** A stub call rejected with `cause`, typed as the stub types its methods, with no error. */
 const rejected = (cause: Error) =>
   Effect.fail(
     new Cloudflare.RpcCallError({ method: "destroy", cause }),
@@ -158,7 +157,6 @@ const MemberShopActorLive = MemberShopActor.make(
   }),
 );
 
-// A caller type comes only from `caller`: a hook typed for members, without the schema, is refused.
 ShopActorKit.make({
   rpcs: MemberRpcs,
   migrations: Migrator.fromRecord({ "0001_init": Effect.void }),
@@ -172,7 +170,6 @@ ShopActorKit.make({
     }),
 });
 
-// A shape's methods must be built: one declared and never returned is refused.
 // @ts-expect-error `getThing` is declared but not built
 export const missingMethods: Effect.Effect<
   Effect.Effect<ShopActorShape<{ readonly getThing: () => Effect.Effect<string> }>, never, unknown>,

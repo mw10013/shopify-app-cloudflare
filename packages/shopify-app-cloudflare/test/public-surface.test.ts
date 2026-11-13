@@ -3,7 +3,6 @@ import * as Backend from "@mw10013/shopify-app-cloudflare/backend";
 
 import { reachedPackages } from "./reach.ts";
 
-/** Names that would hand an app the library, a transport, a token or the signing key. */
 const INTERNAL = new Set([
   "ShopifyClient",
   "ShopifyMerchant",
@@ -74,7 +73,6 @@ describe("/backend", () => {
   });
 });
 
-/** The optional peers only `/website/react` needs. */
 const isReactPeer = (specifier: string) =>
   specifier === "react" ||
   specifier.startsWith("react/") ||
@@ -117,7 +115,6 @@ describe("/website/react", () => {
   });
 });
 
-/** Better Auth and its Alchemy layer, which only the Backend loads. */
 const isBetterAuth = (specifier: string) =>
   specifier.startsWith("better-auth") || specifier.startsWith("@alchemy.run/better-auth");
 

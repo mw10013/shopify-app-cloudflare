@@ -32,7 +32,6 @@ export const FAKE_SCOPE = "read_products";
 /** The lifetime of a token the fake issues, in seconds: what Shopify answered (measured). */
 export const FAKE_ACCESS_TOKEN_EXPIRES_IN = 3599;
 
-/** The longest an assertion may live, `exp` after `iat`: Shopify's 300 s. */
 const ASSERTION_MAX_LIFETIME_S = 300;
 
 /** The two endpoints the package reaches: the token endpoint and Admin GraphQL. */
@@ -114,7 +113,6 @@ const refused = (status: number, error: string) => Response.json({ error }, { st
 
 const ES256 = { name: "ECDSA", namedCurve: "P-256" };
 
-/** The public half of a PKCS #8 P-256 PEM, as Shopify holds a registered JWK. */
 const publicKeyOf = async (pem: string) => {
   const der = Base64.decode(pem.replaceAll(/-----[^-]+-----|\s/gu, ""));
   if (Result.isFailure(der)) throw new Error("ShopifyFake: the key is not a PEM");
@@ -129,7 +127,6 @@ const publicKeyOf = async (pem: string) => {
   return crypto.subtle.importKey("jwk", jwk, ES256, false, ["verify"]);
 };
 
-/** A token the fake issued, when, and under which registered key. */
 interface Issued {
   readonly accessToken: string;
   readonly expiresAt: number;
@@ -290,7 +287,6 @@ const make = Effect.gen(function* () {
       ? Response.json({ data: { shop: { id: FAKE_SHOP_GID } } })
       : Response.json({ errors: "[API] Invalid API key or access token" }, { status: 401 });
 
-  /** What the fake answers `call` when no intercept decides: a scripted reply, else Shopify's. */
   const answer = (call: ShopifyFakeCall, form: URLSearchParams, authorization: boolean) => () => {
     const scripted = queues[call.route].shift();
     if (scripted !== undefined) return replyWith(scripted);

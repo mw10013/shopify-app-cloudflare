@@ -1,11 +1,3 @@
-/**
- * The contract between an app's stack and its Backend: the values `/stack` binds to the Backend
- * and the names the package's `layerConfig`s read them by. Both sides import this module, so a
- * rename cannot touch one side alone. Free of `@shopify/shopify-api`, so the stack never loads it.
- *
- * @module
- */
-
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import type * as Redacted from "effect/Redacted";
@@ -47,7 +39,6 @@ export const SITE_AUTH_ENV = {
 export const SignInCodeDeliveryMode = Schema.Literals(["inline", "mailed"]);
 export type SignInCodeDeliveryMode = typeof SignInCodeDeliveryMode.Type;
 
-/** Whether a stage holds each address to `SIGN_IN_CODES_PER_DAY` codes from the sign-in page. */
 export const SignInCodeDailyCap = Schema.Literals(["on", "off"]);
 export type SignInCodeDailyCap = typeof SignInCodeDailyCap.Type;
 
@@ -57,14 +48,12 @@ export const SHOP_ACTOR_OBJECTS_ENV = {
   script: "SHOP_ACTOR_SCRIPT",
 } as const;
 
-/** {@link ShopifyCredentials} read from the Backend's bindings, each absent one `None`. */
 export const shopifyCredentialsConfig = Config.all({
   apiKey: Config.option(Config.String("SHOPIFY_API_KEY")),
   apiSecret: Config.option(Config.Redacted("SHOPIFY_API_SECRET")),
   appUrl: Config.option(Config.String("SHOPIFY_APP_URL")),
 });
 
-/** What `AppTokens.layerConfig` reads from the Backend's bindings, each absent one `None`. */
 export const appTokenConfig = Config.all({
   clientId: Config.option(Config.String("SHOPIFY_API_KEY")),
   key: Config.option(Config.Redacted("SHOPIFY_APP_TOKEN_KEY")),
@@ -78,14 +67,8 @@ export const appTokenConfig = Config.all({
  */
 export const AppHandle = Schema.NonEmptyString.check(Schema.isPattern(/^[a-z0-9-]+$/u));
 
-/** A Partner Dashboard id (an organization's or an app's): the digits in its URL. */
 const PartnerId = Schema.NonEmptyString.check(Schema.isPattern(/^[0-9]+$/u));
 
-/**
- * `SHOPIFY_APP_HANDLE`, the app's {@link AppHandle}, decoded. Public configuration, not a
- * credential: the stack binds it with the app, so the plan selection page never waits on the
- * Partner credentials.
- */
 export const appHandleConfig: Config.Config<string> = Config.String("SHOPIFY_APP_HANDLE").pipe(
   Config.mapEffect((value) =>
     Schema.decodeUnknownEffect(AppHandle)(value).pipe(

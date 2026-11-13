@@ -118,8 +118,6 @@ const notFound = HttpServerResponse.text("Not Found", { status: 404 });
 
 const make = <R>(options: AuthOptions<R>) =>
   Effect.gen(function* () {
-    // The Website's URL, bound by the stack. It is absent while the stack is planned, which needs
-    // no origin; a running Worker without it is broken.
     const authOrigin = yield* Config.option(Config.String(SITE_AUTH_ENV.authOrigin)).pipe(
       Effect.orDie,
     );

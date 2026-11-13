@@ -1,11 +1,3 @@
-/**
- * The embedded App Home's redirects, page destinations and document headers, as pure functions
- * over the request's search, so the guard and the auth routes share them and unit tests reach
- * them without the Website's bindings.
- *
- * @module
- */
-
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
@@ -23,7 +15,6 @@ export const APP_BRIDGE_URL = "https://cdn.shopify.com/shopifycloud/app-bridge.j
  */
 export const POLARIS_URL = "https://cdn.shopify.com/shopifycloud/polaris-2.0.js";
 
-/** Shopify's CDN, which App Bridge and Polaris load from. */
 const CDN_URL = "https://cdn.shopify.com";
 
 /**
@@ -79,7 +70,6 @@ export const idTokenBounce = (appUrl: string, path: string, search: string): str
   return `/auth/session-token?${params.toString()}`;
 };
 
-/** The Shopify admin's App Pricing page, the one off-origin destination: plan selection. */
 const PricingPlansPath = Schema.String.check(
   Schema.isPattern(
     /^\/store\/[a-zA-Z0-9][a-zA-Z0-9_-]*\/charges\/[a-zA-Z0-9][a-zA-Z0-9_-]*\/pricing_plans$/u,
@@ -87,11 +77,6 @@ const PricingPlansPath = Schema.String.check(
 );
 const isPricingPlansPath = Schema.is(PricingPlansPath);
 
-/**
- * Where `/auth/exit-iframe` may send the top window: a URL on the app's own origin, or the
- * Shopify admin's App Pricing page with no search or hash. Credentials are refused, so the
- * rendered URL cannot disguise another authority. Relative candidates resolve against `appUrl`.
- */
 const ExitIframeDestination = (appUrl: string) =>
   Schema.String.pipe(
     Schema.decodeTo(

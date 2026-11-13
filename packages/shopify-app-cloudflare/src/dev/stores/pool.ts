@@ -36,7 +36,6 @@ const listedOnce = Schema.makeFilter<readonly StoreDomain[]>(
   { expected: "each store listed once" },
 );
 
-/** The organization's pool: its stores' names are {@link PoolPrefix} and two digits. */
 export interface PoolSource {
   readonly organization: OrganizationId;
   readonly prefix: PoolPrefix;
@@ -89,7 +88,6 @@ const describeUnfit = ({ store, reason, found }: UnfitStore) =>
     ? `${store} is not in the organization`
     : `${store} has ${reason} ${found ?? "(none)"}`;
 
-/** The pool never repairs or deletes a store, so a person decides what to do. */
 export class PoolStoresUnfitError extends Schema.TaggedError<PoolStoresUnfitError>()(
   "PoolStoresUnfitError",
   { stores: Schema.Array(UnfitStore) },
@@ -111,7 +109,6 @@ export class PoolNamesExhaustedError extends Schema.TaggedError<PoolNamesExhaust
 export interface PoolPlan {
   /** Org stores at a free pool name, in name order: a run that crashed after a create left them. */
   readonly adopt: readonly StoreDomain[];
-  /** Names to create, in order, after the adoptions. */
   readonly create: readonly string[];
 }
 

@@ -55,7 +55,6 @@ const installed = () =>
     ],
   });
 
-/** The route's answer to `search` as the Website would receive it; a `null` token sends none. */
 const ask = (
   search: string,
   {
@@ -83,7 +82,6 @@ describe("the e2e status route", () => {
     Effect.gen(function* () {
       const { status, body } = yield* ask(`?shop=${SHOP}`);
       assert.strictEqual(status, 200);
-      // The seed's insert ran at the test clock's start.
       assert.deepStrictEqual(JSON.parse(body), {
         shop: SHOP,
         installed: true,
@@ -246,7 +244,6 @@ describe("the e2e webhook record", () => {
   );
 });
 
-/** A Backend body: a webhook route that answers 200 and 404 elsewhere, and a binding method. */
 const appBody = Effect.succeed({
   fetch: Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;

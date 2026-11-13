@@ -46,11 +46,6 @@ const builtFiles = () =>
     .filter((file) => file.endsWith(".mjs") || file.endsWith(".d.mts"))
     .map((file) => path.join(dist, file));
 
-/**
- * Every module specifier a built file names: `import … from "x"`, `export … from "x"`,
- * `import "x"` and `import("x")`, which in a `.d.mts` is a type. A line-anchored pattern keeps a
- * specifier that only appears inside a string, like an error message's example, out of the result.
- */
 const specifiersOf = (file: string) =>
   [
     ...readFileSync(file, "utf8").matchAll(
@@ -65,7 +60,6 @@ const packageOf = (specifier: string) => {
   return specifier.startsWith("@") ? `${first}/${second}` : first;
 };
 
-/** The bare specifiers the built graph from `file` reaches, following its relative imports. */
 const reachedFrom = (file: string) => {
   const bare = new Set<string>();
   const seen = new Set<string>();

@@ -51,13 +51,6 @@ const gate: AppGate<Awaited<ReturnType<typeof authenticateApp>>> = appGuard({
   redirect,
 });
 
-/**
- * The embedded App Home, which the Shopify admin frames. `beforeLoad` is the merchant gate
- * (`BACKEND.authenticateMerchant`); the loader is its screen read (`BACKEND.appHome`) and the
- * shop actor's count (`BACKEND.count`). A notice naming {@link COUNT_KEY} reads the count again,
- * over the socket into the last answer while it is open. App Bridge is the document's first
- * script.
- */
 export const Route = createFileRoute("/app")({
   staticData: { live: [COUNT_KEY] },
   beforeLoad: gate.guard,
@@ -83,10 +76,6 @@ export const Route = createFileRoute("/app")({
   errorComponent: AppError,
 });
 
-/**
- * The App Home: the shop's count with its Increment button, and, for the e2e suite to read, the
- * shop, its plan's handle, the install instant and the actor socket's state.
- */
 function AppHome() {
   const { shop, apiKey, managePlanUrl } = Route.useRouteContext();
   const registry = useContext(RegistryContext);
@@ -108,7 +97,6 @@ function AppHome() {
             {hydrated ? <IncrementButton /> : <s-button disabled>Increment</s-button>}
           </s-stack>
         </s-section>
-        {/* Read only by the e2e suites; merchants never see them. */}
         <div hidden>
           <span data-testid="shop">{shop}</span>
           <span data-testid="plan-handle">{planHandle}</span>
@@ -120,7 +108,6 @@ function AppHome() {
   );
 }
 
-/** The actor socket's state, for the e2e suite to read. */
 function SocketState() {
   const state = useAtomValue(socketStateAtom);
   return (
@@ -134,10 +121,6 @@ const decodeShopDomain = Schema.decodeUnknownSync(ShopDomain);
 
 const incrementAtom = ShopActorClient.mutation("MerchantIncrement");
 
-/**
- * `MerchantIncrement` over the page's socket. It shows no answer itself: the write's own notice
- * reruns the loader, which reads the new count.
- */
 function IncrementButton() {
   const increment = useAtomSet(incrementAtom, { mode: "promiseExit" });
   const [pending, setPending] = useState(false);

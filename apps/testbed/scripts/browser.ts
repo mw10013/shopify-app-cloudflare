@@ -83,10 +83,6 @@ const ready = Effect.gen(function* () {
 
 const devStore = storeOf("dev").pipe(Effect.map(({ store }) => store));
 
-/**
- * The chrome-devtools server's session id comes from the checkout's path, so a restart here never
- * drops another checkout's server.
- */
 const agent = Effect.gen(function* () {
   const started = yield* ensureAgentChrome;
   yield* checkShopifyLogin(yield* devStore);
@@ -137,7 +133,6 @@ const runCode = (code: string) =>
     ),
   );
 
-/** Records the session's selected page, the tab `open` just made, by its CDP target id. */
 const recordTab = Effect.gen(function* () {
   const out = yield* runCode(`async (page) => {
     const session = await page.context().newCDPSession(page);
@@ -159,10 +154,6 @@ const recordTab = Effect.gen(function* () {
   ),
 );
 
-/**
- * Closes the tab `open` recorded, by its target id, if it is still open, and detaches the
- * session. Without a record it closes nothing.
- */
 const close = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem;
   const recorded = yield* fs

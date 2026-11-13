@@ -25,7 +25,6 @@ export const BEHAVIOR_PROBE_TOPIC = "behavior/probe";
 
 const ShopId = Schema.Struct({ shop: Schema.Struct({ id: Schema.String }) });
 
-/** Reads the shop's id through `Shopify.adminGraphql`: whatever the fake answers, the table answers. */
 const probe: TopicHandler<Shopify> = (delivery) =>
   Effect.flatMap(Shopify, (shopify) =>
     shopify.adminGraphql(delivery.shop, ShopId, "query Probe { shop { id } }"),

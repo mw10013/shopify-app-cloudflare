@@ -35,7 +35,6 @@ const fail = (message: string) => new PreflightError({ message });
 const get = (url: string, headers: Readonly<Record<string, string>> = {}) =>
   Effect.tryPromise({
     try: async () => {
-      // A redirect would carry the status route's token elsewhere.
       const response = await fetch(url, {
         headers,
         redirect: "error",
@@ -46,7 +45,6 @@ const get = (url: string, headers: Readonly<Record<string, string>> = {}) =>
     catch: (cause) => (cause instanceof Error ? cause.message : String(cause)),
   });
 
-/** Every pack project carries the same app; the first one names it. */
 const appOf = (config: FullConfig) =>
   Option.match(
     Array.findFirst(config.projects, (project) =>

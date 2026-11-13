@@ -12,12 +12,6 @@ import {
   provideBackend,
 } from "#backend/backend.ts";
 
-/**
- * The Backend as the `e2e` stage deploys it in place of `Backend`: the production body and
- * services, with the package's e2e routes in front of its `fetch` ({@link withE2eRoutes}). Only
- * `alchemy.run.ts` imports it, and only for `e2e`, so the Backend every other stage deploys never
- * carries the routes; lint keeps `src/backend` and `src/web` from importing `src/e2e`.
- */
 export default class E2eBackend extends Cloudflare.Worker<E2eBackend>()(
   "E2eBackend",
   {

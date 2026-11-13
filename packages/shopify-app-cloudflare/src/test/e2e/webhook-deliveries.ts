@@ -13,12 +13,6 @@ import { E2E_WEBHOOK_MARKER_PARAM, type E2eWebhookDelivery } from "#internal/e2e
 /** The shop every sample `shopify app webhook trigger` delivers names in `X-Shopify-Shop-Domain`. */
 export const SAMPLE_SHOP = "shop.myshopify.com";
 
-/**
- * The address a trigger delivers to: the subscription `uri`'s path on the tunnel, carrying
- * `marker` as its {@link E2E_WEBHOOK_MARKER_PARAM}. A `uri` on an absolute origin is the app's
- * released URL, so only its path is kept; a path that would name another host (`//other.example/x`)
- * stays a path, and the address is refused unless it is on the tunnel's origin.
- */
 export const deliveryAddress = (tunnel: string, uri: string, marker: string): URL => {
   const { origin } = new URL(tunnel);
   const address = new URL(origin);
@@ -29,23 +23,17 @@ export const deliveryAddress = (tunnel: string, uri: string, marker: string): UR
   return address;
 };
 
-/** What one trigger expects of its delivery. */
 export interface ExpectedDelivery {
   readonly topic: string;
   readonly marker: string;
   readonly shop: string;
 }
 
-/** The recorded deliveries of the trigger that sent `marker`. */
 export const deliveriesOf = (
   deliveries: readonly E2eWebhookDelivery[],
   marker: string,
 ): readonly E2eWebhookDelivery[] => deliveries.filter((delivery) => delivery.marker === marker);
 
-/**
- * What is wrong with the trigger's deliveries: empty when exactly one carries its marker, and that
- * one names its topic and shop and was answered 200.
- */
 export const deliveryProblems = (
   deliveries: readonly E2eWebhookDelivery[],
   { topic, marker, shop }: ExpectedDelivery,
@@ -61,7 +49,6 @@ export const deliveryProblems = (
   ];
 };
 
-/** One line per recorded delivery, for a failed step's message: no payload, no secret. */
 export const describeDeliveries = (deliveries: readonly E2eWebhookDelivery[]): string =>
   deliveries.length === 0
     ? "  (none recorded)"

@@ -107,10 +107,6 @@ export const shopOf = (app: E2eApp) => `${app.store}.myshopify.com`;
 export const appBaseUrl = (app: E2eApp) =>
   `https://admin.shopify.com/store/${app.store}/apps/${app.appHandle}`;
 
-/**
- * `path` on the server's local port. The status route's headers carry the session's token, so a
- * path that resolves to another origin (`//other.example/x`) is refused rather than sent there.
- */
 export const localServerUrl = (app: E2eApp, path: string) => {
   const origin = `http://localhost:${String(app.server.port)}`;
   const url = new URL(path, origin);
@@ -126,7 +122,6 @@ export const statusUrl = (app: E2eApp, shop: string) => {
   return url;
 };
 
-/** The e2e webhook record's URL, on the server's local port. */
 export const webhookRecordUrl = (app: E2eApp) => localServerUrl(app, app.webhooks.record);
 
 const decodeSession = Schema.decodeUnknownSync(E2eSessionJson);
@@ -194,11 +189,6 @@ export const LIFECYCLE_SPEC_MATCH = /lifecycle\.spec\.[cm]?[jt]s$/u;
 /** Set to `1` to keep a trace of each failed test. */
 export const E2E_TRACE = "E2E_TRACE";
 
-/**
- * This run's `use.trace`. Off by default: a trace holds the context's storage state (the live
- * Shopify admin login) in its context options and the login's cookies in its network log, and the
- * HTML report copies traces. `E2E_TRACE=1` opts in, with a warning from the main process.
- */
 export const e2eTrace = (): "retain-on-failure" | "off" => {
   if (process.env[E2E_TRACE] !== "1") return "off";
   if (process.env.TEST_WORKER_INDEX === undefined)

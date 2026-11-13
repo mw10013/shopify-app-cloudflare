@@ -48,10 +48,8 @@ export const BEHAVIOR_SHOP_GID = Schema.decodeUnknownSync(ShopGid)("gid://shopif
 
 const SHOP = BEHAVIOR_SHOP;
 
-/** The scope a seeded installation granted. */
 const SEEDED_SCOPE = "read_orders";
 
-/** An installed shop whose stored access token expired a second before `now`. */
 export const rowAt = (
   now: DateTime.Utc,
   over: Partial<SeedInstallation> = {},
@@ -64,14 +62,12 @@ export const rowAt = (
   ...over,
 });
 
-/** Seeds {@link rowAt} the current time, with `over`. */
 export const seedAt = (over: Partial<SeedInstallation> = {}) =>
   Effect.gen(function* () {
     const harness = yield* ShopifyHarness;
     yield* harness.seed(rowAt(yield* DateTime.now, over));
   });
 
-/** A stored token with half its life left, as an earlier mint left it: no mint first. */
 const seedFresh = Effect.gen(function* () {
   yield* seedAt({
     accessTokenExpiresAt: DateTime.addDuration(yield* DateTime.now, Duration.minutes(30)),
@@ -99,10 +95,8 @@ export const storedRow = Effect.map(stored, (row) => {
 const calls = Effect.flatMap(ShopifyFake, (shopify) => shopify.calls);
 const mints = Effect.map(calls, (made) => made.filter((call) => call.route === "token"));
 
-/** Each call's route, in order. */
 const routesOf = (made: readonly ShopifyFakeCall[]) => made.map((call) => call.route);
 
-/** The lines logged at `level` whose message starts with `prefix`. */
 export const logged = (level: string, prefix: string) =>
   Effect.map(
     Effect.flatMap(ShopifyHarness, (harness) => harness.logs),
@@ -124,16 +118,11 @@ export const assertDefect = <R>(effect: Effect.Effect<unknown, unknown, R>) =>
     assert.ok(Exit.isFailure(exit) && Cause.hasDies(exit.cause), "expected a defect");
   });
 
-/** Succeeds once the fake has served `count` calls. */
 const callsReach = (count: number) =>
   Effect.gen(function* () {
     while ((yield* calls).length < count) yield* Effect.sleep("10 millis");
   });
 
-/**
- * A gate the fake's intercept awaits: a promise, since the intercept runs outside any fiber.
- * `open` lets every waiting call through.
- */
 const makeGate = Effect.sync(() => {
   let open: () => void = () => undefined;
   const opened = new Promise<void>((resolve) => {
@@ -147,10 +136,6 @@ const makeGate = Effect.sync(() => {
   };
 });
 
-/**
- * Runs `first` and `second` together with every mint held until both have reached the token
- * endpoint, then lets them through: two callers in flight at once.
- */
 const together = <A, B, E1, E2, R1, R2>(
   first: Effect.Effect<A, E1, R1>,
   second: Effect.Effect<B, E2, R2>,
@@ -192,7 +177,6 @@ export const behavior = (
 
 const down = (status: number) => ({ route: "token" as const, status, body: { error: "down" } });
 
-/** Minting, through `ensureSession` on a stale token: cases 4–11. */
 const minting: readonly RequiredBehavior[] = [
   behavior(
     "4",
@@ -332,7 +316,6 @@ const minting: readonly RequiredBehavior[] = [
   ),
 ];
 
-/** `ensureSession`: cases 12–18. */
 const background: readonly RequiredBehavior[] = [
   behavior(
     "12",
@@ -438,7 +421,6 @@ const background: readonly RequiredBehavior[] = [
   ),
 ];
 
-/** The merchant path, through the merchant gate: cases 19–26. */
 const merchant: readonly RequiredBehavior[] = [
   behavior(
     "19",
@@ -541,7 +523,6 @@ const merchant: readonly RequiredBehavior[] = [
 
 const unauthorized = { route: "graphql" as const, status: 401, body: { errors: "Unauthorized" } };
 
-/** `adminGraphql`: cases 27–33. */
 const admin: readonly RequiredBehavior[] = [
   behavior(
     "27",

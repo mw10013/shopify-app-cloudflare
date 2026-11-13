@@ -1,10 +1,3 @@
-/**
- * The app's plan catalog, which it passes as data, and what a shop's app subscription resolves
- * to. Plan handles are an allowlist: the package reads every handle through the catalog.
- *
- * @module
- */
-
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 

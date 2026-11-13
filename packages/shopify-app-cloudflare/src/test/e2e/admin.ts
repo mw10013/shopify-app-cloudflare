@@ -2,8 +2,7 @@
  * The Shopify admin screens the lifecycle drives: the app's install page, its plan selection and
  * approval pages, and its page under Settings > Apps. Every wait that times out names the screen
  * Shopify showed instead and what the owner does about it, so a run never loops on a login page, a
- * bot check or a screen Shopify changed. The wording and structure were read from the admin on
- * 2026-11-08 on a development store of the app's own organization.
+ * bot check or a screen Shopify changed.
  *
  * @module
  */
@@ -57,26 +56,17 @@ const foreignStore = (page: Page, app: E2eApp) => {
   return store !== undefined && store !== app.store ? store : undefined;
 };
 
-/**
- * The error for a page on `store`, another than the leased one. It names the two stores only:
- * nothing of the foreign store's page (its URL, title or content) leaves the browser.
- */
 const isolationError = (store: string, app: E2eApp, cause?: unknown) =>
   new ShopifyScreenError(
     `The admin switched to ${store}, which this checkout does not lease (it leases ${app.store}); the suite stops before acting or capturing anything there.`,
     { cause },
   );
 
-/** Fails before the suite acts on any store but the leased one. */
 export const requireLeasedStore = (page: Page, app: E2eApp) => {
   const store = foreignStore(page, app);
   if (store !== undefined) throw isolationError(store, app);
 };
 
-/**
- * Whether `page` shows the leased store's admin, the only page the suite may capture: a failure's
- * snapshot of any other page could hold another agent's store.
- */
 export const onLeasedStore = (page: Page, app: E2eApp) => {
   const url = page.url();
   const admin = `https://admin.shopify.com/store/${app.store}`;
@@ -85,7 +75,6 @@ export const onLeasedStore = (page: Page, app: E2eApp) => {
 
 const APP_FRAME = 'iframe[src*="embedded=1"]:not([src*="chrome=window"])';
 
-/** The app frame's `src` with the values of its short-lived credentials dropped. */
 const redactedSrc = (src: string) => {
   if (!URL.canParse(src)) return src;
   const url = new URL(src);
@@ -103,7 +92,6 @@ const redactedSrc = (src: string) => {
 const refusedOAuth = (page: Page) =>
   new URL(page.url()).searchParams.get("oauth_error") === "same_site_cookies";
 
-/** Each app frame on `page`: its `src`, and its document's state, title and first text. */
 const appFrames = async (page: Page) => {
   const handles = await page
     .locator(APP_FRAME)
@@ -128,7 +116,6 @@ const appFrames = async (page: Page) => {
   return `${String(frames.length)} app frame(s): ${frames.join("; ")}`;
 };
 
-/** Attaches a full-page screenshot of `page` to the running test, if any. */
 const attachScreenshot = async (page: Page) => {
   const info = (() => {
     try {

@@ -30,7 +30,6 @@ const d1Meta = (changes = 0, lastRowId = 0) => ({
   changes,
 });
 
-/** `f`'s result as a promise and its throw as a rejection, as D1's async API answers over a sync driver. */
 const promised = <A>(f: () => A): Promise<A> =>
   new Promise((resolve) => {
     resolve(f());

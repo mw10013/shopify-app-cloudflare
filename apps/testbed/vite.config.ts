@@ -14,7 +14,6 @@ import { defineConfig } from "vite-plus";
 
 const { root } = app(import.meta.dirname);
 
-/** This checkout's stage of `environment`, as `scripts/stage.ts` prints it. */
 const stageOf = (environment: "test") =>
   Schema.decodeUnknownSync(Schema.Trim)(
     execFileSync("vpx", ["scripts/stage.ts", environment], { cwd: root, encoding: "utf8" }),
@@ -30,7 +29,6 @@ const HttpUrl = Schema.String.check(Schema.isPattern(/^https?:\/\//u)).pipe(
   Schema.decodeTo(Schema.URLFromString),
 );
 
-/** A URL from an `http(s)://` URL or a bare host, which is read as `https://<host>`. */
 const UrlOrHost = Schema.Union([
   HttpUrl,
   Schema.String.pipe(
@@ -97,7 +95,6 @@ export default defineConfig(({ command, mode, isPreview }) => {
       passWithNoTests: true,
       projects: [
         unitProject(),
-        // `build-website.ts` builds the Website that `website-http.test.ts` serves.
         integProject(() => stageOf("test"), {
           globalSetup: ["@mw10013/rigging/cloudflare/integ-setup", "./test/integ/build-website.ts"],
         }),

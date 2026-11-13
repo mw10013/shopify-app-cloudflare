@@ -1,11 +1,3 @@
-/**
- * What crosses between the Backend and an admin's pages for the orphan sweep: the actor namespace's
- * objects as Cloudflare lists them, the batches the pages show and the one refusal `destroyOrphan`
- * declares. Imports only `effect/Schema`, so the Website loads it without the library.
- *
- * @module
- */
-
 import * as Schema from "effect/Schema";
 
 /** Every listing asks for this many objects: Cloudflare rejects a limit below 100 (error 10077). */

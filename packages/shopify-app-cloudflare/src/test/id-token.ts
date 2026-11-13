@@ -11,7 +11,6 @@ import type { ShopDomain } from "#internal/domain.ts";
 
 import { FAKE_SHOPIFY_API_KEY, FAKE_SHOPIFY_API_SECRET } from "./fake-app.ts";
 
-/** A JSON object as one base64url JWT segment. */
 const jsonSegment = <S extends Schema.Constraint>(schema: S) =>
   Schema.StringFromBase64Url.pipe(Schema.decodeTo(Schema.fromJsonString(schema)));
 

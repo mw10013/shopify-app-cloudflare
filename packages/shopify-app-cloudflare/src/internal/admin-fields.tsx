@@ -1,9 +1,3 @@
-/**
- * The admin pages' read-only values: labelled fields in a grid, and instants in the viewer's time.
- *
- * @module
- */
-
 import { useHydrated } from "@tanstack/react-router";
 import * as DateTime from "effect/DateTime";
 import type { ReactNode } from "react";

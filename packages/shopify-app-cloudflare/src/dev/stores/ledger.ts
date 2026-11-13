@@ -44,7 +44,6 @@ export class LedgerContendedError extends Schema.TaggedError<LedgerContendedErro
   }
 }
 
-/** A file the ledger cannot read, which it reports before it writes anything. */
 export type LedgerUnreadableError = UnsupportedFormatError | StateFileInvalidError;
 
 export interface Committed<A> {

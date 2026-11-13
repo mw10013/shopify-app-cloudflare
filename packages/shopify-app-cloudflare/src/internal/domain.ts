@@ -1,9 +1,3 @@
-/**
- * The brands every other module builds on: the shop, its Admin API id and a plan handle.
- *
- * @module
- */
-
 import * as Schema from "effect/Schema";
 
 /**

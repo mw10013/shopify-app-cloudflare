@@ -1,5 +1,4 @@
 #!/usr/bin/env vpx
-/** `vp run dev | dev:status`: this checkout's dev server. */
 
 import process from "node:process";
 
@@ -24,7 +23,6 @@ const loadDev = loadServer("dev");
 const toUserError = (error: { readonly message: string }) =>
   new CliError.UserError({ cause: error, userMessage: error.message });
 
-/** The testbed needs no store setup yet, so a started server's store is recorded at once. */
 const start = Effect.gen(function* () {
   const server = yield* loadDev;
   yield* resetStaleStage(server);

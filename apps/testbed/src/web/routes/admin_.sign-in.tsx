@@ -6,7 +6,6 @@ import * as Schema from "effect/Schema";
 
 import { getSignedInUser, requestSignInCode } from "#web/server/site.ts";
 
-/** A same-origin path under `/admin` to return to after sign-in. Anything else is dropped. */
 const AdminPath = Schema.String.check(Schema.isPattern(/^\/admin(?:[/?#]\S*)?$/u));
 const decodeAdminPath = Schema.decodeUnknownOption(AdminPath);
 

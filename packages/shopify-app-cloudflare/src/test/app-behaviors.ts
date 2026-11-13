@@ -38,16 +38,13 @@ import { type HarnessCapability, ShopifyHarness } from "./shopify-harness.ts";
 
 const SHOP = BEHAVIOR_SHOP;
 
-/** A second shop, for the daily revalidation. */
 const OTHER_SHOP = Schema.decodeUnknownSync(ShopDomain)("behavior-other.myshopify.com");
 const OTHER_SHOP_GID = Schema.decodeUnknownSync(ShopGid)("gid://shopify/Shop/2");
 
-/** A handle no catalog sells: a plan the app retired. */
 const RETIRED_HANDLE = "behavior-retired";
 
 const clock: readonly HarnessCapability[] = ["clock"];
 
-/** Seeds the shop with a token fresh for an hour, so the gate makes no mint. */
 const seedFresh = (over: Parameters<typeof seedAt>[0] = {}) =>
   Effect.gen(function* () {
     yield* seedAt({
@@ -56,7 +53,6 @@ const seedFresh = (over: Parameters<typeof seedAt>[0] = {}) =>
     });
   });
 
-/** A plan cache entry fresh for a day, on `handle` (null: a verified absence). */
 const cachedPlan = (handle: string | null) =>
   Effect.map(DateTime.now, (now) => ({
     planHandle: handle,
@@ -73,7 +69,6 @@ const authenticate = (options: { readonly billingRedirect?: boolean } = {}) =>
     return yield* (yield* gate).authenticateMerchant(yield* idToken, options);
   });
 
-/** The default catalog handle the fake answers with: whatever the gate first stores. */
 const defaultHandle = Effect.gen(function* () {
   yield* seedFresh();
   yield* authenticate();
@@ -98,7 +93,6 @@ const deliver = (
     harness.deliver({ topic, shop: SHOP, payload, ...options }),
   );
 
-/** The plan check and the merchant gate. */
 const billing: readonly RequiredBehavior[] = [
   behavior(
     "N3",
@@ -349,7 +343,6 @@ const billing: readonly RequiredBehavior[] = [
   ),
 ];
 
-/** Each hook's failure policy (N4): only `afterUninstall` fails its caller. */
 const hookPolicies: readonly RequiredBehavior[] = [
   behavior(
     "N4",
@@ -402,7 +395,6 @@ const hookPolicies: readonly RequiredBehavior[] = [
   ),
 ];
 
-/** Webhooks: the answer table, the built-in topics and dispatch. */
 const webhooks: readonly RequiredBehavior[] = [
   ...(
     [

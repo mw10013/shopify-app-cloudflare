@@ -27,17 +27,11 @@ import type { SeedInstallation } from "#test/shopify-harness.ts";
 
 import { D1Test, type D1TestOptions } from "./d1-test.ts";
 
-/** `AppInstallationStore` over a fresh `D1Test`, which it also provides. */
 export const d1Store = (options: D1TestOptions) =>
   Layer.unwrap(
-    // The database itself, not `D1Test.database`, which each statement would read from the
-    // context it runs in: a case runs harness calls from inside a fake's reply, with none.
-    // For the same reason each such call is scoped: the D1 client is memoized on the running
-    // call's `Scope`.
     Effect.map(D1Test, ({ database }) => AppInstallationStore.layerD1(Effect.succeed(database))),
   ).pipe(Layer.provideMerge(D1Test.layer(options)));
 
-/** The library adapter and `AppTokens` over the fake app's credentials and signing key. */
 export const fakeAppClients = Layer.merge(
   ShopifyClient.layer(FAKE_SHOPIFY_CREDENTIALS),
   AppTokens.layer({
@@ -47,10 +41,6 @@ export const fakeAppClients = Layer.merge(
   }),
 );
 
-/**
- * Both tiers over `app`, `hooks` and `store`, with the fake app's credentials and signing key, {@link ShopifyFake} installed and {@link PartnerFake} answering the catalog's
- * first handle. Everything it builds stays in its output, so a test reaches the fakes too.
- */
 export const testTiers = <Entry, R, E1, E2, R2>(options: {
   readonly app: ShopifyAppDefinition<Entry, R>;
   readonly hooks: Layer.Layer<ShopifyHooks, E1>;

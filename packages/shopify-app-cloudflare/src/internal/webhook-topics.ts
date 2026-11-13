@@ -1,10 +1,3 @@
-/**
- * The webhook topics the package answers itself, apart from `Webhooks` so the end-to-end spec
- * pack names them without loading the Backend.
- *
- * @module
- */
-
 /** The GDPR/CPRA compliance topics, which every app subscribes for App Store review. */
 export const COMPLIANCE_TOPICS = [
   "customers/data_request",

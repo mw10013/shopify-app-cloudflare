@@ -1,11 +1,3 @@
-/**
- * `Webhooks`: Shopify's webhooks, verified by HMAC, dispatched by the `X-Shopify-Topic` header
- * and answered by one table. The package answers its built-in topics; an app adds its own in its
- * definition, and its handlers never choose an HTTP status.
- *
- * @module
- */
-
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
@@ -64,7 +56,6 @@ export const decodePayload =
       Effect.mapError(() => new MalformedWebhookError({ topic: delivery.topic })),
     );
 
-/** The `app/scopes_update` payload: the scopes the shop now grants. */
 const ScopesUpdatePayload = Schema.Struct({ current: Schema.Array(Schema.String) });
 
 type AnsweredFailure = ShopifyAccessFailure | MalformedWebhookError;
@@ -91,7 +82,6 @@ const isAnsweredFailure = (error: unknown): error is AnsweredFailure =>
   typeof error._tag === "string" &&
   Object.hasOwn(FAILURE_ANSWERS, error._tag);
 
-/** A failure's fields for its log line, beyond its tag and the delivery's shop. */
 const failureFields = (failure: AnsweredFailure): Readonly<Record<string, string | number>> =>
   failure._tag === "ShopInaccessibleError" ? { status: failure.status } : {};
 
@@ -139,7 +129,6 @@ const make = <R>(extra: ExtraTopics<R>) =>
      */
     const compliance: TopicHandler = () => Effect.void;
 
-    /** Rewrites the stored scope; a shop with no row is left without one. */
     const scopesUpdate: TopicHandler = (delivery) =>
       decodePayload(ScopesUpdatePayload)(delivery).pipe(
         Effect.flatMap(({ current }) =>
@@ -147,14 +136,6 @@ const make = <R>(extra: ExtraTopics<R>) =>
         ),
       );
 
-    /**
-     * `app/uninstalled`, the one teardown point: the app's `beforeUninstall` (best-effort), the
-     * row's delete (the app's rows go with it by cascade), then the app's `afterUninstall`, whose
-     * defect fails the delivery so Shopify redelivers the whole, idempotent, teardown. Nothing
-     * needs fencing: the shop's tokens already answer 401 and its mints `app_not_installed`, so
-     * no later write restores access, and `updateToken` never inserts. A repeated delivery, or
-     * one for a shop that never stored anything, deletes nothing and answers 200.
-     */
     const appUninstalled: TopicHandler = Effect.fn("Webhooks.appUninstalled")(function* ({
       shop,
     }: WebhookDelivery) {
@@ -183,7 +164,6 @@ const make = <R>(extra: ExtraTopics<R>) =>
         : (delivery) => Effect.provideContext(handler(delivery), context);
     };
 
-    /** One verified delivery to its answer. */
     const handle = Effect.fn("Webhooks.handle")(function* (delivery: WebhookDelivery) {
       const { shop, topic } = delivery;
       const handler = handlerOf(topic);

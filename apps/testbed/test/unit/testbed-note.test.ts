@@ -14,7 +14,6 @@ const migrationsDir = fileURLToPath(new URL("../../migrations", import.meta.url)
 const SHOP = Schema.decodeUnknownSync(ShopDomain)("note-shop.myshopify.com");
 const SHOP_GID = Schema.decodeUnknownSync(ShopGid)("gid://shopify/Shop/7");
 
-/** POSTs a delivery to the Backend's webhooks branch, signed as Shopify signs one. */
 const deliver = (topic: string, payload: unknown) =>
   Effect.gen(function* () {
     const webhooks = yield* Webhooks;

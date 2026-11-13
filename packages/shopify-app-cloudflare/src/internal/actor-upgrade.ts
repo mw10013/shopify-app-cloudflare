@@ -1,10 +1,3 @@
-/**
- * The Backend's upgrade path to its shop actors: the shop from the URL, the gate (the merchant's
- * by default), and the socket forwarded to the shop's actor as the caller the gate resolved.
- *
- * @module
- */
-
 import type * as Cloudflare from "@alchemy.run/cloudflare";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
@@ -30,7 +23,6 @@ import {
 } from "./shop-actor-contract.ts";
 import type { ShopActorLifecycle } from "./shop-actor-kit.ts";
 
-/** `/api/actor/<shop>` ({@link ACTOR_PATH}) split on `/`, optionally with a trailing slash. */
 const ActorPath = Schema.Union([
   Schema.Tuple([Schema.Literal(""), Schema.Literal("api"), Schema.Literal("actor"), ShopDomain]),
   Schema.Tuple([
@@ -51,7 +43,6 @@ export const actorKeyFromPath = (pathname: string): Option.Option<ShopDomain> =>
 export const isActorPath = (pathname: string) =>
   pathname === ACTOR_PATH || pathname.startsWith(`${ACTOR_PATH}/`);
 
-/** The headers a WebSocket handshake itself needs: the only ones a forwarded upgrade keeps. */
 const FORWARDED_HANDSHAKE_HEADERS = [
   "upgrade",
   "connection",
@@ -185,7 +176,6 @@ export const actorUpgrade = Effect.fn("actorUpgrade")(function* <
   options?: { readonly gate?: Effect.Effect<ActorGate, never, RG> | undefined },
 ) {
   const actors = yield* actor;
-  // Without `gate`, `RG` keeps its default, the merchant gate's requirement.
   const gate = yield* options?.gate ?? (merchantGate as Effect.Effect<ActorGate, never, RG>);
 
   const forwardToActor = Effect.fn("Backend.forwardToActor")(function* (

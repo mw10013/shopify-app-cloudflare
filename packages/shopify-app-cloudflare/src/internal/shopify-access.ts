@@ -1,11 +1,3 @@
-/**
- * Tier 1, `ShopifyAccess`: `Shopify` and the read side of the `AppInstallation` table, which an
- * app's shop actor needs and so must exist below it. Tier 2 (billing, the
- * merchant gate and webhooks) builds on the internal services it also provides.
- *
- * @module
- */
-
 import type * as SQL from "@alchemy.run/cloudflare/D1/SQL";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";

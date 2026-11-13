@@ -37,11 +37,6 @@ import { fileStage } from "./file-stage.ts";
 import { signIn } from "./site-session.ts";
 import Stack from "./stack.ts";
 
-/**
- * The testbed's `ShopActor`, built by the package's kit, in workerd, driven as a merchant's
- * browser drives it: straight at the test Backend, through the gate, its refusals and the
- * actor's closes read as close codes.
- */
 const { test, beforeAll, afterAll, deploy, destroy } = Test.make({
   providers: Cloudflare.providers(),
   stage: fileStage("shopactor"),
@@ -53,7 +48,6 @@ afterAll.skipIf(!!process.env.NO_DESTROY)(destroy(Stack));
 const shopNamed = (name: string) => Schema.decodeUnknownSync(ShopDomain)(`${name}.myshopify.com`);
 const SHOP_GID = Schema.decodeUnknownSync(ShopGid)("gid://shopify/Shop/17");
 
-/** Installs `shop` on the catalog's first plan, cached for an hour, as a mint would. */
 const install = (backendUrl: string, shop: ShopDomain, planHandleExpiresAt = Duration.hours(1)) =>
   door(backendUrl, (client) =>
     client.Seed({
@@ -69,12 +63,6 @@ const install = (backendUrl: string, shop: ShopDomain, planHandleExpiresAt = Dur
 
 const decodeNotice = Schema.decodeUnknownOption(NoticeFrame);
 
-/**
- * One browser's socket to `shop`'s actor through the gate, its ID token on the URL: Effect RPC on
- * the socket, notice frames taken out onto `received`, and every socket error offered to
- * `closes`. It reconnects as the browser does, except after a 44xx close. Lives in the caller's
- * scope.
- */
 const connect = (backendUrl: string, shop: ShopDomain, token: string) =>
   Effect.gen(function* () {
     const url = new URL(`/api/actor/${shop}`, backendUrl.replace(/^http/u, "ws"));
@@ -133,7 +121,6 @@ const connect = (backendUrl: string, shop: ShopDomain, token: string) =>
     return { client, received, closes };
   });
 
-/** The next close code a socket saw, within a few seconds; -1 for an error that is not a close. */
 const nextCloseCode = (closes: Queue.Dequeue<Socket.SocketError>) =>
   Queue.take(closes).pipe(
     Effect.timeout("5 seconds"),
@@ -176,7 +163,6 @@ test(
         shop,
         yield* mintIdToken({ shop: other }),
       );
-      // The request opens the socket; the gate's close ends it before any answer.
       yield* Effect.forkScoped(client.MerchantGetCount());
       return yield* nextCloseCode(closes);
     }).pipe(Effect.scoped);
@@ -244,7 +230,6 @@ test(
       );
       assert.strictEqual(scheduled.status, 200);
       assert.strictEqual(yield* nextCloseCode(socket.closes), CONNECTION_CLOSE_REVOKED);
-      // Until the reconnect lands, the client fails each call with the close it last saw.
       const reread = socket.client
         .MerchantGetCount()
         .pipe(Effect.retry({ schedule: Schedule.spaced("100 millis"), times: 30 }));

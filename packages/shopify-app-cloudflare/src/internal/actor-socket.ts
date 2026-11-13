@@ -1,10 +1,3 @@
-/**
- * Effect RPC on a Durable Object's hibernating sockets, with the caller fixed when the socket is
- * accepted.
- *
- * @module
- */
-
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import * as RpcWebSocket from "@alchemy.run/cloudflare/Workers/RpcWebSocket";
 import type * as Workers from "@cloudflare/workers-types";
@@ -72,10 +65,6 @@ export class DispatchingSocket extends Context.Service<
   Cloudflare.Workers.WebSocket
 >()("app/DispatchingSocket") {}
 
-/**
- * The identity a socket being accepted gets, its tags, and where the accepted socket is
- * recorded. Present only inside {@link make}'s `fetch`, the only place a socket is accepted.
- */
 class PendingAccept extends Context.Service<
   PendingAccept,
   {
@@ -85,10 +74,8 @@ class PendingAccept extends Context.Service<
   }
 >()("app/PendingAccept") {}
 
-/** Keeps the object alive until each call's fiber ends; Alchemy's `RpcDurableObject` does the same. */
 class RequestLifetime extends RpcMiddleware.Service<RequestLifetime>()("app/RequestLifetime") {}
 
-/** Reason sent with {@link CONNECTION_CLOSE_FORBIDDEN} to a socket with no identity. */
 export const UNIDENTIFIED_REASON = "unidentified connection";
 
 /**
@@ -96,16 +83,6 @@ export const UNIDENTIFIED_REASON = "unidentified connection";
  * accept. Alchemy's `RpcDurableObject` accepts the socket before any of the object's code sees
  * the upgrade, and cannot host schemaless methods beside its RPC; this reuses its internal
  * transport and adds the identity at accept and on each message.
- *
- * - `fetch(identity)` accepts the upgrade in hand: the identity goes into the socket's
- *   attachment, and `tags(identity)` onto the socket, before the RPC transport records it.
- * - `webSocketMessage` reads the identity back from the attachment (cached per activation), hands
- *   it to `beforeDispatch`, which may close the socket and decline, and dispatches with
- *   {@link ConnectionIdentity} and {@link DispatchingSocket} provided. A socket with no identity
- *   is closed with {@link CONNECTION_CLOSE_FORBIDDEN}.
- *
- * Payloads are decoded by {@link layerStrictJson}. Built once per activation, in the object's
- * inner Effect.
  *
  * @see `@alchemy.run/cloudflare/src/Workers/RpcWebSocket.ts` `make`
  * @see `@alchemy.run/cloudflare/src/Workers/RpcDurableObject.ts` `makeHandlers`
@@ -147,7 +124,6 @@ export const make = Effect.fn("ActorSocket.make")(function* <
       }),
   };
 
-  // The protocol outlives the constructor's temporary layer scope.
   return yield* Effect.acquireUseRelease(
     Scope.make(),
     (instanceScope) =>

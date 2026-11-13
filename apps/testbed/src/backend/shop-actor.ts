@@ -1,11 +1,3 @@
-/**
- * The testbed's shop actor: one Durable Object per shop, built by the package's `ShopActorKit`,
- * holding a counter. It exists to run the kit in workerd: the socket, the gate, notices,
- * uninstall and revoke.
- *
- * @module
- */
-
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import * as SqliteMigrator from "@effect/sql-sqlite-do/SqliteMigrator";
 import { ShopActorKit, type ShopActorShape } from "@mw10013/shopify-app-cloudflare/backend";
@@ -14,7 +6,6 @@ import * as SqlClient from "effect/sql/SqlClient";
 
 import { COUNT_KEY, CounterRpcs } from "#contract/counter.ts";
 
-/** What the Backend calls on the stub beside the kit's lifecycle: the App Home's server read. */
 interface CounterMethods {
   readonly getCount: () => Effect.Effect<number>;
 }
@@ -25,7 +16,6 @@ export class ShopActor extends Cloudflare.DurableObject<
   ShopActorShape<CounterMethods>
 >()("ShopActor") {}
 
-/** One row, seeded, so every read is a select and every write an update. */
 const migrations = SqliteMigrator.fromRecord({
   "0001_counter": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -39,7 +29,6 @@ const migrations = SqliteMigrator.fromRecord({
   }),
 });
 
-/** {@link ShopActor}'s implementation, provided in the Backend's init above `AppInstallations`. */
 export const ShopActorLive = ShopActor.make(
   ShopActorKit.make({
     rpcs: CounterRpcs,

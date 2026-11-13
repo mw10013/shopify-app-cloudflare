@@ -1,10 +1,3 @@
-/**
- * The Backend's wiring, apart from its Worker so a test Backend reuses it: the body, the layers
- * under it and the Worker's props.
- *
- * @module
- */
-
 import { CloudflareD1 } from "@alchemy.run/better-auth/CloudflareD1";
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import {
@@ -39,11 +32,7 @@ import { backendMethods, counterMethods, siteMethods } from "./methods.ts";
 import { Database, Email, SignInLimit } from "./resources.ts";
 import { ShopActor, ShopActorLive } from "./shop-actor.ts";
 
-/**
- * The Backend's init, built once per isolate. A daily cron, `17 4 * * *`, revalidates every stale
- * plan ({@link SubscriptionPlan}); the event source swallows a handler's failure, so
- * `scheduledJob` logs it.
- */
+/** The event source swallows a handler's failure, so `scheduledJob` logs it. */
 export const backendBody = Effect.gen(function* () {
   const webhooks = yield* Webhooks;
   const plans = yield* SubscriptionPlan;
@@ -73,12 +62,6 @@ export const backendBody = Effect.gen(function* () {
   return { fetch, ...methods, ...counter, ...site, ...admin, ...adminShop };
 });
 
-/**
- * Tier 1 over the testbed's D1 database: building it here binds the database to this Worker. The
- * credentials, the token signing key and the Partner values come from the bindings the stack
- * makes (`bindShopifyApp`); without Partner credentials, billing dies on its first Partner call
- * while webhooks, minting and a shop with a cached plan work.
- */
 const shopifyAccess = Layer.unwrap(
   Effect.map(Cloudflare.D1.QueryDatabase(Database), (database) =>
     ShopifyAccess.layerConfig({ database }),
@@ -93,12 +76,6 @@ const siteAuth = Layer.mergeAll(
   SignInLimiter.layer(SignInLimit),
 );
 
-/**
- * Provides `body` with the Backend's services over `shopifyApp`, tier 2 and the app's hooks
- * together: the production one ({@link productionShopifyApp}), or a test Backend's. The order
- * is the layer cycle's break: tier 2 needs the hooks, the hooks need the shop actors, and the
- * actors need tier 1.
- */
 export const provideBackend = <A, E, R, ROut, E2, R2>(
   body: Effect.Effect<A, E, R>,
   shopifyApp: Layer.Layer<ROut, E2, R2>,
@@ -117,10 +94,6 @@ export const provideBackend = <A, E, R, ROut, E2, R2>(
     Effect.provide(Cloudflare.D1.QueryDatabaseBinding),
   );
 
-/**
- * The testbed's hooks, the package's over its shop actors ({@link shopActorHooks}): uninstall
- * destroys the shop's actor, and a plan change closes its sockets.
- */
 export const testbedHooks = Layer.effect(
   ShopifyHooks,
   Effect.gen(function* () {
@@ -128,14 +101,11 @@ export const testbedHooks = Layer.effect(
   }),
 );
 
-/** Tier 2 over the testbed's app, the Partner API and {@link testbedHooks}. */
 export const productionShopifyApp = ShopifyApp.layerConfig(testbedApp).pipe(
   Layer.provideMerge(testbedHooks),
 );
 
-/** The Worker's props, which a test Backend shares but for its name and entry. */
 export const backendProps = {
-  // Only reached through the service binding, so any free port will do.
   dev: { port: 0 },
   compatibility: { date: "2026-07-01", flags: ["nodejs_compat"] },
 };

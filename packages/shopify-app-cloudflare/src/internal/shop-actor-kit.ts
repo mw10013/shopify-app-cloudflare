@@ -1,11 +1,3 @@
-/**
- * `ShopActorKit`: the body of an app's shop actor, one Durable Object per shop named by its
- * `ShopDomain`. The app declares the class and its procedures; the kit owns the lifecycle every
- * app writes the same way.
- *
- * @module
- */
-
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import type * as Workers from "@cloudflare/workers-types";
 import * as SqliteClient from "@effect/sql-sqlite-do/SqliteClient";
@@ -140,7 +132,6 @@ export interface ShopActorSocketHooks<C extends Caller> {
     | undefined;
 }
 
-/** The middleware the kit provides itself. */
 type KitMiddleware = ConnectionMiddleware | RequireMerchant;
 
 /** What an app's `build` answers. */
@@ -160,7 +151,6 @@ export interface ShopActorBuild<
   readonly sockets?: ShopActorSocketHooks<C> | undefined;
 }
 
-/** The services the object provides to its activation. */
 type ActivationServices = RuntimeContext | Cloudflare.DurableObjectState | Scope.Scope;
 
 export interface ShopActorKitOptions<
@@ -418,7 +408,6 @@ const make = <
       const built = yield* options
         .build({
           shop,
-          // `ConnectionMiddleware` provides the socket's caller, which `callerSchema` decoded.
           caller: Effect.map(Effect.service(CurrentCaller), (current) => current as C),
           sql,
           transaction: syncTransaction(sql),
@@ -469,11 +458,6 @@ const make = <
         return accepted.response;
       }).pipe(Effect.withSpan("ShopActor.fetch"));
 
-      /**
-       * Logs the close with the caller's role and the close code and reason, then hands the socket
-       * to the transport: at Debug for a tab that closed or navigated away (1000, 1001), at Info
-       * for any other code. A socket without an identity logs `role=none`.
-       */
       const webSocketClose = Effect.fn("ShopActor.webSocketClose")(function* (
         ws: Cloudflare.Workers.WebSocket,
         code: number,
@@ -492,11 +476,6 @@ const make = <
         yield* socket.webSocketClose(ws);
       });
 
-      /**
-       * Closes every open socket of the shop with {@link CONNECTION_CLOSE_REVOKED}, and answers how
-       * many it closed. A socket is checked at connect only, so this is what makes the gate's new
-       * answer reach an open tab: each reconnect asks the gate again.
-       */
       const revoke = Effect.fn("ShopActor.revoke")(function* () {
         let closed = 0;
         for (const ws of yield* state.getWebSockets()) {
@@ -518,7 +497,6 @@ const make = <
         webSocketClose,
         webSocketError: socket.webSocketError,
         ...(alarm === undefined ? {} : { alarm: () => alarm().pipe(Effect.provide(runtime)) }),
-        // An app with no methods leaves `Methods` at its default, `object`.
         ...((built.methods === undefined ? {} : crossDefects(built.methods)) as Methods),
         ...crossDefects(lifecycle),
       };

@@ -28,7 +28,6 @@ export interface RedirectOptions {
 /** TanStack's `redirect`, which the app passes in; its answer is what the gate throws. */
 export type Redirect = (options: RedirectOptions) => unknown;
 
-/** `Authorization: Bearer <token>`, the header App Bridge adds to the embedded page's fetches. */
 const Bearer = Schema.TemplateLiteralParser(["Bearer ", Schema.String]);
 const decodeBearer = Schema.decodeUnknownOption(Bearer);
 const decodeToken = Schema.decodeUnknownOption(Schema.NonEmptyString);
@@ -42,7 +41,6 @@ export const bearerToken = (request: Request): Option.Option<string> =>
 /** App Bridge's ID token bounce fetches the page it reloads with a bearer. */
 export const hasBearer = (request: Request): boolean => Option.isSome(bearerToken(request));
 
-/** A server function's data carrying the document's `id_token`. */
 const IdTokenData = Schema.Struct({ idToken: Schema.NonEmptyString });
 const decodeIdTokenData = Schema.decodeUnknownOption(IdTokenData);
 
@@ -163,7 +161,6 @@ export const documentGuard =
     return reads.authenticateApp({ data: { idToken: search.id_token, billingRedirect } });
   };
 
-/** Bumped by {@link forgetAppGuard}; each guard's remembered answer is made anew after it. */
 const forgotten = Atom.make(0).pipe(Atom.keepAlive);
 
 /** A refused socket means the last answer may be stale, so the rerun that follows asks. */

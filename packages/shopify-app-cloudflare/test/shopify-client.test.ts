@@ -17,7 +17,6 @@ import { capturingLogs, type Logged } from "./logs.ts";
 const layer = ShopifyClient.layer(FAKE_SHOPIFY_CREDENTIALS);
 const fakeApp = { apiKey: FAKE_SHOPIFY_API_KEY, apiSecret: FAKE_SHOPIFY_API_SECRET };
 
-/** A delivery of `payload`, signed; `headers` overrides or, with `null`, drops a signed header. */
 const webhookRequest = ({
   topic = "app/uninstalled",
   payload = { id: 1 },
@@ -42,7 +41,6 @@ const webhookRequest = ({
     });
   });
 
-/** `request` through `validateWebhook`: its rejection status and every line it logged. */
 const rejection = (request: Effect.Effect<Request>) =>
   Effect.gen(function* () {
     const client = yield* ShopifyClient;

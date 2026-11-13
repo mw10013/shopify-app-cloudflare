@@ -45,7 +45,6 @@ import {
 
 import { reachedPackages } from "./reach.ts";
 
-/** A Backend that records what is bound to it. */
 const recordingWorker = () => {
   const bound: { readonly id: string; readonly env: Readonly<Record<string, unknown>> }[] = [];
   const worker: BindableWorker = {

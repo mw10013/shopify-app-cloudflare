@@ -24,7 +24,6 @@ import { SHOP, SHOP_GID } from "./fixtures.ts";
 
 const app = ShopifyApp.define({ catalog: PlanCatalog.make({ "test-basic": {} }) });
 
-/** Both tiers as a Backend without Partner credentials builds them: `PartnerApi.layerUnbound`. */
 const unboundPartnerTiers = ShopifyApp.layerNoDeps(app).pipe(
   Layer.provideMerge(ShopifyHooks.layerNoop),
   Layer.provideMerge(PartnerApi.layerUnbound(Option.some(FAKE_APP_HANDLE))),
@@ -34,7 +33,6 @@ const unboundPartnerTiers = ShopifyApp.layerNoDeps(app).pipe(
   Layer.provideMerge(ShopifyFake.layer),
 );
 
-/** Seeds the shop with a fresh token and a plan cache that expires `planIn` from now. */
 const seedShop = (planIn: Duration.Input) =>
   Effect.gen(function* () {
     const now = yield* DateTime.now;

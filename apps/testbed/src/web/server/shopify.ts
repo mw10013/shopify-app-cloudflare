@@ -1,11 +1,3 @@
-/**
- * The App Home's server functions and middleware: TanStack Start's wrappers around the package's
- * merchant gate, which the compiler splits into a server half and a client stub only in the app's
- * own source.
- *
- * @module
- */
-
 import { hasBearer, readEmbeddedIdToken } from "@mw10013/shopify-app-cloudflare/website";
 import { redirect } from "@tanstack/react-router";
 import { createIsomorphicFn, createMiddleware, createServerFn } from "@tanstack/react-start";
@@ -20,11 +12,7 @@ export const documentHasBearer = createIsomorphicFn()
   .client(() => false)
   .server(() => hasBearer(getRequest()));
 
-/**
- * The merchant's ID token and the catch for the Backend's refusals, in context
- * (`readEmbeddedIdToken`). A function in context, not an export, so no client bundle reaches the
- * server-only request.
- */
+/** A function in context, not an export, so no client bundle reaches the server-only request. */
 const embeddedIdToken = createMiddleware({ type: "function" }).server(({ next, data }) =>
   next({
     context: readEmbeddedIdToken({
@@ -40,10 +28,6 @@ const embeddedIdToken = createMiddleware({ type: "function" }).server(({ next, d
 const IdTokenInput = Schema.Struct({ idToken: Schema.optional(Schema.NonEmptyString) });
 
 /**
- * The App Home guard's read: `BACKEND.authenticateMerchant`, which mints a token when
- * the stored one is not fresh and checks the plan, re-read from the Partner API on the billing
- * redirect. Answers the shop, the API key for App Bridge's meta tag and the Manage plan URL.
- *
  * POST, though it writes nothing: with the ID token riding in the bearer every browser call has
  * the same URL, and Chrome holds a GET while another for the same URL is in flight.
  */
@@ -65,7 +49,6 @@ export const authenticateApp = createServerFn({ method: "POST" })
     };
   });
 
-/** The App Home's screen read (`BACKEND.appHome`): the shop, its plan's handle and install time. */
 export const getAppHome = createServerFn({ method: "GET" })
   .middleware([embeddedIdToken])
   .validator(Schema.toStandardSchemaV1(IdTokenInput))
@@ -73,7 +56,6 @@ export const getAppHome = createServerFn({ method: "GET" })
     backend().appHome({ idToken }).catch(rescueRefusal),
   );
 
-/** The App Home's count, from the shop's actor (`BACKEND.count`): its live read's server half. */
 export const getCount = createServerFn({ method: "GET" })
   .middleware([embeddedIdToken])
   .validator(Schema.toStandardSchemaV1(IdTokenInput))
@@ -81,7 +63,6 @@ export const getCount = createServerFn({ method: "GET" })
     backend().count({ idToken }).catch(rescueRefusal),
   );
 
-/** The app's API key and public URL, from the Website's bindings. */
 export const getShopifyApp = createServerFn({ method: "GET" }).handler(() => ({
   apiKey: env.SHOPIFY_API_KEY,
   appUrl: env.SHOPIFY_APP_URL,

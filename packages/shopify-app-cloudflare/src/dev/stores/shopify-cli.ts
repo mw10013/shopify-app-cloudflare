@@ -55,11 +55,6 @@ export const liveSession = Effect.fn("Shopify.liveSession")(function* (
   return Option.none<number>();
 }, Effect.orDie);
 
-/**
- * A Shopify CLI command that did not succeed as this package can tell: it could not
- * start, it exited non-zero (signed out, refused, or timed out), or it printed
- * output this package cannot read.
- */
 export class ShopifyCliError extends Schema.TaggedError<ShopifyCliError>()("ShopifyCliError", {
   command: Schema.String,
   detail: Schema.String,
@@ -134,10 +129,6 @@ const CreateFailure = CliResult(Schema.Struct({ message: Schema.String }));
 export class ShopifyCli extends Context.Service<
   ShopifyCli,
   {
-    /**
-     * Every store in the organization. `--type dev` would hide a listed store
-     * that is another type, and a pool name a non-dev store holds.
-     */
     readonly listStores: (
       organization: OrganizationId,
     ) => Effect.Effect<readonly OrgStore[], ShopifyCliError | StoreListTruncatedError>;
@@ -155,8 +146,6 @@ export class ShopifyCli extends Context.Service<
     ShopifyCli,
     Effect.gen(function* () {
       const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
-      // Progress goes to stderr; create's streams to the terminal because it
-      // can take minutes.
       const shopify = (args: readonly string[], stderr: "pipe" | "inherit") => {
         const command = `shopify ${args.join(" ")}`;
         return Effect.scoped(
@@ -223,7 +212,6 @@ export class ShopifyCli extends Context.Service<
         }));
       });
 
-      // planPool picks a name no org store holds, so a store by that name is this create's.
       const appearedAs = Effect.fn("ShopifyCli.appearedAs")(function* (
         organization: OrganizationId,
         name: string,
@@ -257,8 +245,6 @@ export class ShopifyCli extends Context.Service<
           ];
           const output = yield* shopify(args, "inherit");
           if (output.exitCode !== 0) {
-            // A failed create can still make the store, so a rerun that does
-            // not see it yet would make another at a suffixed domain.
             const appeared = yield* appearedAs(organization, name);
             if (Option.isSome(appeared)) return appeared.value;
             return yield* new ShopifyCliError({

@@ -1,9 +1,3 @@
-/**
- * A logger that keeps each line, for a test that asserts a level or a message.
- *
- * @module
- */
-
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
@@ -14,7 +8,6 @@ export interface Logged {
   readonly message: unknown;
 }
 
-/** Runs `effect` with every line, Debug included, pushed onto `logged` instead of printed. */
 export const capturingLogs =
   (logged: Logged[]) =>
   <A, E, R>(effect: Effect.Effect<A, E, R>) =>

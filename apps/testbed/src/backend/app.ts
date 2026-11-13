@@ -1,11 +1,3 @@
-/**
- * The testbed as the package sees it: its plan catalog and its one extra webhook topic. The
- * Backend dispatches from this value and the toml check reads its topics from it, so the two
- * cannot drift.
- *
- * @module
- */
-
 import {
   PlanCatalog,
   ShopifyApp,
@@ -14,10 +6,9 @@ import {
 } from "@mw10013/shopify-app-cloudflare/backend";
 import * as Effect from "effect/Effect";
 
-/** Two plans. Each handle must also exist in the Partner Dashboard before a merchant can pay. */
+/** Each handle must also exist in the Partner Dashboard before a merchant can pay. */
 export const catalog = PlanCatalog.make({ "testbed-basic": {}, "testbed-pro": {} });
 
-/** `shop/update`: logged only, to exercise the extra-topic seam end to end. */
 const shopUpdate: TopicHandler = Effect.fn("Testbed.shopUpdate")(function* ({
   shop,
 }: WebhookDelivery) {

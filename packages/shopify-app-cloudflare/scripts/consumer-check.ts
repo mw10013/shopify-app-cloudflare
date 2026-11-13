@@ -29,7 +29,6 @@ const NAME = "@mw10013/shopify-app-cloudflare";
 
 const WORKSPACE = path.dirname(path.dirname(PACKAGE));
 
-/** Every public entry. */
 const SUBPATHS = [
   "backend",
   "contract",
@@ -54,7 +53,6 @@ const SUBPATHS = [
   "dev/worktree",
 ] as const;
 
-/** The entries a consumer loads in Node, which must load there. */
 const NODE_REQUIRED: readonly string[] = [
   "contract",
   "stack",
@@ -97,7 +95,6 @@ const exact = (name: string, ranges: unknown) => {
 };
 const peer = (name: string) => exact(name, source.peerDependencies);
 
-/** The throwaway project's manifest: the package under `spec`, its peers, and the tools. */
 const consumerManifest = (spec: string) => ({
   name: "consumer-check",
   private: true,
@@ -123,11 +120,6 @@ const consumerManifest = (spec: string) => ({
   },
 });
 
-/**
- * The project's files besides its manifest. `tsconfig.json` is the testbed's (node and workers
- * types, DOM) made stricter, with `skipLibCheck: false` so that the package's own `.d.mts` files
- * are checked; {@link packageErrors} keeps the errors in them and in `entries.ts`.
- */
 const PROJECT_FILES: Record<string, string> = {
   "pnpm-workspace.yaml": "allowBuilds:\n  esbuild: true\n  workerd: true\n",
   "tsconfig.json": JSON.stringify({
@@ -232,11 +224,6 @@ export default defineConfig({
 `,
 };
 
-/**
- * The environment of every command: `PATH` and `TMPDIR` from this process, a `HOME` of the
- * check's own, and git with no config and no prompt. Nothing else is inherited, so no token or
- * registry credential reaches the install.
- */
 const cleanEnv = (home: string): Record<string, string> => ({
   PATH: process.env.PATH ?? "",
   ...(process.env.TMPDIR === undefined ? {} : { TMPDIR: process.env.TMPDIR }),
@@ -247,7 +234,6 @@ const cleanEnv = (home: string): Record<string, string> => ({
   CI: "1",
 });
 
-/** Runs `command` in `cwd` under `env` alone; its output, or a failure carrying it. */
 const run = Effect.fn("ConsumerCheck.run")(function* (
   cwd: string,
   env: Record<string, string>,
@@ -272,7 +258,6 @@ const run = Effect.fn("ConsumerCheck.run")(function* (
 const succeeded = (result: { readonly ok: boolean; readonly output: string }) =>
   result.ok ? Effect.succeed(result.output) : new CheckFailedError({ message: result.output });
 
-/** Builds `dist/` and packs it as `npm publish ./dist` would. Returns the tarball's `file:` spec. */
 const packDist = Effect.fn("ConsumerCheck.packDist")(function* (
   directory: string,
   env: Record<string, string>,
@@ -303,7 +288,6 @@ const packageErrors = (output: string) => {
 
 interface Step {
   readonly name: string;
-  /** Whether a failure here leaves nothing for the later steps to check. */
   readonly gates: boolean;
   readonly check: Effect.Effect<
     string,

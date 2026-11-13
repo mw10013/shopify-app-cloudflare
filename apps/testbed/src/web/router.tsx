@@ -7,11 +7,6 @@ import { StrictMode } from "react";
 
 import { routeTree } from "./routeTree.gen";
 
-/**
- * Builds the router and its atom registry, once per request on the server and once in the
- * browser, so the actor socket's atoms and the guard's remembered answer never cross between
- * requests. Only the browser's router hears notices ({@link makeLiveRoutes}).
- */
 export function getRouter() {
   const registry = AtomRegistry.make({ scheduleTask });
   const router = createRouter({

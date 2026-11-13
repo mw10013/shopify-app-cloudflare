@@ -114,7 +114,6 @@ describe("the built package", () => {
   });
 
   it("names the preflight with this module's own extension", () => {
-    // The source runs here; the built module would name `preflight.js`.
     assert.isTrue(E2E_PREFLIGHT.endsWith("/test/e2e/preflight.ts"), E2E_PREFLIGHT);
   });
 });

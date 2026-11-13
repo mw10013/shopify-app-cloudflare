@@ -26,7 +26,6 @@ describe("the testbed's wiring", () => {
   });
 });
 
-/** Every required case over the testbed's own catalog, topics and migrations. */
 describe("required behavior (in process, the testbed's app)", () => {
   for (const behavior of REQUIRED_BEHAVIORS) {
     const run = () =>

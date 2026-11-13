@@ -31,10 +31,6 @@ const { app: testbed, config } = await shopifyE2eConfig({
   storeScopes: STORE_SCOPES,
 });
 
-/**
- * Runs the package's end-to-end spec pack and the testbed's own specs against this checkout's
- * long-lived e2e server (`vp run e2e:start`, `scripts/e2e.ts`) in the agent Chrome.
- */
 export default defineConfig({
   ...config,
   projects: [

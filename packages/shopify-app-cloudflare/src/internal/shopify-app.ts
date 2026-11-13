@@ -1,11 +1,3 @@
-/**
- * Tier 2, `ShopifyApp`: the app's definition (its catalog and extra webhook topics) and the layer
- * that builds billing, the merchant gate and webhooks over it. It needs tier 1, the app's
- * `ShopifyHooks` and a `PartnerApi`, so it is built above the app's shop actors.
- *
- * @module
- */
-
 import * as Layer from "effect/Layer";
 
 import type { PlanCatalog } from "./catalog.ts";

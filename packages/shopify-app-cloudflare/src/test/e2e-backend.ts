@@ -53,7 +53,6 @@ const decodeShop = Schema.decodeUnknownOption(ShopDomain);
 const encodeStatus = Schema.encodeEffect(E2eShopStatus);
 const encodeDeliveries = Schema.encodeEffect(E2eWebhookDeliveries);
 
-/** Constant time over equal lengths; a token's length is not a secret. */
 export const tokenMatches = (expected: Redacted.Redacted, given: string | undefined) => {
   if (given === undefined) return false;
   const a = new TextEncoder().encode(Redacted.value(expected));
@@ -66,11 +65,6 @@ const authorized = (
   request: HttpServerRequest.HttpServerRequest,
 ) => Option.isSome(access) && tokenMatches(access.value.token, request.headers[E2E_TOKEN_HEADER]);
 
-/**
- * The status route's handler: `401` without the session's token in {@link E2E_TOKEN_HEADER} (every
- * request when `access` is `None`), `405` for anything but GET, `400` without a valid `shop`,
- * `403` for any shop but the session's, else the shop's {@link E2eShopStatus}.
- */
 export const e2eStatus = Effect.fn("E2eStatus.make")(function* (access: Option.Option<E2eAccess>) {
   const installations = yield* AppInstallations;
   return Effect.gen(function* () {
@@ -93,12 +87,6 @@ export const e2eStatus = Effect.fn("E2eStatus.make")(function* (access: Option.O
   });
 });
 
-/**
- * The webhook record and its route. `record` notes one `/webhooks/*` request and the response it
- * got; `route` answers `401` without the session's token in {@link E2E_TOKEN_HEADER} (every
- * request when `access` is `None`), `405` for anything but GET, else the
- * {@link E2eWebhookDeliveries}.
- */
 export const e2eWebhooks = Effect.fn("E2eWebhooks.make")(function* (
   access: Option.Option<E2eAccess>,
 ) {

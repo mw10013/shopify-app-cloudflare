@@ -27,7 +27,6 @@ const packageMigrationNames = (migrationsDir: string) =>
     .filter((name) => name.startsWith(PACKAGE_MIGRATION_PREFIX) && name.endsWith(".sql"))
     .toSorted();
 
-/** `value` as one shell word. */
 const shellWord = (value: string) =>
   /^[\w@%+=:,./-]+$/u.test(value) ? value : `'${value.replaceAll("'", String.raw`'\''`)}'`;
 

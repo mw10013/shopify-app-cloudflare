@@ -1,11 +1,3 @@
-/**
- * `Shopify`, the background path and Admin API calls by shop, and `ShopifyMerchant`, the merchant
- * path the merchant gate builds on. Each answers from the stored `AppInstallation` row when its
- * token will do, and otherwise mints one with `AppTokens`.
- *
- * @module
- */
-
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -60,7 +52,6 @@ export interface ShopifyShape {
   ) => Effect.Effect<S["Type"], ShopifyAccessFailure>;
 }
 
-/** What the merchant path answers. */
 export interface AuthenticateMerchantAnswer {
   readonly shop: ShopDomain;
   readonly shopGid: ShopGid;
@@ -83,7 +74,6 @@ export interface ShopifyMerchantShape {
   ) => Effect.Effect<AuthenticateMerchantAnswer, InvalidIdTokenError | ShopifyUnavailableError>;
 }
 
-/** The query whose answer {@link ShopGidResponse} decodes. */
 const SHOP_GID_QUERY = `#graphql
   query ShopGid {
     shop {
@@ -93,7 +83,6 @@ const SHOP_GID_QUERY = `#graphql
 
 const ShopGidResponse = Schema.Struct({ shop: Schema.Struct({ id: ShopGid }) });
 
-/** What `updateToken` writes for a minted token. */
 const tokenColumns = (minted: AppToken) => ({
   scope: minted.scope,
   accessToken: minted.accessToken,
@@ -105,11 +94,6 @@ const make = Effect.gen(function* () {
   const tokens = yield* AppTokens;
   const installations = yield* AppInstallationStore;
 
-  /**
-   * The shop's Admin API id, asked once, on the first mint, bounded by `MINT_ATTEMPT_DEADLINE`.
-   * A 401 is an outage, since the token was just issued; a refusal of the shop itself a merchant
-   * cannot act on here is a defect.
-   */
   const fetchShopGid = Effect.fnUntraced(function* (shop: ShopDomain, accessToken: string) {
     const data = yield* client
       .adminCall("Shopify.authenticateMerchant", shop, accessToken, SHOP_GID_QUERY, undefined)
@@ -160,7 +144,6 @@ const make = Effect.gen(function* () {
     return { shop, shopGid, stored } satisfies AuthenticateMerchantAnswer;
   });
 
-  /** `ensureSession`, passing over `rejected`, the token an Admin API call got 401 with. */
   const ensureWith = Effect.fn("Shopify.ensureSession")(function* (
     shop: ShopDomain,
     rejected: string | null,
@@ -224,15 +207,10 @@ const make = Effect.gen(function* () {
  */
 export class Shopify extends Context.Service<Shopify, ShopifyShape>()("app/Shopify") {}
 
-/** The merchant path. Not exported from the package: the merchant gate is its one caller. */
 export class ShopifyMerchant extends Context.Service<ShopifyMerchant, ShopifyMerchantShape>()(
   "app/ShopifyMerchant",
 ) {}
 
-/**
- * {@link Shopify} and {@link ShopifyMerchant} over the {@link ShopifyClient}, {@link AppTokens}
- * and {@link AppInstallationStore} in context.
- */
 export const layerShopify = Layer.effectContext(
   Effect.map(make, ({ shopify, merchant }) =>
     Context.make(Shopify, shopify).pipe(Context.add(ShopifyMerchant, merchant)),
