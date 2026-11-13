@@ -321,7 +321,7 @@ const billing: readonly RequiredBehavior[] = [
       assert.equal(read.shop, SHOP);
       assert.equal(read.handle, (yield* storedRow).planHandle);
       assert.deepEqual(read.installedAt, (yield* storedRow).installedAt);
-      assert.deepEqual((yield* (yield* ShopifyFake).calls).length, 0, "no mint");
+      assert.equal((yield* (yield* ShopifyFake).calls).length, 0, "no mint");
     }),
   ),
   behavior(

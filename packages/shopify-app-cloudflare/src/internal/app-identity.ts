@@ -17,7 +17,7 @@ const decodeAppHandle = Schema.decodeUnknownSync(AppHandle);
 const ClientId = Schema.NonEmptyString.check(Schema.isPattern(/^[0-9a-f]{32}$/u));
 const decodeClientId = Schema.decodeUnknownSync(ClientId);
 
-const pathOf = (tomlPath: string | URL): string =>
+export const pathOf = (tomlPath: string | URL): string =>
   tomlPath instanceof URL ? fileURLToPath(tomlPath) : tomlPath;
 
 /** An app's public identity, as its stage's `shopify.app*.toml` writes it. */

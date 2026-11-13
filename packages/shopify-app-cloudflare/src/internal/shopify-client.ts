@@ -71,7 +71,6 @@ export type ShopifySpan =
   | "PartnerApi.activeSubscription"
   | "MerchantGate.authenticateMerchant";
 
-const decodeWebhookShop = Schema.decodeUnknownOption(ShopDomain);
 const decodeWebhookPayload = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown));
 
 /** The claims verified beyond the library's checks, as `decodeSessionToken` returns them. */
@@ -284,7 +283,7 @@ const make = (credentials: Pick<ShopifyCredentials, "apiKey" | "apiSecret" | "ap
         ).pipe(Effect.annotateLogs({ ...validation, httpStatus }));
         return yield* new WebhookRejectedError({ status: httpStatus });
       }
-      const shop = decodeWebhookShop(validation.domain);
+      const shop = decodeShop(validation.domain);
       const payload = decodeWebhookPayload(rawBody);
       if (Option.isNone(shop) || Option.isNone(payload)) {
         yield* Effect.logWarning(

@@ -9,7 +9,6 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import * as Alchemy from "alchemy";
@@ -35,7 +34,7 @@ import {
   FAKE_SHOPIFY_API_SECRET,
 } from "#test/fake-app.ts";
 
-import { type AppIdentity, readAppIdentity } from "./app-identity.ts";
+import { type AppIdentity, pathOf, readAppIdentity } from "./app-identity.ts";
 import {
   type PartnerConfig,
   partnerConfig,
@@ -72,9 +71,6 @@ const appTokenKeyConfig = Config.all({
   appTokenKey: Config.Redacted("SHOPIFY_APP_TOKEN_KEY"),
   appTokenKid: Config.String("SHOPIFY_APP_TOKEN_KID"),
 });
-
-const pathOf = (tomlPath: string | URL): string =>
-  tomlPath instanceof URL ? fileURLToPath(tomlPath) : tomlPath;
 
 /** {@link readAppIdentity} as a `Config`, so a stage that never reaches it never reads the file. */
 const appIdentityConfig = (tomlPath: string | URL): Config.Config<AppIdentity> =>
@@ -308,8 +304,9 @@ export const siteUserSeedSql = (users: readonly SiteUserSeed[]): string => {
   return [
     `update user set role = 'user' where role = 'admin'${admins.length === 0 ? "" : ` and email not in (${admins.join(", ")})`};`,
     ...users.map(({ email, role }) => {
-      const address = sqlText(decodeEmail(email));
-      return `insert into user (id, name, email, emailVerified, role, banned, createdAt, updatedAt) values (${sqlText(`seed:${decodeEmail(email)}`)}, ${address}, ${address}, 1, ${sqlText(role)}, 0, '${SEEDED_AT}', '${SEEDED_AT}') on conflict (email) do update set role = excluded.role;`;
+      const normalized = decodeEmail(email);
+      const address = sqlText(normalized);
+      return `insert into user (id, name, email, emailVerified, role, banned, createdAt, updatedAt) values (${sqlText(`seed:${normalized}`)}, ${address}, ${address}, 1, ${sqlText(role)}, 0, '${SEEDED_AT}', '${SEEDED_AT}') on conflict (email) do update set role = excluded.role;`;
     }),
   ].join("\n");
 };

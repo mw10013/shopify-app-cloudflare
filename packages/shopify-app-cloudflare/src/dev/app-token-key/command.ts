@@ -21,7 +21,7 @@ import * as Match from "effect/Match";
 import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 
-import { type AppIdentity, readAppIdentity } from "#internal/app-identity.ts";
+import { readAppIdentity } from "#internal/app-identity.ts";
 import { importAppTokenKey } from "#internal/app-token-assertion.ts";
 import { ShopDomain } from "#internal/domain.ts";
 
@@ -42,7 +42,7 @@ class DotenvKeyMissingError extends Data.TaggedError("DotenvKeyMissingError")<{
 
 const identityOf = (config: string) =>
   Effect.try({
-    try: (): AppIdentity => readAppIdentity(config),
+    try: () => readAppIdentity(config),
     catch: (cause) =>
       new AppConfigError({ message: cause instanceof Error ? cause.message : String(cause) }),
   });

@@ -14,7 +14,6 @@
 import { performance } from "node:perf_hooks";
 
 import * as DateTime from "effect/DateTime";
-import type { BrowserContext, Page } from "playwright/test";
 
 import { appFrame, awaitHydration, closeDevConsole } from "#dev/embedded-app.ts";
 
@@ -51,8 +50,8 @@ test("the app installs, subscribes, changes plan, uninstalls and reinstalls", as
   const [first, second] = initial.plans;
 
   let app: E2eApp = initial;
-  let context: BrowserContext = await adminContext(browser, app, adminAuthFile);
-  let page: Page = await context.newPage();
+  let context = await adminContext(browser, app, adminAuthFile);
+  let page = await context.newPage();
   const status = () => readShopStatus(app, shop);
 
   /** The App Home, hydrated, names the shop and `plan`. */

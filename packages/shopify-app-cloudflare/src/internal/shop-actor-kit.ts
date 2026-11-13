@@ -188,7 +188,6 @@ export interface ShopActorKitOptions<
 }
 
 /** The close reasons. A reason must stay under 123 bytes. */
-const UNIDENTIFIED_REASON = "unidentified connection";
 const UNINSTALLED_REASON = "uninstalled";
 const PLAN_CHANGED_REASON = "plan changed";
 
@@ -453,7 +452,10 @@ const make = <
           yield* Effect.logWarning(`ShopActor.fetch: shop=${shop}: unidentified connection`).pipe(
             Effect.annotateLogs({ shop }),
           );
-          return yield* ActorSocket.refusedUpgrade(CONNECTION_CLOSE_FORBIDDEN, UNIDENTIFIED_REASON);
+          return yield* ActorSocket.refusedUpgrade(
+            CONNECTION_CLOSE_FORBIDDEN,
+            ActorSocket.UNIDENTIFIED_REASON,
+          );
         }
         const identity = { caller: caller.value, connectedAt: yield* DateTime.now };
         const accepted = yield* socket.fetch(identity);

@@ -89,7 +89,7 @@ class PendingAccept extends Context.Service<
 class RequestLifetime extends RpcMiddleware.Service<RequestLifetime>()("app/RequestLifetime") {}
 
 /** Reason sent with {@link CONNECTION_CLOSE_FORBIDDEN} to a socket with no identity. */
-const UNIDENTIFIED_REASON = "unidentified connection";
+export const UNIDENTIFIED_REASON = "unidentified connection";
 
 /**
  * Effect RPC on a Durable Object's hibernating sockets, with the caller's identity fixed at

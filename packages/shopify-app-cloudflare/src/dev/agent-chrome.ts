@@ -237,9 +237,8 @@ export const ensureAgentChrome = Effect.gen(function* () {
       Effect.as(true),
       Effect.orElseSucceed(() => false),
     )
-  ) {
+  )
     return false;
-  }
   yield* launchAgentChrome("headless");
   return true;
 });
@@ -352,12 +351,11 @@ export const loginAgentChrome = Effect.fn("AgentChrome.login")(function* (store:
       schedule: Schedule.max([Schedule.spaced("1 second"), Schedule.during("10 minutes")]),
     }),
   );
-  if (!loggedIn) {
+  if (!loggedIn)
     return yield* new AgentChromeError({
       message:
         "No Shopify login within 10 minutes. The agent Chrome stays headed until it is quit; run vp run browser login again.",
     });
-  }
   yield* stopAgentChrome;
   yield* launchAgentChrome("headless");
   yield* checkShopifyLogin(store);
