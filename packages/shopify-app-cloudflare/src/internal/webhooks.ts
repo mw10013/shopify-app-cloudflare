@@ -61,7 +61,7 @@ const ScopesUpdatePayload = Schema.Struct({ current: Schema.Array(Schema.String)
 type AnsweredFailure = ShopifyAccessFailure | MalformedWebhookError;
 
 /**
- * How a delivery whose handler failed is answered and logged (`shopify-auth.md` Webhooks). It is
+ * How a delivery whose handler failed is answered and logged. It is
  * answered non-2xx only when redelivery can succeed on its own: Shopify's retries end within
  * hours, and failures that persist can remove the subscription. One answered 200 without acting
  * relies on the app's reconciliation once access returns.

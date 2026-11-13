@@ -1,7 +1,7 @@
 /**
- * The required behaviors of authentication (`shopify-auth.md`'s numbered cases), as data: each
- * case is `{ id, name, run }`, asserting with `node:assert`, so an app's suite loops over them
- * with its own runner and nothing here imports one.
+ * The required behaviors of authentication, the numbered cases, as data: each case is
+ * `{ id, name, run }`, asserting with `node:assert`, so an app's suite loops over them with its
+ * own runner and nothing here imports one.
  *
  * @module
  */
@@ -29,7 +29,7 @@ import {
   ShopifyHarness,
 } from "./shopify-harness.ts";
 
-/** One required behavior: a spec case by number, or a package case (`N…`). */
+/** One required behavior: an authentication case by number, or a package case (`N…`). */
 export interface RequiredBehavior {
   readonly id: string;
   readonly name: string;
