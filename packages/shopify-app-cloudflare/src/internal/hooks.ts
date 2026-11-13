@@ -1,11 +1,3 @@
-/**
- * The app's lifecycle hooks: behavior the package runs at fixed points of an uninstall and a plan
- * check. A service, not layer options, because a hook needs the app's own services (its shop
- * actors), which exist only above the layer that provides `Shopify`.
- *
- * @module
- */
-
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -59,10 +51,6 @@ const noop: ShopifyHooksShape = {
   afterPlanRevalidated: () => Effect.void,
 };
 
-/**
- * A hook whose policy is best-effort: a failure or defect is logged at Warning, with `shop`, and
- * swallowed. An interruption is not a hook's failure, so it propagates.
- */
 export const bestEffort = (
   hook: Exclude<keyof ShopifyHooksShape, "afterUninstall">,
   shop: ShopDomain,

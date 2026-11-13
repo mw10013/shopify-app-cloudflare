@@ -1,11 +1,3 @@
-/**
- * Live routes: a route names its notice keys in `staticData.live`, a notice naming one reruns its
- * loader, a loader reads over the actor socket while it is open, and a failed reread keeps the
- * last answer.
- *
- * @module
- */
-
 import { type AnyRouteMatch, type AnyRouter, isNotFound, isRedirect } from "@tanstack/react-router";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
@@ -42,7 +34,6 @@ export interface LiveRead<Client, A> {
   readonly socket: (client: Client) => Effect.Effect<A, unknown>;
 }
 
-/** The socket failed to carry the read (`RpcClientError`): the server function can still answer. */
 const transportFailed = (cause: Cause.Cause<unknown>) =>
   Result.match(Cause.findError(cause), {
     onSuccess: (error) => Predicate.isTagged(error, "RpcClientError"),

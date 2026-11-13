@@ -22,7 +22,12 @@ import * as Option from "effect/Option";
 import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 
-import { e2eStatus, e2eWebhooks, tokenMatches, withE2eRoutes } from "#test/e2e-backend.ts";
+import {
+  e2eStatus,
+  e2eWebhooks,
+  tokenMatchesInConstantTime,
+  withE2eRoutes,
+} from "#test/e2e-backend.ts";
 import {
   E2E_SESSION_BINDING,
   E2E_SESSION_FILE,
@@ -55,7 +60,6 @@ const installed = () =>
     ],
   });
 
-/** The route's answer to `search` as the Website would receive it; a `null` token sends none. */
 const ask = (
   search: string,
   {
@@ -83,7 +87,6 @@ describe("the e2e status route", () => {
     Effect.gen(function* () {
       const { status, body } = yield* ask(`?shop=${SHOP}`);
       assert.strictEqual(status, 200);
-      // The seed's insert ran at the test clock's start.
       assert.deepStrictEqual(JSON.parse(body), {
         shop: SHOP,
         installed: true,
@@ -140,14 +143,14 @@ describe("the e2e status route", () => {
   );
 });
 
-describe("tokenMatches", () => {
+describe("tokenMatchesInConstantTime", () => {
   it("only the same token matches", () => {
     const expected = Redacted.make(TOKEN);
-    assert.isTrue(tokenMatches(expected, TOKEN));
-    assert.isFalse(tokenMatches(expected, undefined));
-    assert.isFalse(tokenMatches(expected, ""));
-    assert.isFalse(tokenMatches(expected, `${TOKEN}a`));
-    assert.isFalse(tokenMatches(expected, "b".repeat(64)));
+    assert.isTrue(tokenMatchesInConstantTime(expected, TOKEN));
+    assert.isFalse(tokenMatchesInConstantTime(expected, undefined));
+    assert.isFalse(tokenMatchesInConstantTime(expected, ""));
+    assert.isFalse(tokenMatchesInConstantTime(expected, `${TOKEN}a`));
+    assert.isFalse(tokenMatchesInConstantTime(expected, "b".repeat(64)));
   });
 });
 
@@ -246,7 +249,6 @@ describe("the e2e webhook record", () => {
   );
 });
 
-/** A Backend body: a webhook route that answers 200 and 404 elsewhere, and a binding method. */
 const appBody = Effect.succeed({
   fetch: Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;

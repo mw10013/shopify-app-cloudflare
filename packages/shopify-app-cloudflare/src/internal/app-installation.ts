@@ -1,26 +1,10 @@
-/**
- * The `AppInstallation` row's schemas, apart from the store that reads them so `/contract` can
- * export the redacted projection without loading D1: an app's Backend sends what
- * `AppInstallations` answers across a binding, and its Website decodes it with the same schema.
- *
- * @module
- */
-
 import * as Schema from "effect/Schema";
 import * as Struct from "effect/Struct";
 
 import { ShopDomain, ShopGid } from "./domain.ts";
 
-/** An instant as an `AppInstallation` column stores it: epoch milliseconds, null when unset. */
 const StoredInstant = Schema.NullOr(Schema.DateTimeUtcFromMillis);
 
-/**
- * An `AppInstallation` row: the app installed on one shop, from the first mint until
- * uninstall, with every column the package's migrations create but the two refresh columns,
- * unused since the application-only grant and always null. Apps add no column here; their
- * per-shop data lives in their own tables, which cascade from this one. A row with a column a
- * later migration added still decodes: the struct ignores a property it does not name.
- */
 export const AppInstallation = Schema.Struct({
   shop: ShopDomain,
   shopGid: ShopGid,

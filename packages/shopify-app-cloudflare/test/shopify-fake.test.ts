@@ -23,7 +23,6 @@ const layer = Layer.merge(tokens, ShopifyFake.layer);
 
 const mint = Effect.flatMap(AppTokens, (appTokens) => appTokens.mint(SHOP));
 
-/** A token request as `AppTokens` sends one, its form fields replaced or added by `over`. */
 const post = (over: Record<string, string>) =>
   Effect.promise(async () => {
     const response = await abstractFetch(TOKEN_URL, {

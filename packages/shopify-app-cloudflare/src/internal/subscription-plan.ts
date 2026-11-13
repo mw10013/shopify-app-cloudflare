@@ -1,10 +1,3 @@
-/**
- * `SubscriptionPlan`: the shop's plan, from the `AppInstallation` row's plan cache when fresh and
- * from the Partner API when not, read through the app's catalog.
- *
- * @module
- */
-
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
@@ -44,14 +37,12 @@ export const PLAN_HANDLE_BOUNDARY_SKEW = Duration.minutes(5);
  */
 export const PLAN_HANDLE_MANAGE_WINDOW = Duration.minutes(15);
 
-/** How many shops the daily revalidation reads from the Partner API at once. */
 export const STALE_PLAN_CONCURRENCY = 4;
 
 /**
  * The cache deadline for a revalidation at `now`: {@link PLAN_HANDLE_MAX_AGE}, clamped to the
  * subscription boundary plus {@link PLAN_HANDLE_BOUNDARY_SKEW}, since the subscription changes
- * there unannounced (a cycle rolls, a trial ends). A boundary already past is ignored: honoring
- * it would write a deadline behind `now` and send every request to the Partner API.
+ * there unannounced (a cycle rolls, a trial ends).
  */
 export const planHandleExpiresAt = (
   now: DateTime.Utc,
@@ -63,7 +54,6 @@ export const planHandleExpiresAt = (
   return DateTime.isGreaterThan(settled, now) ? DateTime.min(maxAge, settled) : maxAge;
 };
 
-/** Whether a cache deadline of `expiresAt` still holds at `now`: never fetched is not fresh. */
 export const isPlanCacheFresh = (expiresAt: DateTime.Utc | null, now: DateTime.Utc) =>
   expiresAt !== null && DateTime.isLessThan(now, expiresAt);
 
@@ -75,11 +65,6 @@ export type PlanCacheRow = Pick<
 
 const UNSUBSCRIBED = { _tag: "Unsubscribed" } as const satisfies PlanStatus;
 
-/**
- * The cached status, or `None` when it cannot be trusted: never fetched, past its deadline, or a
- * handle outside the catalog (the catalog moved, so Shopify is asked again). A null handle under
- * a future deadline is a verified absence of any subscription.
- */
 export const cachedStatus = (
   row: PlanCacheRow,
   now: DateTime.Utc,
@@ -94,7 +79,6 @@ export const cachedStatus = (
   }));
 };
 
-/** Whether the row's plan was never fetched: the first read of a shop is not a change. */
 const neverFetched = (row: PlanCacheRow) =>
   row.planHandle === null && row.planHandleExpiresAt === null;
 
@@ -185,8 +169,6 @@ const make = (catalog: PlanCatalog) =>
         planHandleExpiresAt: planHandleExpiresAt(yield* DateTime.now, next?.boundaryAt ?? null),
         planBoundaryAt: next?.boundaryAt ?? null,
       });
-      // Info, not Debug: the only record of what the Partner API said the shop's plan was, which
-      // then answers every check for up to a day. One line per shop per expiry or redirect.
       yield* Effect.logInfo(
         `SubscriptionPlan.revalidate: shop=${row.shop} handle=${next?.handle ?? "none"}`,
       ).pipe(Effect.annotateLogs({ shop: row.shop, handle: next?.handle ?? "none" }));
@@ -198,7 +180,6 @@ const make = (catalog: PlanCatalog) =>
           shopGid: row.shopGid,
           previous: Option.getOrNull(catalog.parse(row.planHandle)),
           next,
-          // On the stored string, so a handle the catalog dropped reads as a change too.
           changed: !neverFetched(row) && (next?.handle ?? null) !== row.planHandle,
         }),
       );
@@ -233,7 +214,6 @@ const make = (catalog: PlanCatalog) =>
         shop,
         expiresAt: DateTime.addDuration(yield* DateTime.now, PLAN_HANDLE_MANAGE_WINDOW),
       });
-      // After the deadline, which is what the press must not lose if the button stops waiting.
       yield* bestEffort("beforePlanChange", shop, hooks.beforePlanChange(shop));
       yield* Effect.logInfo(`SubscriptionPlan.expectChange: shop=${shop} status=shortened`).pipe(
         Effect.annotateLogs({ shop, status: "shortened" }),

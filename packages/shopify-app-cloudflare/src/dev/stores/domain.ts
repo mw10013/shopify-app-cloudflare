@@ -1,10 +1,3 @@
-/**
- * Nothing here touches the file system or the clock: the shell gathers facts and hands them in.
- * The one stored value is {@link State}; who holds a store and which leases are stale are derived
- * from it, never stored.
- *
- * @module
- */
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
@@ -42,10 +35,6 @@ export interface Policy {
   readonly stores: readonly StoreDomain[];
 }
 
-/**
- * A lease's identity. `project` is not part of it: one path holds one app, so a rename keeps the
- * lease.
- */
 export const LeaseKey = Schema.Struct({
   machine: MachineName,
   checkout: CheckoutPath,
@@ -53,20 +42,16 @@ export const LeaseKey = Schema.Struct({
 });
 export type LeaseKey = typeof LeaseKey.Type;
 
-/**
- * A struct that keeps the fields it does not name, so a field another writer added, an older
- * generation's `ports` included, survives this one's rewrite.
- */
-const Open = <const Fields extends Schema.Struct.Fields>(fields: Fields) =>
+const StructKeepingUnknownFields = <const Fields extends Schema.Struct.Fields>(fields: Fields) =>
   Schema.StructWithRest(Schema.Struct(fields), [Schema.Record(Schema.String, Schema.Unknown)]);
 
-export const StoreGrant = Open({
+export const StoreGrant = StructKeepingUnknownFields({
   domain: StoreDomain,
   config: Schema.NonEmptyString,
 });
 export type StoreGrant = typeof StoreGrant.Type;
 
-export const Lease = Open({
+export const Lease = StructKeepingUnknownFields({
   key: LeaseKey,
   project: ProjectName,
   store: StoreGrant,
@@ -74,7 +59,7 @@ export const Lease = Open({
 });
 export type Lease = typeof Lease.Type;
 
-export const State = Open({ leases: Schema.Array(Lease) });
+export const State = StructKeepingUnknownFields({ leases: Schema.Array(Lease) });
 export type State = typeof State.Type;
 
 export const EMPTY_STATE: State = { leases: [] };

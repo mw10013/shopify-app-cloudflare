@@ -1,10 +1,3 @@
-/**
- * The orphan sweep's admin route options: the stage's `ShopActor` objects, and the orphans among
- * them with a Destroy each. Each takes the app's server functions and owns the rest.
- *
- * @module
- */
-
 import { type AnyRouter, useLoaderData, useRouter, useSearch } from "@tanstack/react-router";
 import * as Schema from "effect/Schema";
 import { useState } from "react";
@@ -34,7 +27,6 @@ function StoredData({ hasStoredData }: Pick<ShopActorObject, "hasStoredData">) {
   );
 }
 
-/** The inventory's search: the batch's `cursor` and the table page within it, from 0. */
 const ShopActorObjectsSearch = Schema.Struct({
   ...ShopActorObjectsRequest.fields,
   page: Schema.optional(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
@@ -48,10 +40,6 @@ const useNavigateSearch = () => {
   };
 };
 
-/**
- * Every `ShopActor` object of one batch, {@link INVENTORY_TABLE_LIMIT} to a table page, with its
- * stored data as Cloudflare reports it.
- */
 function ShopActorObjects() {
   const data = useLoaderData({ strict: false }) as unknown as ShopActorObjectsData;
   const { cursor, page = 0 } = useSearch({ strict: false }) as unknown as ShopActorObjectsSearch;
@@ -141,17 +129,11 @@ export const adminShopActorObjects = ({
   component: ShopActorObjects,
 });
 
-/** Destroy's server function: `null` once the object is emptied, else why it was not. */
 type DestroyOrphan = ServerCall<
   DestroyOrphanRequest,
   null | { readonly _tag: "OrphanInstalledError" }
 >;
 
-/**
- * The orphans in one batch of the stage's `ShopActor` objects, each with Destroy, which empties
- * it by id and never creates one. A tombstone (`hasStoredData: false`) is listed without
- * Destroy: it holds nothing, and destroying it again changes nothing.
- */
 function OrphanShopActorObjects({ destroy }: { readonly destroy: DestroyOrphan }) {
   const router: AnyRouter = useRouter();
   const data = useLoaderData({ strict: false }) as unknown as OrphanShopActorObjectsData;

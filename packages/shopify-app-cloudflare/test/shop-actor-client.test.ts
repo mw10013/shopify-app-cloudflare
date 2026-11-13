@@ -51,7 +51,6 @@ describe("/client", () => {
 const closed = (code: number) =>
   new Socket.SocketError({ reason: new Socket.SocketCloseError({ code }) });
 
-/** Whether the policy continues after one input, stepped directly (no time passes). */
 const continuesAfter = (error: Socket.SocketError) =>
   Effect.gen(function* () {
     const step = yield* Schedule.toStep(retryPolicy(() => Effect.void));

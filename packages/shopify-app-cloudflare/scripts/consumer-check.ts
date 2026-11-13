@@ -29,7 +29,6 @@ const NAME = "@mw10013/shopify-app-cloudflare";
 
 const WORKSPACE = path.dirname(path.dirname(PACKAGE));
 
-/** Every public entry. */
 const SUBPATHS = [
   "backend",
   "contract",
@@ -54,7 +53,6 @@ const SUBPATHS = [
   "dev/worktree",
 ] as const;
 
-/** The entries a consumer loads in Node, which must load there. */
 const NODE_REQUIRED: readonly string[] = [
   "contract",
   "stack",
@@ -97,7 +95,6 @@ const exact = (name: string, ranges: unknown) => {
 };
 const peer = (name: string) => exact(name, source.peerDependencies);
 
-/** The throwaway project's manifest: the package under `spec`, its peers, and the tools. */
 const consumerManifest = (spec: string) => ({
   name: "consumer-check",
   private: true,
@@ -123,11 +120,6 @@ const consumerManifest = (spec: string) => ({
   },
 });
 
-/**
- * The project's files besides its manifest. `tsconfig.json` is the testbed's (node and workers
- * types, DOM) made stricter, with `skipLibCheck: false` so that the package's own `.d.mts` files
- * are checked; {@link packageErrors} keeps the errors in them and in `entries.ts`.
- */
 const PROJECT_FILES: Record<string, string> = {
   "pnpm-workspace.yaml": "allowBuilds:\n  esbuild: true\n  workerd: true\n",
   "tsconfig.json": JSON.stringify({
@@ -232,11 +224,6 @@ export default defineConfig({
 `,
 };
 
-/**
- * The environment of every command: `PATH` and `TMPDIR` from this process, a `HOME` of the
- * check's own, and git with no config and no prompt. Nothing else is inherited, so no token or
- * registry credential reaches the install.
- */
 const cleanEnv = (home: string): Record<string, string> => ({
   PATH: process.env.PATH ?? "",
   ...(process.env.TMPDIR === undefined ? {} : { TMPDIR: process.env.TMPDIR }),
@@ -247,7 +234,6 @@ const cleanEnv = (home: string): Record<string, string> => ({
   CI: "1",
 });
 
-/** Runs `command` in `cwd` under `env` alone; its output, or a failure carrying it. */
 const run = Effect.fn("ConsumerCheck.run")(function* (
   cwd: string,
   env: Record<string, string>,
@@ -272,7 +258,6 @@ const run = Effect.fn("ConsumerCheck.run")(function* (
 const succeeded = (result: { readonly ok: boolean; readonly output: string }) =>
   result.ok ? Effect.succeed(result.output) : new CheckFailedError({ message: result.output });
 
-/** Builds `dist/` and packs it as `npm publish ./dist` would. Returns the tarball's `file:` spec. */
 const packDist = Effect.fn("ConsumerCheck.packDist")(function* (
   directory: string,
   env: Record<string, string>,
@@ -303,8 +288,7 @@ const packageErrors = (output: string) => {
 
 interface Step {
   readonly name: string;
-  /** Whether a failure here leaves nothing for the later steps to check. */
-  readonly gates: boolean;
+  readonly blocksLaterSteps: boolean;
   readonly check: Effect.Effect<
     string,
     unknown,
@@ -328,7 +312,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
   return [
     {
       name: "spec",
-      gates: true,
+      blocksLaterSteps: true,
       check: Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         yield* fs.makeDirectory(home, { recursive: true });
@@ -338,7 +322,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: "write package.json",
-      gates: true,
+      blocksLaterSteps: true,
       check: Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         yield* fs.makeDirectory(project);
@@ -353,7 +337,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: "pnpm install writes the lockfile",
-      gates: true,
+      blocksLaterSteps: true,
       check: Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         yield* succeeded(
@@ -366,7 +350,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: "pnpm install --frozen-lockfile into a cold store",
-      gates: true,
+      blocksLaterSteps: true,
       check: Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         yield* fs.remove(path.join(project, "node_modules"), { recursive: true });
@@ -383,7 +367,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: `tsc --noEmit over all ${String(SUBPATHS.length)} entries`,
-      gates: false,
+      blocksLaterSteps: false,
       check: Effect.gen(function* () {
         const { ok, output } = yield* inProject(bin("tsc"), ["--noEmit", "-p", "tsconfig.json"]);
         const { ours, others } = packageErrors(output);
@@ -395,7 +379,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: "import the entries in Node",
-      gates: false,
+      blocksLaterSteps: false,
       check: Effect.gen(function* () {
         const output = yield* succeeded(yield* inProject("node", ["node-imports.mjs"]));
         const imported = JSON.parse(output.trim().split("\n").at(-1) ?? "[]") as readonly {
@@ -414,7 +398,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: "the stores bin lists an empty pool",
-      gates: false,
+      blocksLaterSteps: false,
       check: Effect.gen(function* () {
         const output = yield* succeeded(yield* inProject(bin("stores"), ["list"]));
         if (!output.includes("stores: 0 pooled"))
@@ -424,7 +408,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: "workerd serves /backend, /website and /test/e2e/backend",
-      gates: false,
+      blocksLaterSteps: false,
       check: Effect.gen(function* () {
         yield* succeeded(yield* inProject("node", ["bundle-worker.mjs"]));
         const output = yield* succeeded(yield* inProject("node", ["run-worker.mjs"]));
@@ -433,7 +417,7 @@ const steps = (root: string, spec: string | undefined): readonly Step[] => {
     },
     {
       name: "playwright test --list from node_modules",
-      gates: false,
+      blocksLaterSteps: false,
       check: Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const output = yield* succeeded(yield* inProject(bin("playwright"), ["test", "--list"]));
@@ -461,7 +445,7 @@ const check = Effect.fn("ConsumerCheck.check")(function* (spec: string | undefin
   );
   const results: StepResult[] = [];
   let blockedBy: string | undefined;
-  for (const { name, gates, check: stepCheck } of steps(root, spec)) {
+  for (const { name, blocksLaterSteps, check: stepCheck } of steps(root, spec)) {
     if (blockedBy !== undefined) {
       results.push({ name, status: "SKIP", detail: `${blockedBy} failed` });
       continue;
@@ -475,7 +459,7 @@ const check = Effect.fn("ConsumerCheck.check")(function* (spec: string | undefin
         status: "FAIL",
         detail: failure instanceof CheckFailedError ? failure.message : String(failure),
       });
-      if (gates) blockedBy = name;
+      if (blocksLaterSteps) blockedBy = name;
     }
   }
   return { results, kept: keep ? root : undefined };

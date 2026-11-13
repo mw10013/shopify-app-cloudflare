@@ -1,9 +1,3 @@
-/**
- * Imports only `effect`, so the Website and the browser load it without Better Auth.
- *
- * @module
- */
-
 import * as Duration from "effect/Duration";
 import * as Rpc from "effect/rpc/Rpc";
 import * as RpcGroup from "effect/rpc/RpcGroup";

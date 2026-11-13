@@ -37,13 +37,8 @@ interface Seen {
   readonly body: unknown;
 }
 
-/** A reply that never comes: the request hangs. */
 const HANG = "hang";
 
-/**
- * `PartnerApi.layer` over an `HttpClient` that answers each request with the next of `replies`,
- * the last one repeating.
- */
 const partnerOver = (replies: readonly ((() => Response) | typeof HANG)[]) => {
   const seen: Seen[] = [];
   const client = HttpClient.make((request) =>
@@ -73,7 +68,6 @@ const partnerOver = (replies: readonly ((() => Response) | typeof HANG)[]) => {
 const subscription = (activeSubscription: unknown) => () =>
   Response.json({ data: { activeSubscription } });
 
-/** A 200 whose headers arrive and whose body never finishes. */
 const hangingBody = () =>
   new Response(new ReadableStream({ start: () => undefined }), {
     status: 200,

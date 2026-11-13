@@ -1,11 +1,3 @@
-/**
- * The admin section's frame, built from the app's route tree: the `/admin` layout's one page with
- * its heading, breadcrumb, Sign out and error banner, and the home page that lists the section's
- * pages. A route joins the section by declaring `staticData.admin`.
- *
- * @module
- */
-
 import {
   type AnyRouter,
   createLink,
@@ -102,10 +94,6 @@ export const searchOrFirstPage = <T extends object>(schema: Schema.Decoder<T>, f
   return (search: Record<string, unknown>): T => Option.getOrElse(decode(search), () => firstPage);
 };
 
-/**
- * Every admin loader's `staleReloadMode`: a revisit waits for a fresh reading instead of painting
- * the last one, since an admin comes back to check whether something just changed.
- */
 export const STALE_RELOAD_MODE = "blocking" as const;
 
 /** A call to one of the app's server functions, which the app creates and hands its route. */
@@ -118,14 +106,8 @@ export type ServerCall<Input, Output> = (options: { readonly data: Input }) => P
 const isSignedOut = (error: unknown) =>
   Option.isSome(Schema.decodeUnknownOption(UnauthorizedError)(error));
 
-/** How a press ended when the server function sent the browser elsewhere, as to sign-in. */
 export const REDIRECTED = "Redirected";
 
-/**
- * `call` as TanStack Start's `useServerFn` makes it, a redirect the server function throws
- * followed in the app, and a signed-out failure handed to the app's `/admin` guard. Both answer
- * {@link REDIRECTED}.
- */
 export const useServerCall = <Input, Output>(call: ServerCall<Input, Output>) => {
   const router: AnyRouter = useRouter();
   return async (data: Input): Promise<Output | typeof REDIRECTED> => {
@@ -143,11 +125,6 @@ export const useServerCall = <Input, Output>(call: ServerCall<Input, Output>) =>
   };
 };
 
-/**
- * The section's one page. Its heading is the deepest matched admin page's title, its breadcrumb
- * the admin page above that. Sign out reloads the matches, so the app's `/admin` guard sends the
- * signed-out visitor to the app's own sign-in page.
- */
 function AdminChrome({ children }: { readonly children: ReactNode }) {
   const router: AnyRouter = useRouter();
   const pages = (useMatches() as unknown as readonly AdminMatch[]).flatMap((match) =>
@@ -188,10 +165,6 @@ function AdminLayout() {
   );
 }
 
-/**
- * A failure anywhere under `/admin`, as a banner in the page it failed on. A signed-out failure
- * shows no banner and reloads the matches instead, as Sign out does.
- */
 function AdminError({ error }: ErrorComponentProps) {
   const router: AnyRouter = useRouter();
   const signedOut = isSignedOut(error);

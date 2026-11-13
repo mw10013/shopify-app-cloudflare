@@ -1,9 +1,3 @@
-/**
- * The actor socket's state as the page shows it, and what each close code means for it.
- *
- * @module
- */
-
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
@@ -46,7 +40,6 @@ export const socketStateAtom = Atom.make<SocketState>("connecting").pipe(Atom.ke
 /** Bumped by the banner's Reconnect; the protocol reads it, so a bump rebuilds it. */
 export const reconnectAtom = Atom.make(0).pipe(Atom.keepAlive);
 
-/** How long a lost socket stays quiet before the page says so; most reconnects are faster. */
 const LOST_GRACE = Duration.seconds(4);
 
 /** True once {@link socketStateAtom} has been `lost` for {@link LOST_GRACE}. */
@@ -76,7 +69,6 @@ export type CloseOutcome =
   | { readonly _tag: "Retry"; readonly reask: boolean }
   | { readonly _tag: "Stop"; readonly code: number };
 
-/** The 44xx closes: the gate's refusals, the actor's refusal of an unidentified socket, and its uninstall. */
 const isRefusal = (code: number) => code >= 4400 && code < 4500;
 
 const closeCode = (error: Socket.SocketError) =>

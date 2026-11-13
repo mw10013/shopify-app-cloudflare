@@ -29,7 +29,6 @@ const SHOP = "guard-shop.myshopify.com";
 const HOST = btoa("admin.shopify.com/store/guard-shop").replaceAll("=", "");
 const CONTEXT = { shop: SHOP, apiKey: API_KEY };
 
-/** Stands in for TanStack's `redirect`: the options, thrown as they came. */
 class Redirected {
   readonly options: RedirectOptions;
   constructor(options: RedirectOptions) {
@@ -38,15 +37,9 @@ class Redirected {
 }
 const redirect = (options: RedirectOptions) => new Redirected(options);
 
-/** Plan selection, where `authenticateApp` sends a shop with no app subscription. */
 const PLANS = "/auth/exit-iframe?exitIframe=plans";
-/** Typed as the app's `Redirect` answers it. */
 const toPlans: unknown = redirect({ href: PLANS, reloadDocument: true });
 
-/**
- * Reads that record each `authenticateApp` call; `bearer` is whether the document carried one.
- * Clearing `shop.subscribed` makes `authenticateApp` throw as it does for an unsubscribed shop.
- */
 const reads = (bearer = false) => {
   const calls: AuthenticateAppInput[] = [];
   const shop = { subscribed: true };
@@ -67,7 +60,6 @@ const reads = (bearer = false) => {
 
 const location = (searchStr: string) => ({ pathname: "/app", searchStr });
 
-/** What `run` threw; fails if it answered instead. */
 const thrown = (run: () => unknown) => {
   try {
     run();
@@ -77,7 +69,6 @@ const thrown = (run: () => unknown) => {
   return assert.fail("it answered");
 };
 
-/** The href of the redirect the guard threw; fails if it answered instead. */
 const redirectHref = async (run: Promise<unknown>) => {
   const error = await run.then(
     () => assert.fail("the guard answered"),

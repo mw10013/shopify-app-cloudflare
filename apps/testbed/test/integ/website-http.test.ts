@@ -15,13 +15,6 @@ import { door } from "./door.ts";
 import { fileStage } from "./file-stage.ts";
 import Stack from "./website-stack.ts";
 
-/**
- * The built Website's HTTP answers in workerd, over the test Backend: the App Home's refusals as
- * `shopify-auth.md` gives them (the bearer's `401` and retry header, a browser server function's
- * bare `401`, a document's ID token bounce), the way to plan selection, `/auth/exit-iframe`, and
- * the outage page. What a browser does with them (App Bridge's retry, the router following a
- * `reloadDocument` redirect, hydration) is the e2e pack's.
- */
 const { test, beforeAll, afterAll, deploy, destroy } = Test.make({
   providers: Cloudflare.providers(),
   stage: fileStage("websitehttp"),
@@ -36,14 +29,12 @@ const SHOP_GID = Schema.decodeUnknownSync(ShopGid)("gid://shopify/Shop/11");
 const HOST = btoa("admin.shopify.com/store/http-shop").replaceAll("=", "");
 const RETRY = "X-Shopify-Retry-Invalid-Session-Request";
 
-/** The stack, its door reset first. */
 const fresh = Effect.gen(function* () {
   const urls = yield* stack;
   yield* door(urls.backendUrl, (client) => client.Reset({}));
   return urls;
 });
 
-/** A row with a fresh access token, so the guard does not mint, and `answer` scripted. */
 const seedWithPartner = (
   backendUrl: string,
   answer: { readonly _tag: "None" } | { readonly _tag: "Failure"; readonly reason: "partner-down" },
@@ -95,7 +86,6 @@ const callAuthenticateApp = (websiteUrl: string, bearer?: string) =>
     }),
   );
 
-/** The App Home as the Shopify admin embeds it. */
 const appHome = (websiteUrl: string, idToken?: string) => {
   const url = new URL("/app", websiteUrl);
   url.search = new URLSearchParams({

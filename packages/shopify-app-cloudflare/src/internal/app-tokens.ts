@@ -1,11 +1,3 @@
-/**
- * `AppTokens`: Admin API access tokens from Shopify's application-only grant, a
- * `client_credentials` request with a signed ES256 JWT client assertion. No merchant, no client
- * secret and no refresh token.
- *
- * @module
- */
-
 // Registers the library's runtime fetch, the one HTTP seam the fakes under `/test` patch.
 import "@shopify/shopify-api/adapters/web-api";
 import { abstractFetch } from "@shopify/shopify-api/runtime";
@@ -26,10 +18,6 @@ import { AppNotInstalledError, type ShopifyUnavailableError } from "./contract.t
 import type { ShopDomain } from "./domain.ts";
 import { isAlchemyRuntime, unavailable } from "./shopify-client.ts";
 
-/**
- * One HTTP attempt of a mint. An abandoned attempt needs no settling: whatever it issued retires
- * nothing.
- */
 export const MINT_ATTEMPT_DEADLINE = Duration.seconds(5);
 
 /**
@@ -38,14 +26,12 @@ export const MINT_ATTEMPT_DEADLINE = Duration.seconds(5);
  */
 export const MINT_TRANSIENT_RETRIES = 2;
 
-/** What a mint answers. `expires` is the request's send time plus `expires_in`. */
 export interface AppToken {
   readonly accessToken: string;
   readonly expires: DateTime.Utc;
   readonly scope: string;
 }
 
-/** The application-only grant's inputs: the client id and the registered key's private half. */
 export interface AppTokensOptions {
   readonly clientId: string;
   /** PKCS #8 PEM, P-256. */
@@ -64,7 +50,6 @@ export interface AppTokensShape {
   ) => Effect.Effect<AppToken, AppNotInstalledError | ShopifyUnavailableError>;
 }
 
-/** A mint attempt that may succeed if tried again. Never leaves this module. */
 class MintTransientError extends Data.TaggedError("MintTransientError")<{
   readonly reason: string;
   readonly httpStatus?: number | undefined;
@@ -82,7 +67,6 @@ const decodeMintResponse = Schema.decodeUnknownEffect(MintResponse);
 const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown));
 const decodeErrorField = Schema.decodeUnknownOption(Schema.Struct({ error: Schema.String }));
 
-/** Logs `AppTokens.mint: shop=<shop> status=<status>`, with the response's `x-request-id`. */
 const logMint = (
   log: (message: string) => Effect.Effect<void>,
   shop: ShopDomain,
@@ -143,7 +127,6 @@ const make = (options: AppTokensOptions) =>
       );
       const detail = { httpStatus: status, requestId };
       if (status >= 200 && status < 300) {
-        // The body may hold a token, so the defect carries none of it.
         const minted = yield* decodeMintResponse(text).pipe(
           Effect.tapError(() => logMint(Effect.logError, shop, "undecodable", detail)),
           Effect.mapError(() => new Error("the application-only grant's answer does not decode")),
@@ -197,16 +180,9 @@ const make = (options: AppTokensOptions) =>
     return { mint } satisfies AppTokensShape;
   });
 
-/** Application-only tokens by shop: the only way the package gets an Admin API token. */
 export class AppTokens extends Context.Service<AppTokens, AppTokensShape>()("app/AppTokens") {
-  /** Given the client id, the key and its `kid`; the key is imported as the layer builds. */
   static readonly layer = (options: AppTokensOptions) => Layer.effect(AppTokens, make(options));
 
-  /**
-   * Over `SHOPIFY_API_KEY`, `SHOPIFY_APP_TOKEN_KEY` and `SHOPIFY_APP_TOKEN_KID`, which the stack
-   * binds to the Backend. Absent while the stack is planned, when nothing mints; a running
-   * Worker without one, or with a key that does not import, fails its startup naming it.
-   */
   static readonly layerConfig = Layer.unwrap(
     Effect.gen(function* () {
       const { clientId, key, kid } = yield* appTokenConfig;

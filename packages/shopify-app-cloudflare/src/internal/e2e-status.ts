@@ -1,10 +1,3 @@
-/**
- * What an app's e2e-only routes answer and the end-to-end spec pack reads: the Backend
- * state Shopify's admin does not show.
- *
- * @module
- */
-
 import * as Schema from "effect/Schema";
 
 import { ShopDomain } from "./domain.ts";

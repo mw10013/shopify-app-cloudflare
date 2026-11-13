@@ -16,7 +16,7 @@ export const appFrame = (page: Page): FrameLocator =>
  * console, the Sidekick composer, the Sidekick field around it (its grey banner sits at the foot
  * of the content area, positioned absolutely, not fixed) and the toast viewport. The class stems
  * are Shopify's generated names and change without notice, so a caller that must not film an
- * overlay checks for one too, as `help-screenshots`' overlap check does.
+ * overlay checks for one too.
  */
 export const HIDE_OVERLAYS = `[class*="_Composer_"], [class*="_SidekickField_"], [class*="_MiniConsole_"], #admin-next-toast-viewport { visibility: hidden !important; }`;
 

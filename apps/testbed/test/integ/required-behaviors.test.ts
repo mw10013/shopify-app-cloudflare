@@ -8,12 +8,6 @@ import { door } from "./door.ts";
 import { fileStage } from "./file-stage.ts";
 import Stack from "./stack.ts";
 
-/**
- * Every required behavior inside the test Backend in workerd, through its `ShopifyTestDoor`:
- * against the real D1, migrated from the testbed's `migrations/`. A case that needs what only an
- * in-process harness has (the test clock) is skipped here and runs
- * in the unit suite.
- */
 const { test, beforeAll, afterAll, deploy, destroy } = Test.make({
   providers: Cloudflare.providers(),
   stage: fileStage("behaviors"),

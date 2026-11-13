@@ -1,10 +1,3 @@
-/**
- * `ShopActorObjects`: the orphan sweep's Backend half. It lists the stage's `ShopActor` objects
- * through Cloudflare's REST API, rules which no installation accounts for, and destroys one by id.
- *
- * @module
- */
-
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -142,10 +135,6 @@ const cloudflareApi = Config.all({
   script: Config.NonEmptyString(SHOP_ACTOR_OBJECTS_ENV.script),
 });
 
-/**
- * {@link listBatch} over the stage's bound values, read at each call so a stage whose bindings
- * are absent while the stack is planned still builds its layer.
- */
 const listConfigured = Effect.fnUntraced(function* (cursor: string | undefined) {
   const apiToken = yield* Config.option(Config.Redacted(SHOP_ACTOR_OBJECTS_ENV.apiToken)).pipe(
     Effect.orDie,

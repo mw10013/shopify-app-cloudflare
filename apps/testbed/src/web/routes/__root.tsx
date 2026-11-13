@@ -12,9 +12,6 @@ import type { ReactNode } from "react";
  * The document every page renders in. Polaris loads in `<head>`, after {@link HeadContent}, so a
  * route's own head script, such as App Bridge, which must be the document's first script, stays
  * ahead of it.
- *
- * Until React has hydrated, the server markup is painted but dead, so `inert` on `<body>` blocks
- * input for that window and `data-hydrated` marks its end.
  */
 function RootDocument({ children }: { children: ReactNode }) {
   const hydrated = useHydrated();

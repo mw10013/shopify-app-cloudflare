@@ -1,11 +1,3 @@
-/**
- * What crosses between the Backend and the common admin pages: the Shops list's request, the
- * shop page's request and answer, and the cached plan as an admin reads it. Imports only
- * `effect/Schema`, so the Website loads it without the library.
- *
- * @module
- */
-
 import * as Schema from "effect/Schema";
 
 import { AppInstallationRedacted } from "./app-installation.ts";

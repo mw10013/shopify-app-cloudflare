@@ -28,10 +28,6 @@ import type {
 } from "./shopify-harness.ts";
 import { signWebhook } from "./webhook.ts";
 
-/**
- * Stores `row` as a mint would: inserted, or its token written over an existing row. Unless
- * `installed` is false, the fake installs the app on the shop and recognizes the seeded token.
- */
 export const seedInstallation = (
   installations: AppInstallationStore["Service"],
   fake: ShopifyFake["Service"],
@@ -71,18 +67,12 @@ export const seedInstallation = (
       );
   });
 
-/** Shopify uninstalls the app from `shop`, then `app/uninstalled`'s delete runs. */
 export const uninstall = (
   installations: AppInstallationStore["Service"],
   fake: ShopifyFake["Service"],
   shop: ShopDomain,
 ) => Effect.andThen(fake.uninstall(shop), installations.delete(shop));
 
-/**
- * Hooks that record each call, and die once on a hook a case broke; `reset` forgets both. A call
- * not broken runs `app`'s hook, so an app's own hooks (its shop actors') still run under the
- * recording.
- */
 export const recordingHooks = (app: ShopifyHooksShape = ShopifyHooks.noop) => {
   const calls: string[] = [];
   const broken = new Set<HookName>();
@@ -119,11 +109,7 @@ export const recordingHooks = (app: ShopifyHooksShape = ShopifyHooks.noop) => {
   };
 };
 
-/**
- * Every line, Debug included, kept for the case, with the level Effect logged it at; Warning
- * and above also printed, so a failing case still shows its errors.
- */
-export const capturedLogs = () => {
+export const capturedLogsPrintingWarnings = () => {
   const lines: HarnessLogLine[] = [];
   const logger = Logger.make((options) => {
     const { message, logLevel } = options;
@@ -139,7 +125,6 @@ export const capturedLogs = () => {
   };
 };
 
-/** POSTs a delivery, signed as Shopify signs one unless `signed` is false, to `Webhooks.serve`: its status. */
 export const deliverTo =
   (webhooks: Webhooks["Service"]) =>
   ({ topic, shop, payload, signed }: HarnessDelivery) =>

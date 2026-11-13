@@ -1,9 +1,3 @@
-/**
- * The testbed's control door: what a test runner calls on a stage to drive it.
- *
- * @module
- */
-
 import { type Auth, siteAuthControlHandlers } from "@mw10013/shopify-app-cloudflare/backend";
 import { SiteAuthControlRpcs } from "@mw10013/shopify-app-cloudflare/contract";
 import * as Config from "effect/Config";
@@ -19,17 +13,12 @@ import * as Schema from "effect/Schema";
 
 export const CONTROL_PATH = "/api/control";
 
-/**
- * Who may call the door: anyone (`open`) or a caller bearing `CONTROL_TOKEN` (`token`). With
- * neither bound, the door answers `404`.
- */
 export const ControlAccess = Schema.Literals(["open", "token"]);
 export type ControlAccess = typeof ControlAccess.Type;
 
 const digest = (text: string) =>
   Effect.promise(() => crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
 
-/** `token` admits only `Bearer <token>`, compared by digest in constant time. */
 export const controlAllows = Effect.fnUntraced(function* (
   access: ControlAccess,
   token: Option.Option<Redacted.Redacted>,

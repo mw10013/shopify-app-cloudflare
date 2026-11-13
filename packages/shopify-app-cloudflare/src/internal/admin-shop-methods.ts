@@ -1,10 +1,3 @@
-/**
- * The Backend half of the common admin pages: the Shops list, the shop page and Refresh plan, as
- * the admin's Backend binding methods.
- *
- * @module
- */
-
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";

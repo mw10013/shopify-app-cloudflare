@@ -14,7 +14,6 @@
 import { performance } from "node:perf_hooks";
 
 import * as DateTime from "effect/DateTime";
-import type { BrowserContext, Page } from "playwright/test";
 
 import { appFrame, awaitHydration, closeDevConsole } from "#dev/embedded-app.ts";
 
@@ -36,7 +35,6 @@ import { adminContext, expect, openApp, readShopStatus, test } from "./fixtures.
 /** Shopify can take seconds to minutes to deliver `app/uninstalled`. */
 const UNINSTALL_DELIVERY_TIMEOUT = 3 * 60_000;
 
-/** A restarted server answers once Alchemy has deployed its Workers. */
 const SERVER_READY_TIMEOUT = 2 * 60_000;
 
 test("the app installs, subscribes, changes plan, uninstalls and reinstalls", async ({
@@ -51,11 +49,10 @@ test("the app installs, subscribes, changes plan, uninstalls and reinstalls", as
   const [first, second] = initial.plans;
 
   let app: E2eApp = initial;
-  let context: BrowserContext = await adminContext(browser, app, adminAuthFile);
-  let page: Page = await context.newPage();
+  let context = await adminContext(browser, app, adminAuthFile);
+  let page = await context.newPage();
   const status = () => readShopStatus(app, shop);
 
-  /** The App Home, hydrated, names the shop and `plan`. */
   const expectAppHome = async (plan: E2ePlan) => {
     const frame = appFrame(page);
     await awaitHydration(frame, 30_000);
@@ -64,7 +61,6 @@ test("the app installs, subscribes, changes plan, uninstalls and reinstalls", as
     await expect(frame.getByTestId("plan-handle")).toHaveText(plan.handle);
   };
 
-  /** Restarts the server, so its `shopify app dev` installs a dev preview on the store again. */
   const restart = async () => {
     await context.close();
     app = await restartServer(app);
@@ -86,11 +82,6 @@ test("the app installs, subscribes, changes plan, uninstalls and reinstalls", as
     page = await context.newPage();
   };
 
-  /**
-   * Opens the admin install URL until it lands in the app or on plan selection: Install on
-   * Shopify's install page, again when Shopify refused to open the app, and a restart when the
-   * store has the app but no dev preview of it.
-   */
   const install = async (): Promise<AdminLanding> => {
     let restarted = false;
     let refused = false;

@@ -1,10 +1,3 @@
-/**
- * The App Home's counter in the real Shopify admin: two tabs each hold an open socket to the
- * shop's actor, and an Increment in one shows in both, the other through its notice.
- *
- * @module
- */
-
 import { expect, openApp, test } from "@mw10013/shopify-app-cloudflare/test/e2e";
 import type { FrameLocator } from "playwright/test";
 

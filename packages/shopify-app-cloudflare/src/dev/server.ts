@@ -226,7 +226,6 @@ export const serverOutput = (args: readonly string[], stdout: string) => {
   );
 };
 
-/** Starts after the first whose port was taken. */
 const PORT_TAKEN_RETRIES = 2;
 
 /** Starts again while rigging server refuses a start because another process took its port. */
@@ -241,7 +240,6 @@ export const retryPortTaken = <A, E, R>(start: Effect.Effect<A, E | PortTakenErr
     }),
   );
 
-/** The app's own `rigging` bin, so the server runs under the version the app pinned. */
 const riggingBin = () => path.join(app().root, "node_modules/.bin/rigging");
 
 const riggingServer = Effect.fn("Server.riggingServer")(function* (args: readonly string[]) {

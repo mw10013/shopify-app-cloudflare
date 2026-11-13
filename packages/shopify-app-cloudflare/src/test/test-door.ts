@@ -34,7 +34,7 @@ import { Webhooks } from "#internal/webhooks.ts";
 
 import { behaviorApp } from "./behavior-app.ts";
 import {
-  capturedLogs,
+  capturedLogsPrintingWarnings,
   deliverTo,
   recordingHooks,
   seedInstallation,
@@ -103,7 +103,6 @@ export const ShopifyTestDoorRpcs = RpcGroup.make(
   }),
 );
 
-/** The hooks the door records, as {@link ShopifyTestDoor.shopifyApp} provides them. */
 class DoorHooks extends Context.Service<DoorHooks, ReturnType<typeof recordingHooks>>()(
   "app/ShopifyTestDoorHooks",
 ) {}
@@ -153,8 +152,6 @@ const make = Effect.gen(function* () {
 
   const ShopId = Schema.Struct({ shop: Schema.Struct({ id: Schema.String }) });
 
-  // A case calls the harness from inside a fake's reply too, which runs with no context: each
-  // call that reaches D1 is scoped, since the D1 client is memoized on the running call's `Scope`.
   const harnessOf = (logs: Effect.Effect<readonly HarnessLogLine[]>): ShopifyHarnessShape => ({
     can: SHOPIFY_TEST_DOOR_CAN,
     seed: (row) => Effect.scoped(seedInstallation(installations, fake, row)),
@@ -196,7 +193,7 @@ const make = Effect.gen(function* () {
         new Error(`ShopifyTestDoor.runBehavior: "${name}" needs ${missing.join(", ")}`),
       );
     yield* reset;
-    const logs = capturedLogs();
+    const logs = capturedLogsPrintingWarnings();
     const exit = yield* behavior.run.pipe(
       Effect.provideService(ShopifyHarness, harnessOf(logs.lines)),
       Effect.provideService(ShopifyFake, fake),
@@ -227,7 +224,6 @@ const make = Effect.gen(function* () {
   );
 
   return {
-    // Built per request, inside the request's scope.
     serve: Effect.flatten(
       RpcServer.toHttpEffect(ShopifyTestDoorRpcs).pipe(
         Effect.provide(Layer.merge(handlers, RpcSerialization.layerNdjson)),

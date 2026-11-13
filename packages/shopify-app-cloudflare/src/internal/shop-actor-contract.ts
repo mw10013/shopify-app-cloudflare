@@ -1,8 +1,4 @@
 /**
- * What crosses between a shop actor, the Backend's gate and the browser: the close codes, the
- * notice frames, the caller a socket carries and the middleware every procedure runs under. Free
- * of Alchemy and of `@shopify/shopify-api`, so the browser imports it.
- *
  * The close codes are a frozen contract. The Website and the Backend deploy separately, so a
  * browser can run another version than the actor: a release may add a code but never renumbers or
  * removes one.

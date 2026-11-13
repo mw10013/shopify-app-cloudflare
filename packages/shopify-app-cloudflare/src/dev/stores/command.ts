@@ -58,7 +58,7 @@ const report = <A, E extends { readonly _tag: string; readonly message: string }
           yield* printJson({
             format: FORMAT,
             error: {
-              ...Object.fromEntries(Object.entries(error)),
+              ...error,
               _tag: error._tag,
               message: error.message,
             },

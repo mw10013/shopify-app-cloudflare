@@ -1,11 +1,3 @@
-/**
- * What crosses between an app's Workers and the browser: the errors a call that needs the shop's
- * app installation can fail with, and the failure schemas a Backend method declares. Imports
- * only the brands, never `@shopify/shopify-api`, so the Website loads it without the library.
- *
- * @module
- */
-
 import * as Schema from "effect/Schema";
 
 import { ShopDomain, ShopGid } from "./domain.ts";

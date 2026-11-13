@@ -32,7 +32,6 @@ const row: AppInstallation = {
   installedAt: at(500),
 };
 
-/** {@link row} as a first mint inserts it. */
 const insert: AppInstallationInsert = {
   shop: row.shop,
   shopGid: row.shopGid,
@@ -41,12 +40,10 @@ const insert: AppInstallationInsert = {
   accessTokenExpiresAt: row.accessTokenExpiresAt,
 };
 
-/** A later mint's token. */
 const token = { scope: "write_orders", accessToken: "shpat_b", accessTokenExpiresAt: at(3000) };
 
 const encodeRow = Schema.encodeSync(AppInstallation);
 
-/** Inserts each of `rows` whole, as raw SQL. */
 const seed = ({ sqlite }: D1TestShape, rows: readonly AppInstallation[]) => {
   for (const installation of rows) {
     const encoded = encodeRow(installation);
@@ -59,7 +56,6 @@ const seed = ({ sqlite }: D1TestShape, rows: readonly AppInstallation[]) => {
   }
 };
 
-/** An app's own table, cascading from `AppInstallation` as the migration's header says to. */
 const createNoteTable = ({ sqlite }: D1TestShape) => {
   sqlite.exec(`create table Note (
     id integer primary key,
@@ -73,7 +69,6 @@ const createNoteTable = ({ sqlite }: D1TestShape) => {
 const noteCount = ({ sqlite }: D1TestShape) =>
   sqlite.prepare("select count(*) as n from Note where shop = ?").get(SHOP)?.n;
 
-/** The real SQL on a fresh `D1Test` seeded with `rows`; `D1Test` stays in context for raw SQL. */
 const layerD1 = (rows: readonly AppInstallation[]) =>
   AppInstallationStore.layerD1(D1Test.database).pipe(
     Layer.provideMerge(
@@ -93,7 +88,6 @@ const stored = Effect.gen(function* () {
   return Option.getOrThrow(yield* installations.find(SHOP));
 });
 
-/** Spec cases 1–3 and the plan cache, for the SQL and for the in-memory state. */
 describe.each([
   { backing: "D1", layer: layerD1 },
   { backing: "memory", layer: AppInstallationStore.layerMemory },

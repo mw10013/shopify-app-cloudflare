@@ -1,9 +1,3 @@
-/**
- * An app's public identity from its stage's `shopify.app*.toml`. Free of Alchemy, so the dev bins
- * read it without loading the stack.
- *
- * @module
- */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -13,11 +7,10 @@ import { AppHandle } from "./bindings.ts";
 
 const decodeAppHandle = Schema.decodeUnknownSync(AppHandle);
 
-/** A Shopify app's client ID, the toml's `client_id`, which is its API key: 32 hex digits. */
 const ClientId = Schema.NonEmptyString.check(Schema.isPattern(/^[0-9a-f]{32}$/u));
 const decodeClientId = Schema.decodeUnknownSync(ClientId);
 
-const pathOf = (tomlPath: string | URL): string =>
+export const pathOf = (tomlPath: string | URL): string =>
   tomlPath instanceof URL ? fileURLToPath(tomlPath) : tomlPath;
 
 /** An app's public identity, as its stage's `shopify.app*.toml` writes it. */

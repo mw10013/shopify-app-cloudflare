@@ -1,15 +1,5 @@
-/**
- * Stack-time helpers: what an app's `alchemy.run.ts` binds to its Backend so the package's
- * `layerConfig`s find it. Evaluated by `alchemy dev` and `alchemy deploy`; the Backend bundle
- * never imports it. Which app a stage serves is the app's choice, a `Match` on its environment,
- * so these helpers only read and bind.
- *
- * @module
- */
-
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import * as Alchemy from "alchemy";
@@ -35,7 +25,7 @@ import {
   FAKE_SHOPIFY_API_SECRET,
 } from "#test/fake-app.ts";
 
-import { type AppIdentity, readAppIdentity } from "./app-identity.ts";
+import { type AppIdentity, pathOf, readAppIdentity } from "./app-identity.ts";
 import {
   type PartnerConfig,
   partnerConfig,
@@ -64,19 +54,11 @@ export interface ShopifyAppBinding {
   readonly appTokenKid: string;
 }
 
-/**
- * The app's token signing key from the stage's environment (`.env` or a deploy's), never the
- * toml: the key is a secret, and the `kid` names it. Missing either fails the plan, naming it.
- */
 const appTokenKeyConfig = Config.all({
   appTokenKey: Config.Redacted("SHOPIFY_APP_TOKEN_KEY"),
   appTokenKid: Config.String("SHOPIFY_APP_TOKEN_KID"),
 });
 
-const pathOf = (tomlPath: string | URL): string =>
-  tomlPath instanceof URL ? fileURLToPath(tomlPath) : tomlPath;
-
-/** {@link readAppIdentity} as a `Config`, so a stage that never reaches it never reads the file. */
 const appIdentityConfig = (tomlPath: string | URL): Config.Config<AppIdentity> =>
   Config.succeed(tomlPath).pipe(
     Config.mapEffect((path) =>
@@ -250,7 +232,6 @@ export const bindE2eSession = Effect.fn("Stack.bindE2eSession")(function* (
   yield* backend.bind(E2E_SESSION_BINDING, { env: e2eSessionEnv(session) });
 });
 
-/** A stage's environment, as rigging's `environmentOf` names it. */
 export type SiteAuthEnvironment = "dev" | "test" | "e2e" | "staging" | "production";
 
 const siteAuthOf = (
@@ -289,7 +270,6 @@ export interface SiteUserSeed {
   readonly role: Role;
 }
 
-/** Fixed, so the seed's SQL, which the Action's input carries, stays the same across deploys. */
 const SEEDED_AT = "2026-01-01T00:00:00.000Z";
 
 const decodeEmail = Schema.decodeUnknownSync(Email);
@@ -308,8 +288,9 @@ export const siteUserSeedSql = (users: readonly SiteUserSeed[]): string => {
   return [
     `update user set role = 'user' where role = 'admin'${admins.length === 0 ? "" : ` and email not in (${admins.join(", ")})`};`,
     ...users.map(({ email, role }) => {
-      const address = sqlText(decodeEmail(email));
-      return `insert into user (id, name, email, emailVerified, role, banned, createdAt, updatedAt) values (${sqlText(`seed:${decodeEmail(email)}`)}, ${address}, ${address}, 1, ${sqlText(role)}, 0, '${SEEDED_AT}', '${SEEDED_AT}') on conflict (email) do update set role = excluded.role;`;
+      const normalized = decodeEmail(email);
+      const address = sqlText(normalized);
+      return `insert into user (id, name, email, emailVerified, role, banned, createdAt, updatedAt) values (${sqlText(`seed:${normalized}`)}, ${address}, ${address}, 1, ${sqlText(role)}, 0, '${SEEDED_AT}', '${SEEDED_AT}') on conflict (email) do update set role = excluded.role;`;
     }),
   ].join("\n");
 };

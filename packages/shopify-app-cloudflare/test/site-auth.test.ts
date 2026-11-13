@@ -56,7 +56,6 @@ const userRows = (address: Email) =>
     sqlite.prepare("select email, role from user where email = ?").all(address),
   );
 
-/** What crossed: the failure's value as the caller would receive it. */
 const crossed = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   Effect.map(Effect.exit(effect), (exit) => {
     assert.isTrue(Exit.isFailure(exit));
@@ -279,7 +278,6 @@ describe("the control door's IssueSignInCode", () => {
   );
 });
 
-/** A Rate Limit binding that admits `limit` calls per key. */
 const countingLimit = (limit: number) =>
   Effect.sync(() => {
     const counts = new Map<string, number>();

@@ -84,7 +84,6 @@ export const getAdminShop = createServerFn({ method: "GET" })
     backend().adminShop(requestInfo(), data).then(decodeAdminShopData).catch(rescueAdmin),
   );
 
-/** Answers `null` once the plan was re-read, else the sentence the Overview shows. */
 export const refreshPlan = createServerFn({ method: "POST" })
   .validator(Schema.toStandardSchemaV1(AdminShopRequest))
   .handler(({ data }) =>

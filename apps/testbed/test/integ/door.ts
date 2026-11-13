@@ -4,7 +4,6 @@ import * as Effect from "effect/Effect";
 import * as RpcClient from "effect/rpc/RpcClient";
 import type * as RpcClientError from "effect/rpc/RpcClientError";
 
-/** One call through the test Backend's {@link ShopifyTestDoorRpcs}. */
 export const door = <A, E>(
   backendUrl: string,
   f: (

@@ -21,8 +21,7 @@ const dateTimeUtcAdapter = createSerializationAdapter({
 /**
  * TanStack's serializer keeps only an `Error`'s message, so `ShopifyUnavailableError` crosses a
  * server function's failure and the route error SSR hands the browser as its encoded
- * `{ _tag, shop }`, and the App Home's error page still knows it after hydration. Ported from
- * baton's `src/web/start.ts`.
+ * `{ _tag, shop }`, and the App Home's error page still knows it after hydration.
  */
 export const shopifyUnavailableAdapter = createSerializationAdapter({
   key: "ShopifyUnavailableError",

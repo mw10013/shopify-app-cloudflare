@@ -52,7 +52,6 @@ const ExportedJwk = Schema.Struct({
 });
 const decodeExportedJwk = Schema.decodeUnknownEffect(ExportedJwk);
 
-/** A new key pair registered as `kid`: the private key as the env file holds it, and its JWK. */
 export const generateKey = Effect.fnUntraced(function* (kid: string) {
   const pair = yield* Effect.promise(() =>
     crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]),

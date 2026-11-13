@@ -37,10 +37,6 @@ const decodeApp = Schema.decodeUnknownSync(E2eApp);
 const decodeStatus = Schema.decodeUnknownPromise(E2eShopStatus);
 const decodeDeliveries = Schema.decodeUnknownPromise(E2eWebhookDeliveries);
 
-/**
- * GETs `url`, on the e2e server's local port (`localServerUrl`), with the status route's headers, and
- * answers its JSON body. A redirect fails the read, since it would carry the token elsewhere.
- */
 const getLocalJson = async (app: E2eApp, url: URL, name: string): Promise<unknown> => {
   const response = await fetch(url, {
     headers: app.status.headers,
@@ -57,20 +53,14 @@ export const readShopStatus = async (app: E2eApp, shop: string): Promise<E2eShop
   return decodeStatus(await getLocalJson(app, url, `${url.pathname}?shop=${shop}`));
 };
 
-/** Reads `app`'s e2e webhook record: the requests its Backend answered under `/webhooks/`. */
 export const readWebhookDeliveries = async (app: E2eApp): Promise<E2eWebhookDeliveries> => {
   const url = webhookRecordUrl(app);
   return decodeDeliveries(await getLocalJson(app, url, url.pathname));
 };
 
-/** The browser runs on this machine, so the app's tunnel is answered from its local port. */
 const routeToServer = (context: BrowserContext, app: E2eApp) =>
   routeAppToLocal(context, app.server);
 
-/**
- * The contexts this worker's specs opened in the agent Chrome, until each closes. Never the
- * default context of the CDP connection, whose tabs are other agents'.
- */
 const ownContexts = new Set<BrowserContext>();
 
 const own = (context: BrowserContext) => {
@@ -79,11 +69,6 @@ const own = (context: BrowserContext) => {
   return context;
 };
 
-/**
- * Attaches a snapshot of each page in `contexts` to a failed test, for what Playwright's own error
- * context would have shown. A page on any other site than the leased store's admin is named by
- * its origin only, since it could be another agent's store.
- */
 const attachFailureSnapshots = async (
   testInfo: TestInfo,
   app: E2eApp,
@@ -193,7 +178,6 @@ export const openApp = async (
   await page.goto(path, { waitUntil: "commit" });
   const frame = appFrame(page);
   const timeout = 30_000;
-  // The loser's wait rejects later, into the race's own handler.
   const landing = await Promise.race([
     ready(frame)
       .waitFor({ state: "attached", timeout })

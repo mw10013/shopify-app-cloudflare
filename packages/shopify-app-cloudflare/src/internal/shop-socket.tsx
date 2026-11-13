@@ -1,9 +1,3 @@
-/**
- * The page's socket to its shop's actor, and the banners that show what the page has lost.
- *
- * @module
- */
-
 import { RegistryContext, useAtomMount, useAtomSet, useAtomValue } from "@effect/atom-react";
 import { useHydrated, useRouter } from "@tanstack/react-router";
 import * as Option from "effect/Option";
@@ -28,19 +22,12 @@ import {
   CONNECTION_CLOSE_UNINSTALLED,
 } from "./shop-actor-contract.ts";
 
-/** What {@link SocketBanner} shows: its tone, its heading, and whether it offers Reconnect. */
 export interface BannerCopy {
   readonly tone: "warning" | "critical";
   readonly heading: string;
   readonly reconnect: boolean;
 }
 
-/**
- * The banner for the socket's state, if any. A stop that ended the socket for good, the uninstall
- * or a merchant's Shopify token the gate no longer accepts, is critical, with no Reconnect. A
- * member's 4401 is not: their session is the route's to judge, and its guard sends them to
- * sign-in when it is gone. `lost` is the grace `lostAtom` waits out before the page says so.
- */
 export const bannerCopy = (
   socket: SocketState,
   options: { readonly appName: string; readonly merchant: boolean; readonly lost: boolean },
@@ -152,10 +139,6 @@ interface SocketProps {
   readonly credential?: SocketCredential | undefined;
 }
 
-/**
- * Reruns the router's guards and loaders on each {@link reaskAtom}, asking the Backend rather
- * than any remembered answer.
- */
 function useReask() {
   const reask = useAtomValue(reaskAtom);
   const registry = useContext(RegistryContext);
@@ -169,10 +152,6 @@ function useReask() {
   }, [reask, registry, router]);
 }
 
-/**
- * The holder once hydrated: names the socket once, keeps it open, shows its banner. Rendered
- * before the pages, its siblings, so the socket is named before any page reads an atom.
- */
 function LiveShopSocket({ shop, notices, appName, credential = "merchant" }: SocketProps) {
   const registry = useContext(RegistryContext);
   const merchant = credential === "merchant";

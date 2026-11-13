@@ -1,9 +1,3 @@
-/**
- * Where the state lives and who is asking. There is no config file: the organization and the pool's
- * prefix are constants ({@link POOL}), the machine is the host name, and the checkout is the app.
- *
- * @module
- */
 import * as os from "node:os";
 
 import type { App } from "@mw10013/rigging/core/app";
@@ -16,7 +10,6 @@ import { CheckoutPath, MachineName, type Policy, ProjectName } from "./domain.ts
 import { formattedText, readFormatted } from "./format.ts";
 import { Pool } from "./pool.ts";
 
-/** One app in one checkout: the project is its `package.json` name and the path is its root. */
 export interface Checkout {
   readonly path: CheckoutPath;
   readonly project: ProjectName;

@@ -4,7 +4,6 @@ import { describe, expect, it } from "@effect/vitest";
 import { workerNameOf } from "@mw10013/rigging/cloudflare/stage";
 import { parse } from "smol-toml";
 
-/** The Cloudflare account's `workers.dev` subdomain, the one baton and motio deploy under. */
 const WORKERS_SUBDOMAIN = "mw10013.workers.dev";
 
 const read = (file: string) =>

@@ -34,10 +34,8 @@ import {
   SAMPLE_SHOP,
 } from "./webhook-deliveries.ts";
 
-/** Shopify delivers a triggered sample within seconds. */
 const DELIVERY_TIMEOUT = 60_000;
 
-/** How long the spec waits after a trigger's first delivery for a duplicate of it. */
 const DUPLICATE_SETTLE = 5000;
 
 const CLI_TIMEOUT = 60_000;

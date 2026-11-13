@@ -10,12 +10,7 @@ import { wireSiteAuth } from "#root/stacks/site-auth.ts";
 
 import TestBackend from "./backend.ts";
 
-/**
- * {@link TestBackend} and a test Website bound to it as `BACKEND`, for the test harness. The
- * Backend serves the fake app at the Website's URL with no Partner values: tier 2 runs over the
- * door's Partner fake instead. The real Website is left out: under dev it would start the
- * TanStack Start dev server and want `WEBSITE_PORT`.
- */
+/** The real Website is left out: under dev it would start the TanStack Start dev server and want `WEBSITE_PORT`. */
 export default Alchemy.Stack(
   "testbed-test",
   { providers: stageProviders, state: stageState },

@@ -47,7 +47,6 @@ export const readFormatted = <S extends Schema.Top & { readonly DecodingServices
     return yield* Schema.decodeUnknownEffect(schema)(body).pipe(Effect.mapError(invalid));
   });
 
-/** `value` as the text of a file, its `format` first. */
 export const formattedText = <S extends Schema.Top & { readonly EncodingServices: never }>(
   schema: S,
   value: S["Type"],

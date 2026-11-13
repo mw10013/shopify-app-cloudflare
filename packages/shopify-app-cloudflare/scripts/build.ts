@@ -3,10 +3,6 @@
  * `vp run build` builds the package into `dist/`, ready for `npm publish ./dist`: `package.json`
  * from {@link builtManifest}, an `.mjs` and a `.d.mts` file per module under `dist/dist/`, as
  * `vp pack` emits them from `src/`, the migrations an app copies, `LICENSE` and `README.md`.
- * `package.json` is the one list of the public surface and holds the version: the build's entries
- * are its `exports` targets, and {@link builtManifest} maps each of them into `dist/`, so no second
- * list exists to drift. The e2e pack's specs, setup and preflight are entries by glob, because
- * nothing imports them but Playwright loads them by path.
  *
  * @module
  */
@@ -23,7 +19,6 @@ export const PACKAGE = path.resolve(import.meta.dirname, "..");
 
 const WORKSPACE = path.resolve(PACKAGE, "../..");
 
-/** The package's own build output, the directory `npm publish` takes. */
 export const OUTPUT = path.join(PACKAGE, "dist");
 
 /** The modules Playwright loads by path from `testDir`, which no export reaches. */
@@ -40,7 +35,6 @@ const decodeSource = Schema.decodeUnknownSync(Source);
 const JsonObject = Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown));
 const decodeJsonObject = Schema.decodeUnknownEffect(JsonObject);
 
-/** The source `package.json`, which {@link entriesOf} and {@link builtManifest} read. */
 export const readSource = Effect.fnUntraced(function* () {
   const fs = yield* FileSystem.FileSystem;
   return yield* decodeJsonObject(yield* fs.readFileString(path.join(PACKAGE, "package.json")));
@@ -49,22 +43,12 @@ export const readSource = Effect.fnUntraced(function* () {
 const built = (target: string, extension: ".d.mts" | ".mjs") =>
   `./dist/${target.replace(/^\.\/src\//u, "").replace(/\.ts$/u, extension)}`;
 
-/**
- * The entries {@link build} compiles, relative to the package: every `exports` and `bin` target,
- * then {@link E2E_ENTRIES}.
- */
 export const entriesOf = (source: unknown): readonly string[] => {
   const { exports, bin } = decodeSource(source);
   return [...Object.values(exports), ...Object.values(bin), ...E2E_ENTRIES];
 };
 
-/**
- * The manifest npm publishes: the source's, with each export mapped to its types and its code in
- * `dist/`, each bin to its code, and `files` limited to `dist/` and the migrations an app copies. A
- * bin path has no leading `./`: npm 12 drops such a bin from the package it publishes. `imports` serves the
- * source tree alone, `private` keeps the source from being published by accident, and
- * `devDependencies` and `scripts` serve this workspace.
- */
+/** A bin path has no leading `./`: npm 12 drops such a bin from the package it publishes. */
 export const builtManifest = (
   source: Record<string, unknown>,
 ): Record<string, unknown> & {
@@ -100,12 +84,7 @@ export const builtManifest = (
   };
 };
 
-/**
- * Builds the package into `outDirectory`, replacing what was there. `vp pack` runs in the package,
- * so Rolldown reads its `package.json` and leaves its dependencies and peers external. It emits no
- * source maps: a map's `sources` would name `src/`, which the published package does not hold, and
- * the unbundled modules already mirror their sources one to one.
- */
+/** `vp pack` runs in the package, so Rolldown reads its `package.json` and leaves its dependencies and peers external. */
 export const build = Effect.fn("Build.build")(function* (outDirectory: string = OUTPUT) {
   const fs = yield* FileSystem.FileSystem;
   const source = yield* readSource();

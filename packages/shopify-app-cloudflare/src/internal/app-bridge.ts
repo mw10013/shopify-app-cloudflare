@@ -1,10 +1,3 @@
-/**
- * The App Bridge calls an embedded page makes, through the `shopify` global App Bridge installs.
- * Only these three are declared, so the package needs no `@shopify/app-bridge-types`.
- *
- * @module
- */
-
 import * as Effect from "effect/Effect";
 
 interface AppBridge {

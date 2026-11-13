@@ -1,10 +1,3 @@
-/**
- * `ShopifyClient`: the package's one adapter over `@shopify/shopify-api`. No other module builds
- * the library, so the fakes under `/test` patch the one module-global fetch it calls.
- *
- * @module
- */
-
 // Registers the library's runtime adapter (fetch, crypto, headers) for workerd; imported once.
 import "@shopify/shopify-api/adapters/web-api";
 import {
@@ -37,25 +30,14 @@ import {
 } from "./contract.ts";
 import { ShopDomain } from "./domain.ts";
 
-/**
- * The Admin API answered 401 to the access token. Never leaves the Admin API call:
- * `Shopify.adminGraphql` retries it once, and the first mint's `shopGid` fetch fails
- * `ShopifyUnavailableError`.
- */
 export class AdminUnauthorizedError extends Data.TaggedError("AdminUnauthorizedError")<{
   readonly shop: ShopDomain;
 }> {}
 
-/**
- * `validateWebhook` refused the request: 405 for a method other than POST, 401 for a bad HMAC,
- * 400 for anything else invalid (an empty body, a missing header, a shop domain that is not a
- * {@link ShopDomain}, a body that is not JSON). The caller answers with `status` and nothing else.
- */
 export class WebhookRejectedError extends Data.TaggedError("WebhookRejectedError")<{
   readonly status: 400 | 401 | 405;
 }> {}
 
-/** A webhook that passed `validateWebhook`. `topic` is the header's form: `app/uninstalled`. */
 export interface ValidatedWebhook {
   readonly shop: ShopDomain;
   readonly topic: string;
@@ -63,7 +45,6 @@ export interface ValidatedWebhook {
   readonly webhookId: string;
 }
 
-/** The spans whose lines name a Shopify outage. */
 export type ShopifySpan =
   | "Shopify.adminGraphql"
   | "Shopify.authenticateMerchant"
@@ -71,10 +52,8 @@ export type ShopifySpan =
   | "PartnerApi.activeSubscription"
   | "MerchantGate.authenticateMerchant";
 
-const decodeWebhookShop = Schema.decodeUnknownOption(ShopDomain);
 const decodeWebhookPayload = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown));
 
-/** The claims verified beyond the library's checks, as `decodeSessionToken` returns them. */
 const IdTokenClaims = Schema.Struct({
   iss: Schema.URLFromString,
   dest: Schema.URLFromString,
@@ -83,7 +62,6 @@ const IdTokenClaims = Schema.Struct({
 const decodeIdTokenClaims = Schema.decodeUnknownOption(IdTokenClaims);
 const decodeShop = Schema.decodeUnknownOption(ShopDomain);
 
-/** The `extensions.code` of each GraphQL error in a 200 answer. */
 const GraphqlErrorCodes = Schema.Struct({
   errors: Schema.Struct({
     graphQLErrors: Schema.Array(
@@ -95,19 +73,12 @@ const GraphqlErrorCodes = Schema.Struct({
 });
 const decodeGraphqlErrorCodes = Schema.decodeUnknownOption(GraphqlErrorCodes);
 
-/** Whether `status` is how the Admin API refuses the shop itself. */
 const isInaccessibleStatus = (status: number): status is ShopInaccessibleError["status"] =>
   status === 402 || status === 423 || status === 403;
 
-/** A library call that may reject, its rejection kept as the failure. */
 export const tryShopify = <A>(evaluate: () => Promise<A>) =>
   Effect.tryPromise({ try: evaluate, catch: (cause) => cause });
 
-/**
- * Logs `<span>: shop=<shop> status=unavailable reason=<reason>` at Warning, with the HTTP status
- * and the cause's message annotated, then fails {@link ShopifyUnavailableError}, which never
- * carries its cause: it crosses to the browser.
- */
 export const unavailable = (
   span: ShopifySpan,
   shop: ShopDomain,
@@ -132,7 +103,6 @@ export const unavailable = (
 
 const make = (credentials: Pick<ShopifyCredentials, "apiKey" | "apiSecret" | "appUrl">) =>
   Effect.gen(function* () {
-    // Built on first use, so planning the stack, where the bindings are absent, never builds it.
     const library = yield* Effect.cached(
       Effect.sync(() => {
         const { host, protocol } = new URL(credentials.appUrl);
@@ -141,7 +111,6 @@ const make = (credentials: Pick<ShopifyCredentials, "apiKey" | "apiSecret" | "ap
           apiSecretKey: Redacted.value(credentials.apiSecret),
           hostName: host,
           hostScheme: protocol === "http:" ? "http" : "https",
-          // `ADMIN_API_VERSION`; a unit test holds the two equal.
           apiVersion: ApiVersion.October26,
           isEmbeddedApp: true,
           // Every future flag on, which silences the library's "Future flag X is disabled" log
@@ -220,7 +189,6 @@ const make = (credentials: Pick<ShopifyCredentials, "apiKey" | "apiSecret" | "ap
       return Effect.die(error);
     };
 
-    /** One Admin GraphQL call with `accessToken`, its failures classified; `data` undecoded. */
     const adminCall = Effect.fnUntraced(function* (
       span: ShopifySpan,
       shop: ShopDomain,
@@ -243,25 +211,6 @@ const make = (credentials: Pick<ShopifyCredentials, "apiKey" | "apiSecret" | "ap
       return data;
     });
 
-    /**
-     * Verifies a webhook by HMAC over its raw body and parses it, or fails with
-     * {@link WebhookRejectedError}. It reads no session: authenticity is the HMAC alone, and a
-     * handler that needs the Admin API calls `ensureSession` itself, since a webhook is a trigger
-     * to re-query Shopify, not a data feed. `request`'s body is read here, once.
-     *
-     * Log levels:
-     *
-     * | Rejection                                              | Level   |
-     * | ------------------------------------------------------ | ------- |
-     * | A failed HMAC (401)                                    | Error   |
-     * | A validated delivery whose shop or body does not decode | Warning |
-     * | A non-POST, a missing header (the HMAC's included), any other | Debug |
-     *
-     * A failed HMAC is an Error because a wrong API secret fails every real delivery, the
-     * `app/uninstalled` one included, and nothing else reports it; scanner noise is the cost, and
-     * sampling is its fix. A missing HMAC header is a scanner's shape, and Shopify always sends
-     * it, so it stays at Debug with the other rejections; a wrong secret still shows as the Error.
-     */
     const validateWebhook = Effect.fn("ShopifyClient.validateWebhook")(function* (
       request: Request,
     ) {
@@ -284,7 +233,7 @@ const make = (credentials: Pick<ShopifyCredentials, "apiKey" | "apiSecret" | "ap
         ).pipe(Effect.annotateLogs({ ...validation, httpStatus }));
         return yield* new WebhookRejectedError({ status: httpStatus });
       }
-      const shop = decodeWebhookShop(validation.domain);
+      const shop = decodeShop(validation.domain);
       const payload = decodeWebhookPayload(rawBody);
       if (Option.isNone(shop) || Option.isNone(payload)) {
         yield* Effect.logWarning(
@@ -318,26 +267,14 @@ export const isAlchemyRuntime = () =>
   // oxlint-disable-next-line no-underscore-dangle -- the global's name is Alchemy's
   (globalThis as { readonly __ALCHEMY_RUNTIME__?: unknown }).__ALCHEMY_RUNTIME__ === true;
 
-/**
- * The stateless `@shopify/shopify-api` adapter: the library instance, ID token and webhook
- * verification, and one classified Admin API call with a given access token. It holds no token
- * and decides nothing about one: `Shopify` calls the Admin API through `adminCall` with the
- * stored or minted token.
- */
 export class ShopifyClient extends Context.Service<
   ShopifyClient,
   Effect.Success<ReturnType<typeof make>>
 >()("app/ShopifyClient") {
-  /** Given the API key, API secret and app URL. */
   static readonly layer = (
     credentials: Pick<ShopifyCredentials, "apiKey" | "apiSecret" | "appUrl">,
   ) => Layer.effect(ShopifyClient, make(credentials));
 
-  /**
-   * Over `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET` and `SHOPIFY_APP_URL`, which the stack binds to
-   * the Backend. They are absent while the stack is planned, when nothing calls Shopify; a
-   * running Worker without them is broken.
-   */
   static readonly layerConfig = Layer.unwrap(
     Effect.gen(function* () {
       const { apiKey, apiSecret, appUrl } = yield* shopifyCredentialsConfig;

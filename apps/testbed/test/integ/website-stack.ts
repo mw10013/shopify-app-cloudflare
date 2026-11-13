@@ -11,12 +11,6 @@ import { wireSiteAuth } from "#root/stacks/site-auth.ts";
 
 import TestBackend from "./backend.ts";
 
-/**
- * {@link TestBackend} and the real Website, as `vp build` emits it (`build-website.ts` runs the
- * build before integ), bound as production binds it, with the fake app's key and its own URL as
- * `SHOPIFY_APP_URL`. The built server bundle, not the TanStack Start dev server, so a test drives
- * the Website's real HTTP answers in workerd.
- */
 export default Alchemy.Stack(
   "testbed-website-test",
   { providers: stageProviders, state: stageState },

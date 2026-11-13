@@ -6,10 +6,6 @@ import * as Effect from "effect/Effect";
 
 import { backendBody, backendProps, productionShopifyApp, provideBackend } from "./backend.ts";
 
-/**
- * The private Effect Worker. It has no public URL: the browser and Shopify reach it only through
- * the Website, which calls it over the `BACKEND` service binding.
- */
 export default class Backend extends Cloudflare.Worker<Backend>()(
   "Backend",
   {

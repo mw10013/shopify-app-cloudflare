@@ -1,9 +1,4 @@
 #!/usr/bin/env vpx
-/**
- * `vp run e2e:start | e2e:status | e2e:restart`: this checkout's long-lived e2e server, which every
- * e2e run reuses, as the package runs it. A schema change needs `restart`, which deletes the
- * stage's local data.
- */
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";

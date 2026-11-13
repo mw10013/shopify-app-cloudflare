@@ -48,11 +48,7 @@ const AGENT_PROFILE = path.join(
 const CHROME_BINARY = chromium.executablePath();
 const CHROME_APP = CHROME_BINARY.slice(0, CHROME_BINARY.indexOf(".app/") + ".app".length);
 
-/**
- * Both modes share the profile, so the login a person makes headed is the one agents use headless.
- * `--user-data-dir` comes first because {@link agentChromePids} matches the command line by its
- * prefix. Agents mostly work in background tabs, where Chrome otherwise slows timers and rendering.
- */
+/** Agents mostly work in background tabs, where Chrome otherwise slows timers and rendering. */
 const AGENT_FLAGS = [
   `--user-data-dir=${AGENT_PROFILE}`,
   "--remote-debugging-port=9333",
@@ -136,7 +132,6 @@ const launchAgentChrome = Effect.fn("AgentChrome.launch")(function* (
               },
             ),
           );
-          // Unreferenced, Chrome outlives this command's scope.
           yield* handle.unref;
         }).pipe(Effect.scoped),
       ),
@@ -158,10 +153,7 @@ const launchAgentChrome = Effect.fn("AgentChrome.launch")(function* (
   );
 });
 
-/**
- * Only the main process's command line carries the debugging port. Never quit Chrome by app name:
- * the person's own Chrome is "Google Chrome".
- */
+/** Only the main process's command line carries the debugging port. */
 const agentChromePids = runCommand("pgrep", ["-f", "remote-debugging-port=9333"]).pipe(
   Effect.map((stdout) => stdout.split("\n").filter((line) => line !== "")),
   // pgrep exits 1 when nothing matches.
@@ -237,9 +229,8 @@ export const ensureAgentChrome = Effect.gen(function* () {
       Effect.as(true),
       Effect.orElseSucceed(() => false),
     )
-  ) {
+  )
     return false;
-  }
   yield* launchAgentChrome("headless");
   return true;
 });
@@ -258,7 +249,6 @@ export const isStoreAdmin = (
   );
 };
 
-/** Never fails: it only adds detail to a failure already on its way. */
 const tabShows = (targetId: string) =>
   Effect.acquireUseRelease(
     Effect.tryPromise(() => connectAgentChrome()),
@@ -311,7 +301,6 @@ export const checkShopifyLogin = Effect.fn("AgentChrome.checkShopifyLogin")(func
         schedule: Schedule.max([Schedule.spaced("500 millis"), Schedule.during("20 seconds")]),
       }),
     );
-    // A tab still loading is read before it closes, so the failure says what held it.
     const shows = Option.exists(landed, (target) => loggedIn(target) || loggedOut(target))
       ? Option.none<string>()
       : yield* tabShows(opened.id);
@@ -352,12 +341,11 @@ export const loginAgentChrome = Effect.fn("AgentChrome.login")(function* (store:
       schedule: Schedule.max([Schedule.spaced("1 second"), Schedule.during("10 minutes")]),
     }),
   );
-  if (!loggedIn) {
+  if (!loggedIn)
     return yield* new AgentChromeError({
       message:
         "No Shopify login within 10 minutes. The agent Chrome stays headed until it is quit; run vp run browser login again.",
     });
-  }
   yield* stopAgentChrome;
   yield* launchAgentChrome("headless");
   yield* checkShopifyLogin(store);

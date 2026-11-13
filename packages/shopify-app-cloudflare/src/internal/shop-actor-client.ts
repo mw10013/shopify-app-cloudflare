@@ -1,11 +1,3 @@
-/**
- * The browser's socket to its shop actor: the RPC protocol with the actor's notices taken out,
- * and the notices turned into refreshes of what the page shows. No React and no router: an app
- * hands {@link liveRoutesAtom} the router's half.
- *
- * @module
- */
-
 import * as Arr from "effect/Array";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
@@ -88,7 +80,6 @@ const layerSocketWithNotices = (url: Effect.Effect<string>, notices: PubSub.PubS
     }),
   );
 
-/** This page's origin as a WebSocket origin: `ws:` under `http:`, `wss:` under `https:`. */
 const wsOrigin = () => {
   const url = new URL(window.location.origin);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
@@ -103,12 +94,6 @@ interface ProtocolInput {
   readonly allKeys: readonly string[];
 }
 
-/**
- * One hibernating WebSocket per browser, retried on `retryPolicy`. The gate names the socket on
- * its upgrade, from the session cookie or, for a merchant, the Shopify ID token on the URL, minted
- * for each connect, so no call carries a credential. Every close goes through `closeOutcome` to
- * the page's atoms.
- */
 const browserProtocol = (input: ProtocolInput) => {
   const url = Effect.suspend(() => {
     const base = new URL(`${ACTOR_PATH}/${input.key}`, wsOrigin());
@@ -156,10 +141,6 @@ const browserProtocol = (input: ProtocolInput) => {
   );
 };
 
-/**
- * A socket atom read before the socket holder named the shop: a broken invariant. The server
- * meets it too if it ever reads one, since only the browser names the socket.
- */
 const unnamedShop = Layer.effect(
   RpcClient.Protocol,
   Effect.die(new Error("a socket atom was read before the socket holder named the shop")),
@@ -261,7 +242,6 @@ export const makeNoticeDispatch = (
   options: { readonly throttle: Duration.Duration; readonly visibility: Visibility },
 ) => {
   const { throttle, visibility } = options;
-  /** Each open window's end, and whether a notice came in during it. */
   const windows = new Map<string, { readonly endsAt: DateTime.Utc; trailing: boolean }>();
   const held = new Set<string>();
   let timer: ReturnType<typeof setTimeout> | undefined;

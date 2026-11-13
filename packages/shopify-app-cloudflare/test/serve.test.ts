@@ -14,7 +14,6 @@ import * as Schema from "effect/Schema";
 import { SHOP } from "./fixtures.ts";
 import { capturingLogs, type Logged } from "./logs.ts";
 
-/** What crossed: the failure's value as the caller would receive it. */
 const crossed = <A, E>(effect: Effect.Effect<A, E>, logged: Logged[]) =>
   Effect.exit(effect).pipe(
     capturingLogs(logged),

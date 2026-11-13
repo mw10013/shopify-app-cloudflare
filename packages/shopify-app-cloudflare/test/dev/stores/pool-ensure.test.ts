@@ -36,7 +36,6 @@ const devStore = (name: string): OrgStore => ({
   plan: "basic",
 });
 
-/** A Shopify CLI over an in-memory org; `domains` overrides the domain a create returns. */
 const fakeCli = (orgStores: OrgStore[], domains: Readonly<Record<string, string>> = {}) =>
   Layer.succeed(ShopifyCli, {
     listStores: () => Effect.succeed([...orgStores]),
@@ -142,7 +141,6 @@ describe("ensure and the pool file's format", () => {
   });
 });
 
-/** A run paused inside `shopify store list`, holding the org as it was then. */
 const pausedRun = (file: string, orgStores: readonly OrgStore[]) => {
   let listed!: () => void;
   let resume!: () => void;

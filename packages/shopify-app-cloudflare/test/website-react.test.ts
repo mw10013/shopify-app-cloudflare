@@ -43,10 +43,6 @@ class LiveTestClient extends Context.Service<LiveTestClient, { readonly name: st
   static readonly runtime = Atom.runtime(Layer.succeed(LiveTestClient)({ name: "socket" }));
 }
 
-/**
- * The key's `Unify` member is typed by the class, which declares no `runtime`; an
- * `AtomRpc.Service` class does.
- */
 const liveTestClient = LiveTestClient as unknown as LiveClient<
   LiveTestClient,
   { readonly name: string },
@@ -55,7 +51,6 @@ const liveTestClient = LiveTestClient as unknown as LiveClient<
 
 const { readLive, readLiveAnswer } = makeLiveReads(liveTestClient, { onServer: false });
 
-/** The socket dropped mid-read: the transport failed, not the procedure. */
 const dropped = new RpcClientError.RpcClientError({
   reason: new RpcClientError.RpcClientDefect({ message: "socket closed", cause: null }),
 });
@@ -186,7 +181,6 @@ describe("notice reruns", () => {
     vi.useRealTimers();
   });
 
-  /** A loaded router whose one live route reads `count`, its notices dispatched as the page's are. */
   const page = async () => {
     const loads = { count: 0 };
     const root = createRootRoute();
@@ -218,7 +212,6 @@ describe("notice reruns", () => {
       visibility,
     });
     onTestFinished(dispatch.dispose);
-    /** Dispatches `notice` and lets the reruns it starts now finish, but no window end. */
     const notice = async (notice: BusNotice) => {
       dispatch.notice(notice);
       await vi.advanceTimersByTimeAsync(0);

@@ -1,9 +1,3 @@
-/**
- * `scheduledJob`: one job of a Backend's cron handler, its every failure logged.
- *
- * @module
- */
-
 import * as Effect from "effect/Effect";
 
 /**
