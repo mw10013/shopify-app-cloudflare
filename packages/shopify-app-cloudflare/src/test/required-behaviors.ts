@@ -10,7 +10,7 @@ import { APP_BEHAVIORS } from "./app-behaviors.ts";
 import { AUTH_BEHAVIORS, type RequiredBehavior } from "./auth-behaviors.ts";
 
 /**
- * Every required behavior. An `id` is the spec's case number, which a case's variants share, so a
+ * Every required behavior. An `id` is the case's number, which a case's variants share, so a
  * runner names each test `<id>: <name>`. A harness runs a case only if it has every capability
  * the case `needs`, and skips the rest:
  *

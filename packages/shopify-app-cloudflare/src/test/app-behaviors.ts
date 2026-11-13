@@ -1,7 +1,7 @@
 /**
  * The required behaviors of tier 2, as data like `AUTH_BEHAVIORS`: the plan check and the
- * merchant gate, the hooks' failure policies, and webhooks (`shopify-auth.md` cases 34–36 and
- * the package's `N…` cases).
+ * merchant gate, the hooks' failure policies, and webhooks (cases 34–36 and the package's `N…`
+ * cases).
  *
  * @module
  */
