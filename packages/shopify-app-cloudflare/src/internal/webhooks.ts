@@ -140,6 +140,7 @@ const make = <R>(extra: ExtraTopics<R>) =>
       shop,
     }: WebhookDelivery) {
       yield* bestEffort("beforeUninstall", shop, hooks.beforeUninstall(shop));
+      // No fence: Shopify refuses this shop's mints from now on, and a mint never inserts.
       yield* installations.delete(shop);
       yield* hooks.afterUninstall(shop);
       yield* Effect.logInfo(`Webhooks.appUninstalled: shop=${shop} status=uninstalled`).pipe(

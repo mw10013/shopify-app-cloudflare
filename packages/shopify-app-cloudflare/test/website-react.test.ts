@@ -43,6 +43,7 @@ class LiveTestClient extends Context.Service<LiveTestClient, { readonly name: st
   static readonly runtime = Atom.runtime(Layer.succeed(LiveTestClient)({ name: "socket" }));
 }
 
+/** `Context.Service` types the key's `Unify` member by the bare class, which lacks `runtime`. */
 const liveTestClient = LiveTestClient as unknown as LiveClient<
   LiveTestClient,
   { readonly name: string },

@@ -29,6 +29,8 @@ import { D1Test, type D1TestOptions } from "./d1-test.ts";
 
 export const d1Store = (options: D1TestOptions) =>
   Layer.unwrap(
+    // The database itself: `D1Test.database` would be read per statement from the running context,
+    // which a fake's reply lacks.
     Effect.map(D1Test, ({ database }) => AppInstallationStore.layerD1(Effect.succeed(database))),
   ).pipe(Layer.provideMerge(D1Test.layer(options)));
 

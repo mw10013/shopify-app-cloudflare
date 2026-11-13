@@ -129,6 +129,8 @@ const make = Effect.fnUntraced(function* ({ handle, partner: config }: PartnerAp
       ),
     ),
     HttpClient.filterStatusOk,
+    // `execute` resolves at the headers: reading the body here puts it under the attempt's deadline,
+    // and the response caches it for the decode.
     HttpClient.tap((response) => response.text),
     HttpClient.timeout(PARTNER_ATTEMPT_DEADLINE),
     HttpClient.retryTransient({
