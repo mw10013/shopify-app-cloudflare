@@ -337,8 +337,8 @@ importers:
         specifier: 2.0.0-beta.85
         version: 2.0.0-beta.85(patch_hash=a6b705172c5db3b42c11875799094f8b0689a40260790fc9c257a008ff373dcc)(@effect/platform-bun@4.1.2(effect@4.1.2))(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.1))(@types/node@26.6.4)(@voidzero-dev/vite-plus-core@1.6.0(@types/node@26.6.4)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(alchemy@2.0.0-beta.85(@effect/platform-bun@4.1.2(effect@4.1.2))(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.1))(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.6.0(@types/node@26.6.4)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(effect@4.1.2)(ws@8.22.1))(effect@4.1.2)(typescript@7.0.2)
       '@shopify/shopify-api':
-        specifier: 15.0.1
-        version: 15.0.1
+        specifier: 15.1.1
+        version: 15.1.1
       alchemy:
         specifier: 2.0.0-beta.85
         version: 2.0.0-beta.85(@effect/platform-bun@4.1.2(effect@4.1.2))(@effect/platform-node@4.1.2(effect@4.1.2)(redis@6.3.1))(@types/react@19.3.0)(@voidzero-dev/vite-plus-core@1.6.0(@types/node@26.6.4)(jiti@2.7.0)(typescript@7.0.2)(yaml@2.9.1))(effect@4.1.2)(ws@8.22.1)
@@ -1587,8 +1587,8 @@ packages:
   '@shopify/polaris-types@2.0.0':
     resolution: {integrity: sha512-G1nv58jrTVvR07cBzIybtM66/wFykUyyBab4WSncV08ZmWamPfbs6bv3c0wC4UTDz4f2V0et0HbqLsBH8ZkJCQ==}
 
-  '@shopify/shopify-api@15.0.1':
-    resolution: {integrity: sha512-WLRmMar1JoMxqAYNvlPxukqEu/gYZ+tSICy8IkpVFa9erInI3xP/rEmWDtxCC0ZG1E41B6VsZFlFfKwQOrdKfQ==}
+  '@shopify/shopify-api@15.1.1':
+    resolution: {integrity: sha512-gFgZ5PqNOSIOxcQVaHi1lAp2ugKZ9JAseYo9b82cYj3z+WEGce+jXWX5n/cdXtRIrdbBhjcI+3dMGsBKNZ/ePQ==}
     engines: {node: '>=22.0.0'}
 
   '@shopify/storefront-api-client@2.0.1':
@@ -4204,7 +4204,7 @@ snapshots:
 
   '@shopify/polaris-types@2.0.0': {}
 
-  '@shopify/shopify-api@15.0.1':
+  '@shopify/shopify-api@15.1.1':
     dependencies:
       '@shopify/admin-api-client': 2.0.1
       '@shopify/graphql-client': 2.0.1
