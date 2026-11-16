@@ -223,6 +223,21 @@ describe("notice dispatch", () => {
     assert.strictEqual(t.refreshes.length, 2);
   });
 
+  it("a key's owed refresh comes when its own window ends, before a later key's", () => {
+    const t = setup();
+    t.dispatch.notice(notice("a"));
+    t.dispatch.notice(notice("a"));
+    vi.advanceTimersByTime(window / 2);
+    t.dispatch.notice(notice("b"));
+    t.dispatch.notice(notice("b"));
+    assert.deepStrictEqual(t.refreshes, [["a"], ["b"]]);
+    vi.advanceTimersByTime(window / 2 + 1);
+    assert.deepStrictEqual(t.refreshes, [["a"], ["b"], ["a"]]);
+    vi.advanceTimersByTime(window / 2);
+    assert.deepStrictEqual(t.refreshes, [["a"], ["b"], ["a"], ["b"]]);
+    t.dispatch.dispose();
+  });
+
   it("the writer's own notice refreshes at once inside a window, and nothing is owed after it", () => {
     const t = setup();
     t.dispatch.notice(notice("a"));
