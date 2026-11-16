@@ -54,7 +54,7 @@
     "consumer-check": "vpx scripts/consumer-check.ts"
   },
   "dependencies": {
-    "@shopify/shopify-api": "15.0.1"
+    "@shopify/shopify-api": "15.1.1"
   },
   "devDependencies": {
     "@alchemy.run/better-auth": "catalog:",
