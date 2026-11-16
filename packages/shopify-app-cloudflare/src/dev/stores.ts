@@ -10,6 +10,7 @@ import path from "node:path";
 import { type App, app } from "@mw10013/rigging/core/app";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
 
 import { appHandle } from "./app-handle.ts";
@@ -74,7 +75,7 @@ export const adminUrlOf = Effect.fn("Stores.adminUrlOf")(function* (
   const handle = yield* Effect.try({
     try: () => appHandle(path.join(checkout.root, config)),
     catch: (cause) =>
-      new AppHandleError({ message: cause instanceof Error ? cause.message : String(cause) }),
+      new AppHandleError({ message: Predicate.isError(cause) ? cause.message : String(cause) }),
   });
   return `https://admin.shopify.com/store/${store}/apps/${handle}/${urlPath}`;
 });

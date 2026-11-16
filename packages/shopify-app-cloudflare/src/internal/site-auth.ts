@@ -13,6 +13,7 @@ import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import type * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 import type * as Scope from "effect/Scope";
@@ -112,7 +113,9 @@ const decodeCounted = Schema.decodeUnknownEffect(
 );
 
 const isD1Database = (input: unknown): input is Workers.D1Database =>
-  typeof input === "object" && input !== null && "prepare" in input && "batch" in input;
+  Predicate.isObjectOrArray(input) &&
+  Predicate.hasProperty(input, "prepare") &&
+  Predicate.hasProperty(input, "batch");
 
 const notFound = HttpServerResponse.text("Not Found", { status: 404 });
 

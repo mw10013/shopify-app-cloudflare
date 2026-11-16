@@ -13,12 +13,13 @@ import type * as Workers from "@cloudflare/workers-types";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Predicate from "effect/Predicate";
 
 import { PACKAGE_MIGRATIONS_DIR } from "./migrations.ts";
 
 /** A value as D1 binds it: `undefined` is null and a boolean 1 or 0, which `node:sqlite` refuses. */
 const d1Value = (value: unknown) =>
-  value === undefined ? null : typeof value === "boolean" ? (value ? 1 : 0) : value;
+  value === undefined ? null : Predicate.isBoolean(value) ? (value ? 1 : 0) : value;
 
 const d1Meta = (changes = 0, lastRowId = 0) => ({
   duration: 0,

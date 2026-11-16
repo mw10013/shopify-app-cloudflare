@@ -10,6 +10,7 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
 import { type ComponentProps, type ReactNode, useEffect } from "react";
 
@@ -67,7 +68,7 @@ export const routeOf = (router: AnyRouter, routeId: string) =>
   router.routesById[routeId] as AdminRouteNode;
 
 const titleOf = ({ title }: AdminPage, params: AdminMatch["params"]) =>
-  typeof title === "string" ? title : title(params);
+  Predicate.isString(title) ? title : title(params);
 
 /**
  * Polaris's `s-link` and `s-button` as TanStack links: the `href` for the browser, and the app's
@@ -179,7 +180,7 @@ function AdminError({ error }: ErrorComponentProps) {
       {!signedOut && (
         <s-banner
           tone="critical"
-          heading={error instanceof Error ? error.message : String(error)}
+          heading={Predicate.isError(error) ? error.message : String(error)}
         />
       )}
     </AdminChrome>

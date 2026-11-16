@@ -16,6 +16,7 @@ import * as Base64 from "effect/encoding/Base64";
 import * as Base64Url from "effect/encoding/Base64Url";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 
@@ -304,7 +305,7 @@ const make = Effect.gen(function* () {
         unscripted(`unscripted request to ${target.origin}${target.pathname}`),
       );
     const form = new URLSearchParams(
-      route.value === "token" && typeof init?.body === "string" ? init.body : "",
+      route.value === "token" && Predicate.isString(init?.body) ? init.body : "",
     );
     const jti = Option.map(
       decodeClaims(decodeSegment(form.get("client_assertion")?.split(".")[1] ?? "")),

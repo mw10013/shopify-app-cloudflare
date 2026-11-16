@@ -3,6 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 import { NodeServices } from "@effect/platform-node";
+import * as Arr from "effect/Array";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -89,14 +90,14 @@ describe("Ledger", () => {
     const state = await withLedger((ledger) =>
       Effect.gen(function* () {
         yield* Effect.all(
-          Array.from({ length: 8 }, (_, index) => ledger.modify(addLease(index))),
+          Arr.makeBy(8, (index) => ledger.modify(addLease(index))),
           { concurrency: "unbounded" },
         );
         return yield* ledger.read;
       }),
     );
     expect(state.leases.map((lease) => lease.key.checkout).toSorted()).toEqual(
-      Array.from({ length: 8 }, (_, index) => `/c${String(index)}`),
+      Arr.makeBy(8, (index) => `/c${String(index)}`),
     );
   });
 

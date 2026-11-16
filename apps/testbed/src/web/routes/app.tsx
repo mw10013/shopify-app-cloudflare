@@ -17,6 +17,7 @@ import {
 } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import * as Effect from "effect/Effect";
+import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
 import { useContext, useState } from "react";
 
@@ -112,7 +113,7 @@ function SocketState() {
   const state = useAtomValue(socketStateAtom);
   return (
     <span data-testid="actor-socket">
-      {typeof state === "string" ? state : `stopped:${String(state.stopped)}`}
+      {Predicate.isString(state) ? state : `stopped:${String(state.stopped)}`}
     </span>
   );
 }

@@ -8,12 +8,14 @@
 
 import assert from "node:assert/strict";
 
+import * as Arr from "effect/Array";
 import * as Cause from "effect/Cause";
 import * as DateTime from "effect/DateTime";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
 
@@ -107,7 +109,9 @@ const accepted = (accessToken: string) =>
   Effect.flatMap(ShopifyFake, (shopify) => shopify.accepts(SHOP, accessToken));
 
 const verdict = (error: unknown) =>
-  typeof error === "object" && error !== null && "_tag" in error ? String(error._tag) : "unknown";
+  Predicate.isObjectOrArray(error) && Predicate.hasProperty(error, "_tag")
+    ? String(error._tag)
+    : "unknown";
 
 export const failureOf = <R>(effect: Effect.Effect<unknown, unknown, R>) =>
   Effect.map(Effect.flip(effect), verdict);
@@ -225,7 +229,7 @@ const minting: readonly RequiredBehavior[] = [
     Effect.gen(function* () {
       yield* seedAt();
       const before = yield* storedRow;
-      yield* (yield* ShopifyFake).script(Array.from({ length: 3 }, () => down(503)));
+      yield* (yield* ShopifyFake).script(Arr.makeBy(3, () => down(503)));
       assert.equal(yield* failureOf(ensure), "ShopifyUnavailableError");
       assert.equal((yield* mints).length, 3);
       assert.deepEqual(yield* storedRow, before);
@@ -513,7 +517,7 @@ const merchant: readonly RequiredBehavior[] = [
     "a mint 503 every time: ShopifyUnavailableError",
     Effect.gen(function* () {
       yield* seedAt();
-      yield* (yield* ShopifyFake).script(Array.from({ length: 3 }, () => down(503)));
+      yield* (yield* ShopifyFake).script(Arr.makeBy(3, () => down(503)));
       assert.equal(yield* failureOf(authenticate), "ShopifyUnavailableError");
       assert.equal((yield* mints).length, 3);
     }),

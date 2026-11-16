@@ -29,6 +29,8 @@ import * as RpcTest from "effect/rpc/RpcTest";
 import * as Schema from "effect/Schema";
 import * as TestClock from "effect/testing/TestClock";
 
+import { capturingLogs, type Logged } from "./logs.ts";
+
 const email = Schema.decodeUnknownSync(Email);
 const decodeRequested = Schema.decodeUnknownSync(SignInCodeRequested);
 
@@ -436,6 +438,22 @@ describe("serveAdmin", () => {
       assert.deepStrictEqual(yield* crossed(served.ping({ cookie, ip: undefined }, { id: "1" })), {
         _tag: "ForbiddenError",
       });
+    }).pipe(Effect.provide(layer())),
+  );
+
+  it.live("logs an admin method's defect under that method's name", () =>
+    Effect.gen(function* () {
+      const logged: Logged[] = [];
+      const served = yield* serveAdmin(
+        { broken: () => Effect.die("boom") },
+        { broken: Schema.Never },
+      );
+      const cookie = yield* SiteAuthTest.signIn(ADMIN);
+      yield* Effect.exit(served.broken({ cookie, ip: undefined }).pipe(capturingLogs(logged)));
+      assert.deepStrictEqual(
+        logged.filter(({ level }) => level === "Error"),
+        [{ level: "Error", message: "Backend.serve: method=broken status=failed" }],
+      );
     }).pipe(Effect.provide(layer())),
   );
 

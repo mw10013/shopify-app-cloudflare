@@ -13,6 +13,7 @@ import * as Array from "effect/Array";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type { FullConfig } from "playwright/test";
@@ -42,7 +43,7 @@ const get = (url: string, headers: Readonly<Record<string, string>> = {}) =>
       });
       return { status: response.status, body: await response.text() };
     },
-    catch: (cause) => (cause instanceof Error ? cause.message : String(cause)),
+    catch: (cause) => (Predicate.isError(cause) ? cause.message : String(cause)),
   });
 
 const appOf = (config: FullConfig) =>

@@ -79,7 +79,7 @@ const FAILURE_ANSWERS = {
 
 const isAnsweredFailure = (error: unknown): error is AnsweredFailure =>
   Predicate.hasProperty(error, "_tag") &&
-  typeof error._tag === "string" &&
+  Predicate.isString(error._tag) &&
   Object.hasOwn(FAILURE_ANSWERS, error._tag);
 
 const failureFields = (failure: AnsweredFailure): Readonly<Record<string, string | number>> =>

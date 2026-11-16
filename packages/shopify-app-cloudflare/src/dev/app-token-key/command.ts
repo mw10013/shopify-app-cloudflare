@@ -19,6 +19,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as FetchHttpClient from "effect/http/FetchHttpClient";
 import * as Match from "effect/Match";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as Redacted from "effect/Redacted";
 
 import { readAppIdentity } from "#internal/app-identity.ts";
@@ -44,7 +45,7 @@ const identityOf = (config: string) =>
   Effect.try({
     try: () => readAppIdentity(config),
     catch: (cause) =>
-      new AppConfigError({ message: cause instanceof Error ? cause.message : String(cause) }),
+      new AppConfigError({ message: Predicate.isError(cause) ? cause.message : String(cause) }),
   });
 
 const readDotenv = Effect.fnUntraced(function* (dotenv: string) {

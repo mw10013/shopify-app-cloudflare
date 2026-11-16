@@ -18,6 +18,7 @@ import * as Effect from "effect/Effect";
 import * as Formatter from "effect/Formatter";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 
@@ -94,8 +95,9 @@ export const unavailable = (
       ...(detail.cause === undefined
         ? {}
         : {
-            cause:
-              detail.cause instanceof Error ? detail.cause.message : Formatter.format(detail.cause),
+            cause: Predicate.isError(detail.cause)
+              ? detail.cause.message
+              : Formatter.format(detail.cause),
           }),
     }),
     Effect.andThen(Effect.fail(new ShopifyUnavailableError({ shop }))),

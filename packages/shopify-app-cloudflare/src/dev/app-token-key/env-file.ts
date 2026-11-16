@@ -5,6 +5,8 @@
  * @module
  */
 
+import * as Record from "effect/Record";
+
 /** One `NAME=value` assignment, spanning `first` to `last` when its quoted value runs on. */
 interface Assignment {
   readonly name: string;
@@ -55,7 +57,7 @@ export const readEnv = (text: string): ReadonlyMap<string, string> =>
  * `text` with each of `values` assigned unquoted: every existing assignment of the name is
  * replaced where it stands, and a name the file lacks is appended.
  */
-export const setEnv = (text: string, values: Readonly<Record<string, string>>): string => {
+export const setEnv = (text: string, values: Record.ReadonlyRecord<string, string>): string => {
   const lines = text.split("\n");
   const assignments = assignmentsOf(lines).filter(({ name }) => Object.hasOwn(values, name));
   const replacements = new Map(
@@ -70,7 +72,7 @@ export const setEnv = (text: string, values: Readonly<Record<string, string>>): 
     .flatMap((line, index) => (continuations.has(index) ? [] : [replacements.get(index) ?? line]))
     .join("\n");
   const present = new Set(assignments.map(({ name }) => name));
-  const appended = Object.entries(values)
+  const appended = Record.toEntries(values)
     .filter(([name]) => !present.has(name))
     .map(([name, value]) => `${name}=${value}\n`);
   if (appended.length === 0) return body;

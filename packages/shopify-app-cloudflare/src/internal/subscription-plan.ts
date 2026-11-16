@@ -4,6 +4,7 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 
 import { AppInstallationStore } from "./app-installation-store.ts";
 import type { AppInstallation } from "./app-installation.ts";
@@ -189,7 +190,7 @@ const make = (catalog: PlanCatalog) =>
     });
 
     const rowOf = (shop: ShopDomain | PlanCacheRow) =>
-      typeof shop === "string"
+      Predicate.isString(shop)
         ? installations.find(shop)
         : Effect.succeed(Option.some<PlanCacheRow>(shop));
 

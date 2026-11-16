@@ -9,6 +9,7 @@ import * as Flag from "effect/cli/Flag";
 import * as Console from "effect/Console";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
+import * as Record from "effect/Record";
 
 type Rule = readonly [pattern: RegExp, replacement: string];
 
@@ -51,12 +52,11 @@ export const applyRules = (text: string, rules: readonly Rule[]) =>
 const OBSOLETE_SCRIPT = /^devkit check-pin$/u;
 
 export const rewriteManifest = (text: string) => {
-  const manifest = JSON.parse(text) as { scripts?: Record<string, string> };
+  const manifest = JSON.parse(text) as { scripts?: Record.ReadonlyRecord<string, string> };
   if (manifest.scripts === undefined) return text;
-  const scripts = Object.fromEntries(
-    Object.entries(manifest.scripts)
-      .filter(([, command]) => !OBSOLETE_SCRIPT.test(command))
-      .map(([name, command]) => [name, applyRules(command, SCRIPT_RULES)]),
+  const scripts = Record.map(
+    Record.filter(manifest.scripts, (command) => !OBSOLETE_SCRIPT.test(command)),
+    (command) => applyRules(command, SCRIPT_RULES),
   );
   return JSON.stringify(scripts) === JSON.stringify(manifest.scripts)
     ? text

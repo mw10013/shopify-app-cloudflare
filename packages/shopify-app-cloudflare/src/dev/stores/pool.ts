@@ -10,6 +10,7 @@
  *
  * @module
  */
+import * as Arr from "effect/Array";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import * as SchemaTransformation from "effect/SchemaTransformation";
@@ -74,7 +75,7 @@ export interface OrgStore {
 }
 
 export const poolNames = (prefix: PoolPrefix): readonly string[] =>
-  Array.from({ length: POOL_NAMES }, (_, index) => `${prefix}${String(index).padStart(2, "0")}`);
+  Arr.makeBy(POOL_NAMES, (index) => `${prefix}${String(index).padStart(2, "0")}`);
 
 export const UnfitStore = Schema.Struct({
   store: Schema.String,

@@ -17,6 +17,7 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 import * as Result from "effect/Result";
@@ -70,8 +71,8 @@ export class TunnelError extends Schema.TaggedError<TunnelError>()("TunnelError"
 }) {}
 
 const describeCause = (cause: unknown) =>
-  cause instanceof Error
-    ? "code" in cause && typeof cause.code === "string"
+  Predicate.isError(cause)
+    ? Predicate.hasProperty(cause, "code") && Predicate.isString(cause.code)
       ? cause.code
       : cause.message
     : String(cause);

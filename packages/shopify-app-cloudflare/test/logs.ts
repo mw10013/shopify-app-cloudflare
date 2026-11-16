@@ -1,3 +1,4 @@
+import * as Arr from "effect/Array";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
@@ -18,7 +19,7 @@ export const capturingLogs =
             Logger.make(({ message, logLevel }) => {
               logged.push({
                 level: logLevel,
-                message: Array.isArray(message) ? message[0] : message,
+                message: Arr.isArray(message) ? message[0] : message,
               });
             }),
           ]),

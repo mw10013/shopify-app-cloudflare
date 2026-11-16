@@ -5,6 +5,7 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Match from "effect/Match";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as PubSub from "effect/PubSub";
 import * as Atom from "effect/reactivity/Atom";
 import type * as AtomRegistry from "effect/reactivity/AtomRegistry";
@@ -63,7 +64,7 @@ const layerSocketWithNotices = (url: Effect.Effect<string>, notices: PubSub.PubS
           while (true) {
             const rest: (Uint8Array | string)[] = [];
             for (const frame of yield* pull) {
-              const notice = typeof frame === "string" ? decodeNotice(frame) : Option.none();
+              const notice = Predicate.isString(frame) ? decodeNotice(frame) : Option.none();
               if (Option.isSome(notice)) yield* PubSub.publish(notices, notice.value);
               else rest.push(frame);
             }
@@ -131,7 +132,7 @@ const browserProtocol = (input: ProtocolInput) => {
           ),
           onDisconnect: Effect.sync(() => {
             const state = input.registry.get(socketStateAtom);
-            if (typeof state === "string") input.registry.set(socketStateAtom, "lost");
+            if (Predicate.isString(state)) input.registry.set(socketStateAtom, "lost");
           }),
         }),
       ),
@@ -254,11 +255,9 @@ export const makeNoticeDispatch = (
   const schedule = () => {
     if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
-    const first = Array.from(windows.values(), ({ endsAt }) => endsAt).reduce<DateTime.Utc | null>(
-      (min, endsAt) => (min === null ? endsAt : DateTime.min(min, endsAt)),
-      null,
-    );
-    if (first !== null) {
+    const ends = Arr.map(Arr.fromIterable(windows.values()), ({ endsAt }) => endsAt);
+    if (Arr.isReadonlyArrayNonEmpty(ends)) {
+      const first = Arr.min(ends, DateTime.Order);
       const wait = Duration.max(Duration.zero, DateTime.distance(DateTime.nowUnsafe(), first));
       timer = setTimeout(close, Duration.toMillis(wait));
     }

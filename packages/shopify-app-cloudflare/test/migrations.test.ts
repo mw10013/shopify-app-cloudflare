@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { assert, describe, it } from "@effect/vitest";
+import * as Predicate from "effect/Predicate";
 
 import { expectMigrationsSynced, PACKAGE_MIGRATIONS_DIR } from "#test/node/migrations.ts";
 
@@ -17,7 +18,7 @@ describe("expectMigrationsSynced", () => {
     try {
       expectMigrationsSynced({ migrationsDir });
     } catch (error) {
-      return error instanceof Error ? error.message : String(error);
+      return Predicate.isError(error) ? error.message : String(error);
     }
     return assert.fail("expectMigrationsSynced passed");
   };

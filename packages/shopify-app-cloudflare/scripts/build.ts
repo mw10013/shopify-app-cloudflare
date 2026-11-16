@@ -13,6 +13,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { runCommand } from "@mw10013/rigging/core/command";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
+import * as Record from "effect/Record";
 import * as Schema from "effect/Schema";
 
 export const PACKAGE = path.resolve(import.meta.dirname, "..");
@@ -45,17 +46,20 @@ const built = (target: string, extension: ".d.mts" | ".mjs") =>
 
 export const entriesOf = (source: unknown): readonly string[] => {
   const { exports, bin } = decodeSource(source);
-  return [...Object.values(exports), ...Object.values(bin), ...E2E_ENTRIES];
+  return [...Record.values(exports), ...Record.values(bin), ...E2E_ENTRIES];
 };
 
 /** A bin path has no leading `./`: npm 12 drops such a bin from the package it publishes. */
 export const builtManifest = (
-  source: Record<string, unknown>,
-): Record<string, unknown> & {
+  source: Record.ReadonlyRecord<string, unknown>,
+): Record.ReadonlyRecord<string, unknown> & {
   readonly version: string;
   readonly files: readonly string[];
-  readonly exports: Record<string, { readonly types: string; readonly default: string }>;
-  readonly bin: Record<string, string>;
+  readonly exports: Record.ReadonlyRecord<
+    string,
+    { readonly types: string; readonly default: string }
+  >;
+  readonly bin: Record.ReadonlyRecord<string, string>;
 } => {
   const { version, exports, bin } = decodeSource(source);
   const {
@@ -69,18 +73,11 @@ export const builtManifest = (
     ...rest,
     version,
     files: ["dist", "migrations"],
-    exports: Object.fromEntries(
-      Object.entries(exports).map(([key, target]) => [
-        key,
-        { types: built(target, ".d.mts"), default: built(target, ".mjs") },
-      ]),
-    ),
-    bin: Object.fromEntries(
-      Object.entries(bin).map(([key, target]) => [
-        key,
-        built(target, ".mjs").replace(/^\.\//u, ""),
-      ]),
-    ),
+    exports: Record.map(exports, (target) => ({
+      types: built(target, ".d.mts"),
+      default: built(target, ".mjs"),
+    })),
+    bin: Record.map(bin, (target) => built(target, ".mjs").replace(/^\.\//u, "")),
   };
 };
 

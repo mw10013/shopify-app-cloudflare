@@ -1,4 +1,5 @@
 import { authHandlers, webhookHandlers } from "@mw10013/shopify-app-cloudflare/website";
+import * as Predicate from "effect/Predicate";
 
 import { backend } from "#web/server/backend.ts";
 import { env } from "#web/server/env.server.ts";
@@ -23,7 +24,7 @@ export default {
       await methods[method]?.(...args).then(
         (value) => ({ _tag: "Returned", value }),
         (thrown: unknown) =>
-          thrown instanceof Error
+          Predicate.isError(thrown)
             ? { _tag: "ThrewError", message: thrown.message }
             : { _tag: "Threw", value: thrown },
       ),

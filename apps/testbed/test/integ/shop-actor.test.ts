@@ -19,6 +19,7 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as PubSub from "effect/PubSub";
 import * as Queue from "effect/Queue";
 import * as RpcClient from "effect/rpc/RpcClient";
@@ -78,7 +79,7 @@ const connect = (backendUrl: string, shop: ShopDomain, token: string) =>
             while (true) {
               const rest: (Uint8Array | string)[] = [];
               for (const frame of yield* pull) {
-                const notice = typeof frame === "string" ? decodeNotice(frame) : Option.none();
+                const notice = Predicate.isString(frame) ? decodeNotice(frame) : Option.none();
                 if (Option.isSome(notice)) yield* PubSub.publish(notices, notice.value);
                 else rest.push(frame);
               }

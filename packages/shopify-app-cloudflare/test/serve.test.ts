@@ -97,4 +97,15 @@ describe("serveAll", () => {
       });
     }),
   );
+
+  it.effect("logs a method's defect under that method's name", () =>
+    Effect.gen(function* () {
+      const logged: Logged[] = [];
+      const served = serveAll({ homePlan: () => Effect.die("boom") }, { homePlan: Schema.Never });
+      yield* crossed(served.homePlan(), logged);
+      assert.deepStrictEqual(logged, [
+        { level: "Error", message: "Backend.serve: method=homePlan status=failed" },
+      ]);
+    }),
+  );
 });

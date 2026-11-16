@@ -3,6 +3,7 @@ import { abstractFetch, setAbstractFetchFunc } from "@shopify/shopify-api/runtim
 import * as Effect from "effect/Effect";
 import * as Base64Url from "effect/encoding/Base64Url";
 import * as Layer from "effect/Layer";
+import * as Predicate from "effect/Predicate";
 import * as Redacted from "effect/Redacted";
 import * as TestClock from "effect/testing/TestClock";
 
@@ -99,7 +100,7 @@ describe("ShopifyFake's token endpoint", () => {
       yield* Effect.acquireUseRelease(
         Effect.sync(() => {
           setAbstractFetchFunc((url, init) => {
-            sent = typeof init?.body === "string" ? init.body : "";
+            sent = Predicate.isString(init?.body) ? init.body : "";
             return served(url, init);
           });
         }),
