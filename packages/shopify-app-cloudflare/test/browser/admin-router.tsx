@@ -29,6 +29,7 @@ import {
   useRouter,
   useSearch,
 } from "@tanstack/react-router";
+import * as Predicate from "effect/Predicate";
 import { render } from "vitest-browser-react";
 
 export interface Session {
@@ -90,7 +91,7 @@ export const adminRouter = (path: string, calls: AdminCalls = {}, session: Sessi
     getParentRoute: () => root,
     path: "admin/sign-in",
     validateSearch: (search: Record<string, unknown>): { readonly redirect?: string } =>
-      typeof search.redirect === "string" ? { redirect: search.redirect } : {},
+      Predicate.isString(search.redirect) ? { redirect: search.redirect } : {},
     component: () => <SignIn session={session} />,
   });
   const home = createRoute({ ...adminHome, getParentRoute: () => admin, path: "/" });

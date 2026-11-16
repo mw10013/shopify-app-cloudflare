@@ -13,6 +13,7 @@ import * as Console from "effect/Console";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
+import * as Record from "effect/Record";
 import * as Schema from "effect/Schema";
 
 import { handleOf, type Lease, type Policy, StoreDomain } from "./domain.ts";
@@ -85,10 +86,13 @@ const run = <A, E extends { readonly _tag: string; readonly message: string }, R
   );
 
 const parseAdopt = (
-  pairs: Option.Option<Record<string, string>>,
+  pairs: Option.Option<Record.ReadonlyRecord<string, string>>,
 ): Option.Option<Option.Option<StoreDomain>> => {
-  const { store, ...rest } = Option.getOrElse(pairs, (): Record<string, string> => ({}));
-  if (Object.keys(rest).length > 0) return Option.none();
+  const { store, ...rest } = Option.getOrElse(
+    pairs,
+    (): Record.ReadonlyRecord<string, string> => ({}),
+  );
+  if (!Record.isEmptyReadonlyRecord(rest)) return Option.none();
   if (store === undefined) return Option.some(Option.none());
   return Option.map(
     Schema.decodeUnknownOption(StoreDomain)(

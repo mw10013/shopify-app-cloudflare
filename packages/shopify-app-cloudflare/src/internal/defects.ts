@@ -1,5 +1,6 @@
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
+import * as Predicate from "effect/Predicate";
 
 /**
  * Logs a defect at Error with `operation` and re-raises it, so the caller still sees it. A
@@ -16,6 +17,12 @@ export const logDefect =
       ),
     );
 
+const isCrossableField = Predicate.some([
+  Predicate.isString,
+  Predicate.isNumber,
+  Predicate.isBoolean,
+]);
+
 /**
  * `defect` as a plain `Error` chain: each link's `name`, `message`, string, number and boolean
  * fields, and `cause`. Workers RPC carries a thrown error's own properties and `cause` only while
@@ -26,19 +33,19 @@ export const logDefect =
  * @see https://developers.cloudflare.com/workers/runtime-apis/rpc/error-handling/
  */
 export const crossableDefect = (defect: unknown, seen: ReadonlySet<unknown> = new Set()): Error => {
-  if (typeof defect !== "object" || defect === null) return new Error(String(defect));
+  if (!Predicate.isObjectOrArray(defect)) return new Error(String(defect));
   const original = defect as Record<string, unknown>;
   const cause = original.cause;
   const error = new Error(
-    typeof original.message === "string" ? original.message : "",
+    Predicate.isString(original.message) ? original.message : "",
     cause === undefined || seen.has(cause)
       ? undefined
       : { cause: crossableDefect(cause, new Set([...seen, defect])) },
   );
-  if (typeof original.name === "string") error.name = original.name;
+  if (Predicate.isString(original.name)) error.name = original.name;
   for (const [key, value] of Object.entries(original)) {
-    const primitive = ["string", "number", "boolean"].includes(typeof value);
-    if (primitive && !(key in error)) Object.assign(error, { [key]: value });
+    if (isCrossableField(value) && !Predicate.hasProperty(error, key))
+      Object.assign(error, { [key]: value });
   }
   return error;
 };

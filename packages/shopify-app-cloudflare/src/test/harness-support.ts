@@ -6,12 +6,14 @@
  * @module
  */
 
+import * as Arr from "effect/Array";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as Layer from "effect/Layer";
 import * as Logger from "effect/Logger";
 import * as LogLevel from "effect/LogLevel";
+import * as Predicate from "effect/Predicate";
 import * as References from "effect/References";
 
 import type { AppInstallationStore } from "#internal/app-installation-store.ts";
@@ -50,7 +52,7 @@ export const seedInstallation = (
         accessToken: token.accessToken,
         accessTokenExpiresAt: token.accessTokenExpiresAt,
       });
-    if (row.planHandleExpiresAt !== undefined && row.planHandleExpiresAt !== null)
+    if (Predicate.isNotNullish(row.planHandleExpiresAt))
       yield* installations.updatePlan({
         shop: row.shop,
         planHandle: row.planHandle ?? null,
@@ -115,7 +117,7 @@ export const capturedLogsPrintingWarnings = () => {
     const { message, logLevel } = options;
     lines.push({
       level: logLevel,
-      message: String(Array.isArray(message) ? message[0] : message),
+      message: String(Arr.isArray(message) ? message[0] : message),
     });
     if (LogLevel.isGreaterThanOrEqualTo(logLevel, "Warn")) Logger.defaultLogger.log(options);
   });

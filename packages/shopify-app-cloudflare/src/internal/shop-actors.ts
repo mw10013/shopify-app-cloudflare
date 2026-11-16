@@ -14,7 +14,7 @@ import {
 } from "./shop-actor-kit.ts";
 
 const rejection = (error: unknown) =>
-  error instanceof Cloudflare.RpcCallError && error.cause instanceof Error
+  error instanceof Cloudflare.RpcCallError && Predicate.isError(error.cause)
     ? error.cause
     : undefined;
 

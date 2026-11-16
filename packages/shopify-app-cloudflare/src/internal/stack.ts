@@ -8,6 +8,7 @@ import * as Config from "effect/Config";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
 
@@ -67,7 +68,7 @@ const appIdentityConfig = (tomlPath: string | URL): Config.Config<AppIdentity> =
         catch: (cause) =>
           new Config.ConfigError(
             new ConfigProvider.SourceError({
-              message: cause instanceof Error ? cause.message : String(cause),
+              message: Predicate.isError(cause) ? cause.message : String(cause),
               cause,
             }),
           ),

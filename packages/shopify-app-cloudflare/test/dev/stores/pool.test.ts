@@ -1,3 +1,4 @@
+import * as Arr from "effect/Array";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Schema from "effect/Schema";
@@ -135,10 +136,7 @@ describe("planPool", () => {
   });
 
   it("fails before creating anything when the names past 99 would be needed", () => {
-    const names = Array.from(
-      { length: 99 },
-      (_, index) => `shop-${String(index).padStart(2, "0")}`,
-    );
+    const names = Arr.makeBy(99, (index) => `shop-${String(index).padStart(2, "0")}`);
     const input = {
       listed: names,
       orgStores: names.map((name) => devStore(name)),

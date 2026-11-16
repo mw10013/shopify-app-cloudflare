@@ -15,6 +15,7 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
 
 import { at, SHOP, SHOP_GID, shopDomain } from "./fixtures.ts";
@@ -51,7 +52,7 @@ const services = (options: {
         options.unavailable === true
           ? Effect.fail(new ShopifyUnavailableError({ shop: SHOP }))
           : Effect.sync(() => {
-              options.refreshed?.push(typeof shop === "string" ? shop : shop.shop);
+              options.refreshed?.push(Predicate.isString(shop) ? shop : shop.shop);
               return { _tag: "Unsubscribed" } as const;
             }),
     }),

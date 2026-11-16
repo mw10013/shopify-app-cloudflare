@@ -8,6 +8,7 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Record from "effect/Record";
 import type * as Redacted from "effect/Redacted";
 import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
@@ -71,12 +72,12 @@ const logMint = (
   log: (message: string) => Effect.Effect<void>,
   shop: ShopDomain,
   status: string,
-  detail: Record<string, string | number>,
+  detail: Record.ReadonlyRecord<string, string | number>,
 ) =>
   log(
     [
       `AppTokens.mint: shop=${shop} status=${status}`,
-      ...Object.entries(detail).map(([key, value]) => `${key}=${String(value)}`),
+      ...Record.collect(detail, (key, value) => `${key}=${String(value)}`),
     ].join(" "),
   ).pipe(Effect.annotateLogs({ shop, status, ...detail }));
 

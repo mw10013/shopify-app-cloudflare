@@ -11,6 +11,7 @@ import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 import type * as Rpc from "effect/rpc/Rpc";
 import type * as RpcGroup from "effect/rpc/RpcGroup";
 import * as Schedule from "effect/Schedule";
@@ -367,7 +368,8 @@ const make = <
         };
         // The app's methods are not built without a name; each answers the nameless defect.
         // Alchemy's bridge checks `Object.hasOwn` before it calls, so the descriptor trap answers.
-        const own = (key: string | symbol) => typeof key !== "string" || Object.hasOwn(served, key);
+        const own = (key: string | symbol) =>
+          !Predicate.isString(key) || Object.hasOwn(served, key);
         return new Proxy(served, {
           get: (target, key) => (own(key) ? (Reflect.get(target, key) as unknown) : reached),
           getOwnPropertyDescriptor: (target, key) =>

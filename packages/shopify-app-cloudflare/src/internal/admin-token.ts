@@ -28,8 +28,10 @@ export const freshToken = (
   now: DateTime.Utc,
   buffer: Duration.Duration,
 ): Option.Option<AdminToken> =>
-  row.accessToken !== null &&
-  row.accessTokenExpiresAt !== null &&
-  freshAt(row.accessTokenExpiresAt, now, buffer)
-    ? Option.some({ accessToken: row.accessToken, accessTokenExpiresAt: row.accessTokenExpiresAt })
-    : Option.none();
+  Option.filter(
+    Option.all({
+      accessToken: Option.fromNullOr(row.accessToken),
+      accessTokenExpiresAt: Option.fromNullOr(row.accessTokenExpiresAt),
+    }),
+    ({ accessTokenExpiresAt }) => freshAt(accessTokenExpiresAt, now, buffer),
+  );

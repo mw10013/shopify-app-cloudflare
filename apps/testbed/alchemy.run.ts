@@ -20,6 +20,7 @@ import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import * as Match from "effect/Match";
 import * as Option from "effect/Option";
+import * as Predicate from "effect/Predicate";
 
 import { backendWorkerFor } from "#e2e/backend-worker.ts";
 
@@ -43,7 +44,7 @@ export class Website extends Cloudflare.Website.Vite<Website>()(
         BACKEND: yield* backendWorker,
         SHOPIFY_API_KEY: app.apiKey,
         SHOPIFY_APP_URL:
-          typeof app.appUrl === "string" && app.appUrl !== "" ? app.appUrl : Cloudflare.Worker.URL,
+          Predicate.isString(app.appUrl) && app.appUrl !== "" ? app.appUrl : Cloudflare.Worker.URL,
       },
     };
   }).pipe(Effect.orDie),
