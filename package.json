@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vp -C apps/testbed run dev",
     "release": "vp -C packages/shopify-app-cloudflare run release",
-    "deploy:staging": "vp -C apps/testbed run deploy:staging"
+    "deploy:staging": "vp -C apps/testbed run deploy:staging",
+    "verify:shop-lifecycle": "verification/shop-lifecycle/check.sh"
   },
   "devDependencies": {
     "@mw10013/rigging": "catalog:",
