@@ -74,8 +74,8 @@ export type BehaviorOutcome = typeof BehaviorOutcome.Type;
  *   test Backend; `name` is the runner's `<id>: <name>`, checked so the two lists cannot drift.
  * - `Reset` deletes every installation, then forgets every script, call, installation at the
  *   fake, issued token and hook call, as a fresh harness would start.
- * - `ScriptShopify`, `InstallShopify` and `ShopifyCalls` are {@link ShopifyFake}'s `script`,
- *   `install` and `calls`;
+ * - `ScriptShopify`, `InstallShopify`, `UninstallShopify` and `ShopifyCalls` are
+ *   {@link ShopifyFake}'s `script`, `install`, `uninstall` and `calls`;
  *   `ScriptPartner` and `PartnerAsked` are {@link PartnerFake}'s `script` and `asked`.
  * - `Seed` stores an installation as a mint would; `Stored` reads one back, tokens included.
  */
@@ -90,6 +90,7 @@ export const ShopifyTestDoorRpcs = RpcGroup.make(
     success: Schema.Struct({}),
   }),
   Rpc.make("InstallShopify", { payload: { shop: ShopDomain }, success: Schema.Struct({}) }),
+  Rpc.make("UninstallShopify", { payload: { shop: ShopDomain }, success: Schema.Struct({}) }),
   Rpc.make("ShopifyCalls", { payload: {}, success: Schema.Array(ShopifyFakeCall) }),
   Rpc.make("ScriptPartner", {
     payload: { shopGid: ShopGid, answer: PartnerAnswer },
@@ -216,6 +217,7 @@ const make = Effect.gen(function* () {
         Reset: () => Effect.as(reset, {}),
         ScriptShopify: ({ replies }) => Effect.as(fake.script(replies), {}),
         InstallShopify: ({ shop }) => Effect.as(fake.install(shop), {}),
+        UninstallShopify: ({ shop }) => Effect.as(fake.uninstall(shop), {}),
         ShopifyCalls: () => fake.calls,
         ScriptPartner: ({ shopGid, answer }) => Effect.as(partner.script(shopGid, answer), {}),
         PartnerAsked: () => partner.asked,

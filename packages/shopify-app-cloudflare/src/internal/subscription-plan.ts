@@ -8,11 +8,13 @@ import * as Predicate from "effect/Predicate";
 
 import { AppInstallationStore } from "./app-installation-store.ts";
 import type { AppInstallation } from "./app-installation.ts";
+import { AppTokens } from "./app-tokens.ts";
 import type { AppSubscription, PlanCatalog, PlanStatus } from "./catalog.ts";
 import type { ShopifyUnavailableError } from "./contract.ts";
 import type { PlanHandle, ShopDomain, ShopGid } from "./domain.ts";
 import { bestEffort, ShopifyHooks } from "./hooks.ts";
 import { PartnerApi, type PartnerSubscription } from "./partner-api.ts";
+import { uninstallShop } from "./uninstall.ts";
 
 /**
  * How long a cached plan stays fresh when no subscription boundary falls sooner: a ceiling on
@@ -108,10 +110,13 @@ export interface SubscriptionPlanShape {
    */
   readonly expectChange: (shop: ShopDomain) => Effect.Effect<void>;
   /**
-   * The daily cron entry point: {@link refresh} for every shop whose cache is stale,
-   * {@link STALE_PLAN_CONCURRENCY} at a time, so every installed shop re-reads its plan at least
-   * daily whether or not anyone opens the app. A shop's failure is logged and does not stop the
-   * others; the next day retries it. It never fails, so a cron handler's other jobs still run.
+   * The daily cron entry point: for every shop whose cache is stale,
+   * {@link STALE_PLAN_CONCURRENCY} at a time, a mint asks Shopify whether the app is still
+   * installed. Installed, {@link refresh}, so every installed shop re-reads its plan at least
+   * daily whether or not anyone opens the app. Not installed, the uninstall runs: every row's
+   * cache expires within {@link PLAN_HANDLE_MAX_AGE}, so this erases a row `app/uninstalled`
+   * missed. A shop's failure is logged and does not stop the others; the next day retries it. It
+   * never fails, so a cron handler's other jobs still run.
    */
   readonly revalidateStalePlans: Effect.Effect<{
     readonly shops: number;
@@ -124,6 +129,8 @@ const make = (catalog: PlanCatalog) =>
     const installations = yield* AppInstallationStore;
     const partner = yield* PartnerApi;
     const hooks = yield* ShopifyHooks;
+    const tokens = yield* AppTokens;
+    const uninstall = uninstallShop(installations, hooks);
 
     /**
      * The one catalog handle among the subscription's items, or `None`. By matching, never by
@@ -226,7 +233,18 @@ const make = (catalog: PlanCatalog) =>
       const results = yield* Effect.forEach(
         shops,
         (shop) =>
-          refresh(shop).pipe(
+          tokens.mint(shop).pipe(
+            Effect.andThen(refresh(shop)),
+            Effect.catchTag("AppNotInstalledError", () =>
+              uninstall(shop).pipe(
+                Effect.andThen(
+                  Effect.logInfo(
+                    `SubscriptionPlan.revalidateStalePlans: shop=${shop} status=uninstalled`,
+                  ),
+                ),
+                Effect.annotateLogs({ shop, status: "uninstalled" }),
+              ),
+            ),
             Effect.as(true),
             Effect.catchCause((cause) =>
               Effect.logWarning(
@@ -260,6 +278,6 @@ const make = (catalog: PlanCatalog) =>
 export class SubscriptionPlan extends Context.Service<SubscriptionPlan, SubscriptionPlanShape>()(
   "app/SubscriptionPlan",
 ) {
-  /** Over the app's `catalog`, the store, the {@link PartnerApi} and the app's hooks. */
+  /** Over the app's `catalog`, the store, `AppTokens`, the {@link PartnerApi} and the app's hooks. */
   static readonly layer = (catalog: PlanCatalog) => Layer.effect(SubscriptionPlan, make(catalog));
 }

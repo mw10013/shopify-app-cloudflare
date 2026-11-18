@@ -28,17 +28,22 @@ export interface PlanRevalidation {
  * | Hook                   | A defect                                                          |
  * | ---------------------- | ----------------------------------------------------------------- |
  * | `beforeUninstall`      | logged at Warning and swallowed: the uninstall goes on            |
- * | `afterUninstall`       | fails the webhook (500), so Shopify redelivers the whole uninstall |
+ * | `afterUninstall`       | fails its caller, which retries the whole uninstall: Shopify's redelivery after a 500, or the next daily revalidation |
  * | `beforePlanChange`     | logged at Warning and swallowed: the deadline is already shortened |
  * | `afterPlanRevalidated` | logged at Warning and swallowed: the plan answer is right anyway  |
  */
 export interface ShopifyHooksShape {
   /**
-   * On `app/uninstalled`, before the `AppInstallation` row goes. Runs again on a redelivery, when
-   * the row may already be gone.
+   * Before the `AppInstallation` row goes, once Shopify refuses the shop's mint: on
+   * `app/uninstalled`, or on the daily revalidation of a row the webhook missed. Runs again on a
+   * redelivery, when the row may already be gone.
    */
   readonly beforeUninstall: (shop: ShopDomain) => Effect.Effect<void>;
-  /** On `app/uninstalled`, after the row and its cascade are gone. Idempotent: Shopify redelivers. */
+  /**
+   * After the row and its cascade are gone, wherever `beforeUninstall` runs. Also alone, on an
+   * `app/uninstalled` for a shop Shopify has installed again and that has no row yet: it destroys
+   * the ended installation's storage. Idempotent: Shopify redelivers.
+   */
   readonly afterUninstall: (shop: ShopDomain) => Effect.Effect<void>;
   /** On the Manage plan press, once the plan deadline is shortened. */
   readonly beforePlanChange: (shop: ShopDomain) => Effect.Effect<void>;

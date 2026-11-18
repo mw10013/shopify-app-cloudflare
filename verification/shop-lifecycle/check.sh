@@ -14,7 +14,7 @@ else
   status=1
 fi
 
-for rule in UninstallErasesShop NoStaleErase; do
+for rule in NoStaleErase; do
   "$here/../tlc.sh" "$here/ShopLifecycle.tla" "$here/$rule.cfg" >"$out/$rule.out" 2>&1
   if grep -q "^Error: Invariant $rule is violated." "$out/$rule.out"; then
     echo "known finding ($rule.cfg): still reproduces — counterexample in $out/$rule.out"

@@ -185,9 +185,11 @@ test(
         shop,
         {},
       );
+    const uninstallAtShopify = door(backendUrl, (client) => client.UninstallShopify({ shop }));
     yield* Effect.gen(function* () {
       const socket = yield* connect(backendUrl, shop, token);
       assert.strictEqual(yield* socket.client.MerchantIncrement(), 1);
+      yield* uninstallAtShopify;
       assert.strictEqual(yield* uninstall(), 200);
       assert.strictEqual(yield* nextCloseCode(socket.closes), CONNECTION_CLOSE_UNINSTALLED);
     }).pipe(Effect.scoped);
