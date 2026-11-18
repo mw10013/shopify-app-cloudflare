@@ -153,7 +153,6 @@ const make = (options: AppTokensOptions) =>
       if (status === 429 || status >= 500)
         return yield* new MintTransientError({ reason: "retriable-status", httpStatus: status });
       yield* logMint(Effect.logError, shop, "refused", { ...detail, error });
-      // A 401 is this app's own key, refused for every shop at once; an uninstall answers 400.
       return yield* Effect.die(
         new Error(
           status === 401
