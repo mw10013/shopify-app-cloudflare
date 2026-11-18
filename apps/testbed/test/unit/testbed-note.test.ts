@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 
 import { assert, describe, it } from "@effect/vitest";
 import { ShopDomain, ShopGid, Webhooks } from "@mw10013/shopify-app-cloudflare/backend";
-import { signWebhook } from "@mw10013/shopify-app-cloudflare/test";
+import { ShopifyFake, signWebhook } from "@mw10013/shopify-app-cloudflare/test";
 import { D1Test, ShopifyAppTest } from "@mw10013/shopify-app-cloudflare/test/node";
 import * as Effect from "effect/Effect";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
@@ -33,6 +33,7 @@ describe("TestbedNote", () => {
       sqlite
         .prepare("insert into TestbedNote (shop, body, createdAt) values (?, ?, ?)")
         .run(SHOP, "hello", 0);
+      yield* (yield* ShopifyFake).uninstall(SHOP);
       assert.strictEqual(yield* Effect.scoped(deliver("app/uninstalled", {})), 200);
       assert.deepStrictEqual(sqlite.prepare("select * from TestbedNote").all(), []);
       assert.deepStrictEqual(sqlite.prepare("select * from AppInstallation").all(), []);

@@ -4,14 +4,17 @@ import * as Effect from "effect/Effect";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Predicate from "effect/Predicate";
 import * as Schema from "effect/Schema";
 
 import { AppInstallationStore } from "./app-installation-store.ts";
+import { AppTokens } from "./app-tokens.ts";
 import type { ShopifyAccessFailure } from "./contract.ts";
 import type { ShopDomain } from "./domain.ts";
-import { bestEffort, ShopifyHooks } from "./hooks.ts";
+import { ShopifyHooks } from "./hooks.ts";
 import { ShopifyClient } from "./shopify-client.ts";
+import { uninstallShop } from "./uninstall.ts";
 import type { BuiltInTopic } from "./webhook-topics.ts";
 
 /** A delivery that passed its HMAC check, its body parsed as JSON. */
@@ -118,6 +121,8 @@ const make = <R>(extra: ExtraTopics<R>) =>
     const client = yield* ShopifyClient;
     const installations = yield* AppInstallationStore;
     const hooks = yield* ShopifyHooks;
+    const tokens = yield* AppTokens;
+    const uninstall = uninstallShop(installations, hooks);
     const context = yield* Effect.context<R>();
 
     /**
@@ -136,15 +141,26 @@ const make = <R>(extra: ExtraTopics<R>) =>
         ),
       );
 
+    /**
+     * A delivery can arrive late, after a reinstall, so a mint asks Shopify whether the app is
+     * still installed. Refused, the uninstall runs. Granted, the shop was installed again: its
+     * row, if any, is the new installation's and is kept with its storage; with no row, only
+     * `afterUninstall` runs, to destroy the ended installation's storage.
+     */
     const appUninstalled: TopicHandler = Effect.fn("Webhooks.appUninstalled")(function* ({
       shop,
     }: WebhookDelivery) {
-      yield* bestEffort("beforeUninstall", shop, hooks.beforeUninstall(shop));
-      // No fence: Shopify refuses this shop's mints from now on, and a mint never inserts.
-      yield* installations.delete(shop);
-      yield* hooks.afterUninstall(shop);
-      yield* Effect.logInfo(`Webhooks.appUninstalled: shop=${shop} status=uninstalled`).pipe(
-        Effect.annotateLogs({ shop, status: "uninstalled" }),
+      const status = yield* tokens.mint(shop).pipe(
+        Effect.andThen(installations.find(shop)),
+        Effect.flatMap((row) =>
+          Option.isSome(row)
+            ? Effect.succeed("reinstalled")
+            : Effect.as(hooks.afterUninstall(shop), "reinstalled-without-row"),
+        ),
+        Effect.catchTag("AppNotInstalledError", () => Effect.as(uninstall(shop), "uninstalled")),
+      );
+      yield* Effect.logInfo(`Webhooks.appUninstalled: shop=${shop} status=${status}`).pipe(
+        Effect.annotateLogs({ shop, status }),
       );
     });
 

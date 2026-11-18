@@ -84,6 +84,8 @@ const hookCalls = Effect.flatMap(ShopifyHarness, (harness) => harness.hookCalls)
 const breakHook = (hook: Parameters<ShopifyHarness["Service"]["breakHook"]>[0]) =>
   Effect.flatMap(ShopifyHarness, (harness) => harness.breakHook(hook));
 
+const uninstallAtShopify = Effect.flatMap(ShopifyFake, (fake) => fake.uninstall(SHOP));
+
 const deliver = (
   topic: string,
   payload: unknown = {},
@@ -310,7 +312,7 @@ const billing: readonly RequiredBehavior[] = [
     Effect.gen(function* () {
       const harness = yield* ShopifyHarness;
       yield* harness.seed(expiredRowAt(yield* DateTime.now));
-      yield* (yield* ShopifyFake).uninstall(SHOP);
+      yield* uninstallAtShopify;
       assert.deepEqual(yield* harness.plans.revalidateStalePlans, { shops: 1, failed: 0 });
       assert.ok(Option.isNone(yield* stored));
       assert.deepEqual(yield* hookCalls, [`beforeUninstall:${SHOP}`, `afterUninstall:${SHOP}`]);
@@ -369,6 +371,7 @@ const hookPolicies: readonly RequiredBehavior[] = [
     "a beforeUninstall defect is logged and swallowed: the uninstall goes on",
     Effect.gen(function* () {
       yield* seedAt();
+      yield* uninstallAtShopify;
       yield* breakHook("beforeUninstall");
       assert.equal(yield* deliver("app/uninstalled"), 200);
       assert.ok(Option.isNone(yield* stored));
@@ -381,6 +384,7 @@ const hookPolicies: readonly RequiredBehavior[] = [
     "an afterUninstall defect fails the webhook (500, at Error); the redelivery succeeds",
     Effect.gen(function* () {
       yield* seedAt();
+      yield* uninstallAtShopify;
       yield* breakHook("afterUninstall");
       assert.equal(yield* deliver("app/uninstalled"), 500);
       assert.ok(Option.isNone(yield* stored));
@@ -496,6 +500,7 @@ const webhooks: readonly RequiredBehavior[] = [
     "app/uninstalled delivered twice, and for a shop with no row: 200 each time; no row afterwards",
     Effect.gen(function* () {
       yield* seedAt();
+      yield* uninstallAtShopify;
       assert.equal(yield* deliver("app/uninstalled"), 200);
       assert.equal(yield* deliver("app/uninstalled"), 200);
       assert.ok(Option.isNone(yield* stored));

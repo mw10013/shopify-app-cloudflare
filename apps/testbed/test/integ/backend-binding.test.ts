@@ -136,6 +136,7 @@ test(
       401,
     );
     assert.isNotNull(yield* door(backendUrl, (client) => client.Stored({ shop: SHOP })));
+    yield* door(backendUrl, (client) => client.UninstallShopify({ shop: SHOP }));
     assert.strictEqual(yield* deliverWebhook(url, "app/uninstalled", SHOP, {}), 200);
     assert.isNull(yield* door(backendUrl, (client) => client.Stored({ shop: SHOP })));
   }),

@@ -79,6 +79,11 @@ Each Shopify app (one `client_id`, so one per stage's toml) signs its applicatio
 - The flag is `--dotenv`, not `--env-file`: Node exits on `--env-file <file>` anywhere in its argv when the file is missing.
 - Rotation: run `new` on the same file, register the new JWK beside the old (Shopify allows two keys per app), deploy, then revoke the old `kid` in the Dev Dashboard once its tokens have expired, an hour after the deploy. `new` names the old `kid` when it replaces one.
 
+## Asking Shopify before an uninstall
+
+- `app/uninstalled` and the daily `revalidateStalePlans` mint first. The webhook erases the shop only when Shopify refuses the mint; for a shop installed again it keeps the row, and with no row runs `afterUninstall` alone. The daily run uninstalls a stale shop Shopify refuses instead of refreshing its plan.
+- Tests: a test that delivers `app/uninstalled` uninstalls the shop at the fake first, as Shopify does: `ShopifyFake.uninstall(shop)` in process, `UninstallShopify` through `ShopifyTestDoor`.
+
 ## Upgrading to 0.14.2
 
 The admin section now hands a server function's `UnauthorizedError` to the app's `/admin` guard, which returns the admin to the page they were on after sign-in. Each app's `rescueAdmin` loses its `UnauthorizedError` branch and its path argument, so every `.catch(rescueAdmin(...))` becomes `.catch(rescueAdmin)`. `UnauthorizedError` must reach the browser untouched: a server function that redirects or throws an `Error` on it bypasses the section.
