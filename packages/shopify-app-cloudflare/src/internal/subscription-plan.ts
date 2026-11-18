@@ -115,8 +115,8 @@ export interface SubscriptionPlanShape {
    * installed. Installed, {@link refresh}, so every installed shop re-reads its plan at least
    * daily whether or not anyone opens the app. Not installed, the uninstall runs: every row's
    * cache expires within {@link PLAN_HANDLE_MAX_AGE}, so this erases a row `app/uninstalled`
-   * missed (a first mint's insert that landed after its uninstall). A shop's failure is logged
-   * and does not stop the others; the next day retries it. It never fails, so a cron handler's other jobs still run.
+   * missed. A shop's failure is logged and does not stop the others; the next day retries it. It
+   * never fails, so a cron handler's other jobs still run.
    */
   readonly revalidateStalePlans: Effect.Effect<{
     readonly shops: number;

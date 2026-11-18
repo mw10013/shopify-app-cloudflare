@@ -141,12 +141,7 @@ const make = <R>(extra: ExtraTopics<R>) =>
         ),
       );
 
-    /**
-     * A delivery can arrive late, after a reinstall, so a mint asks Shopify whether the app is
-     * still installed. Refused, the uninstall runs. Granted, the shop was installed again: its
-     * row, if any, is the new installation's and is kept with its storage; with no row, only
-     * `afterUninstall` runs, to destroy the ended installation's storage.
-     */
+    /** Shopify can deliver `app/uninstalled` late, after the shop has installed the app again. */
     const appUninstalled: TopicHandler = Effect.fn("Webhooks.appUninstalled")(function* ({
       shop,
     }: WebhookDelivery) {

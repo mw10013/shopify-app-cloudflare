@@ -149,8 +149,8 @@ const readRun = (log: string) =>
  * the Shopify CLI has settled the `app/uninstalled` it sends on a checkout's first start
  * ({@link expectsResetWebhook}). It arrives with the app installed, so the app keeps a row it
  * finds; waiting keeps the suite's first load from racing the `afterUninstall` it runs when it
- * finds none. A start that expects none waits
- * {@link RESET_WEBHOOK_GRACE} after the deploy, and settles one that shows within it.
+ * finds none. A start that expects none waits {@link RESET_WEBHOOK_GRACE} after the deploy, and
+ * settles one that shows within it.
  */
 const awaitServerReady = (running: RunningServer, resetExpected: boolean) =>
   Effect.gen(function* () {
