@@ -79,6 +79,24 @@ Each Shopify app (one `client_id`, so one per stage's toml) signs its applicatio
 - The flag is `--dotenv`, not `--env-file`: Node exits on `--env-file <file>` anywhere in its argv when the file is missing.
 - Rotation: run `new` on the same file, register the new JWK beside the old (Shopify allows two keys per app), deploy, then revoke the old `kid` in the Dev Dashboard once its tokens have expired, an hour after the deploy. `new` names the old `kid` when it replaces one.
 
+## What an app owns
+
+The package's code, types and `REQUIRED_BEHAVIORS` (from `/test`, run by every app's suite) say what it does. These are what an app's own code owes it, which no package test can check.
+
+- **Per-shop data keyed to the installation.** Each per-shop table is keyed `shop text not null references AppInstallation (shop) on delete cascade`, so uninstall's delete removes it.
+- **Its own signing key,** registered before its first deploy ([App token keys](#app-token-keys)).
+- **Idempotent webhook work.** Shopify can deliver the same webhook more than once. Work the app adds after the row's delete treats state already gone as done, so a repeated uninstall, or one for a shop that never stored anything, answers 200.
+- **Reconciling.** A webhook the package answers 200 without acting (access denied, shop inaccessible, not installed) is never redelivered: once access returns, the app re-reads from Shopify what it missed.
+- **A plan check on a press that spends the plan.** A reconcile or a bulk query checks the plan as a screen read does, through `subscribedShop`. A write that grants nothing, or the Manage plan press, is not refused.
+- **`useServerFn` for a press's server function.** It follows a thrown redirect with `router.navigate` (`react-start` `src/useServerFn.ts`); a direct call hands the redirect to the press's own catch. After a redirect it resolves `undefined`, which its type leaves out, so the press types the result `X | undefined` and stops on `undefined`: running its success branch would `invalidate` the page it landed on and load it twice.
+- **`authenticateApp` as a POST server function,** though it writes nothing: with the ID token in the bearer every call has the same URL, and Chrome holds a GET while another for the same URL is in flight, so the guard's rerun after a refused socket would wait (measured).
+- **Bare links.** Links under `/app` never carry the ID token: App Bridge puts a fresh one on every `fetch` to the app's origin as a bearer ([Resource Fetching API](https://shopify.dev/docs/api/app-home/latest/apis/authentication-and-data/resource-fetching-api)).
+- **App Bridge in the `/app` document.** The `/app` route's `head` returns `meta: [{ name: "shopify-api-key", content: apiKey }]` and `scripts: [{ src: APP_BRIDGE_URL }]`, the script before any other (an App Store requirement), and its `headers` return `documentHeaders(shop)`, the frame CSP and the preload `Link`.
+- **App Bridge calls outside render.** `mintIdToken`, `toast` and `showSaveBar` from `/website` run in event handlers, client effects or client-side Effect programs, never during render or on the server, where there is no `shopify` global.
+- **Types for App Bridge elements it renders.** An app that renders `ui-save-bar`, `s-app-nav` or `s-app-window` adds `@shopify/app-bridge-types` to `tsconfig.json` `compilerOptions.types`, and, since React 19 reads `React.JSX` and those types declare only the global `JSX`, one entry per element in `declare module "react"`: `"ui-save-bar": globalThis.JSX.IntrinsicElements["ui-save-bar"]`. Polaris elements need none: `@shopify/polaris-types` declares them on `React.JSX`.
+
+Shopify decides who may open the app, and any staff member it admits acts as the merchant, with the installation's full scopes. Shopify's per-staff permissions are not enforced; an app that must enforce them needs online tokens, which the package does not cover. `authenticateMerchant` logs the ID token's `sub` for attribution.
+
 ## Asking Shopify before an uninstall
 
 - `app/uninstalled` and the daily `revalidateStalePlans` mint first. The webhook erases the shop only when Shopify refuses the mint; for a shop installed again it keeps the row, and with no row runs `afterUninstall` alone. The daily run uninstalls a stale shop Shopify refuses instead of refreshing its plan.
