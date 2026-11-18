@@ -59,9 +59,10 @@ export const embeddedAppUrl = (host: string, apiKey: string): Option.Option<stri
 
 /**
  * The ID token bounce for a document: `/auth/session-token` with the request's search minus
- * `id_token`, plus `shopify-reload`, the page App Bridge reloads with a fresh token. `appUrl` is
- * the app's public URL from the binding, because behind the dev proxies the request's own URL is
- * not the one the Shopify admin loaded.
+ * `id_token`, plus `shopify-reload`, the page App Bridge reloads with a fresh token; without it
+ * the bounce page did not reload within 14 s (measured). `appUrl` is the app's public URL from
+ * the binding, because behind the dev proxies the request's own URL is not the one the Shopify
+ * admin loaded.
  */
 export const idTokenBounce = (appUrl: string, path: string, search: string): string => {
   const params = new URLSearchParams(search);

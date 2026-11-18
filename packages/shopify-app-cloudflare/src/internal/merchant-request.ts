@@ -92,8 +92,9 @@ const BackendRefusal = Schema.Union([MerchantRefusal, ShopifyUnavailableError]);
  * refusal, for the way the token came; `PlanUnsubscribedError` goes to plan selection, as a
  * redirect that reloads the document, because the router follows a same-origin redirect
  * client-side and `/auth/exit-iframe` is a server route (`router-core` `src/router.ts`,
- * `resolveRedirect`); `ShopifyUnavailableError` is rethrown as its class, for the route's error
- * page; anything else is rethrown unchanged.
+ * `resolveRedirect`), and a server function's redirect keeps `reloadDocument` across the wire
+ * (`start-server-core` `src/createStartHandler.ts`); `ShopifyUnavailableError` is rethrown as
+ * its class, for the route's error page; anything else is rethrown unchanged.
  */
 export const readEmbeddedIdToken = (
   input: EmbeddedRequest,

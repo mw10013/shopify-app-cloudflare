@@ -5,6 +5,58 @@
  * latency, hangs and network errors. It runs in Node and in workerd, so an in-process test and a
  * test Backend fake Shopify the same way.
  *
+ * ## Shopify's contract
+ *
+ * The package's code and tests cite these rules by number. From Shopify's docs:
+ * [Access tokens](https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens),
+ * [Application-only access tokens](https://shopify.dev/docs/apps/build/authentication-authorization/application-only-access-tokens),
+ * [Manage credentials](https://shopify.dev/docs/apps/build/authentication-authorization/manage-credentials),
+ * [ID tokens](https://shopify.dev/docs/apps/build/authentication-authorization/id-tokens),
+ * [Response codes](https://shopify.dev/docs/api/usage/response-codes),
+ * [Webhook troubleshooting](https://shopify.dev/docs/apps/build/webhooks/troubleshoot),
+ * [Verify deliveries](https://shopify.dev/docs/apps/build/webhooks/verify-deliveries). Rules
+ * marked *measured* were observed on a dev store of a public app on 2026-11-10 and are not in
+ * Shopify's docs.
+ *
+ * 1. **Application-only tokens.** A public-distribution app gets an Admin API access token for any
+ *    store that has installed it with the `client_credentials` grant and a signed JWT client
+ *    assertion, without the client secret and without a merchant. Each app has at most two active
+ *    public keys, registered in the Dev Dashboard as JWKs (`ES256` or `RS256`).
+ * 2. **The assertion.** Header `alg` and `kid` of an active key; claims `iss` = `sub` = the client
+ *    id, `aud` = `https://{shop}/admin/oauth/access_token`, `iat` now, `exp` at most 300 s after
+ *    `iat`, a `jti` accepted once per app across all stores. A new assertion for every request,
+ *    retries included. Form-encoded; no client secret, `Authorization` header or `scope` in the
+ *    same request.
+ * 3. **The token.** The response is `access_token`, `scope` (what the installation granted) and
+ *    `expires_in` (at most 3600 s for a public app; read it, never assume it). No refresh token.
+ *    The token carries the installation's scopes.
+ * 4. **Minting retires nothing.** A new token does not revoke the current one. A mint for the same
+ *    store within the same minute returns the token already issued, with its original expiry
+ *    (measured: 8 parallel mints and 30 sequential ones returned one token).
+ * 5. **Minting needs only an installation.** It works on a managed install before the app's frame
+ *    has ever loaded (measured).
+ * 6. **Uninstall ends access.** After an uninstall the store's tokens answer 401 at once, and
+ *    minting answers `400 {"error":"app_not_installed"}` (measured, also for a store that never
+ *    installed the app). A store that does not exist answers 404.
+ * 7. **A bad assertion is 401.** An unregistered or revoked key, an unknown `kid`, or a replayed
+ *    `jti` answers `401 {"error":"invalid_client"}` (measured). An unknown client id answers
+ *    `400 {"error":"application_cannot_be_found"}` (measured). Shopify documents none of these.
+ * 8. **Key rotation.** Revoking a public key ends the tokens issued with it shortly after; tokens
+ *    from the other key are unaffected. Revoking the client secret does not affect
+ *    application-only tokens.
+ * 9. **ID tokens.** A short-lived JWT from App Bridge's `shopify.idToken()`, formerly "session
+ *    token", signed with the app's client secret. The hostnames of its `iss` and `dest` must
+ *    match.
+ * 10. **The Admin API reports most failures in the body.** A GraphQL failure answers 200 with
+ *     `errors[].extensions.code`: `THROTTLED` (rate limit), `INTERNAL_SERVER_ERROR`,
+ *     `ACCESS_DENIED` (a scope the shop has not granted). Statuses: 401 for an unusable access
+ *     token, 402 for a shop frozen for payment, 423 for a locked shop, 403 for a shop marked
+ *     fraudulent, 5xx transient.
+ * 11. **Webhook retries are finite.** A delivery not answered 2xx is retried up to 8 times over
+ *     about 4 hours; failures that persist can remove the subscription.
+ * 12. **Webhooks repeat.** The same delivery can arrive more than once, after a timeout or a
+ *     retry, and each subscription to a topic gets its own delivery of an event.
+ *
  * @module
  */
 
@@ -404,10 +456,10 @@ const make = Effect.gen(function* () {
  * restores it after; two fakes at once in one process would race for it, so a test file builds
  * one at a time.
  *
- * Unscripted, it answers as Shopify does: the token endpoint by rules 2 to 7 of `shopify-auth.md`,
- * for the fake app's client id and its registered key, and Admin GraphQL with
- * {@link FAKE_SHOP_GID} as `shop { id }` for a token it issued and has not retired, 401 for any
- * other. Scripted replies win, one per call, so a test injects 503s, 429s and partial bodies.
+ * Unscripted, it answers as Shopify does: the token endpoint by rules 2 to 7 of Shopify's
+ * contract (the module's header), for the fake app's client id and its registered key, and Admin
+ * GraphQL with {@link FAKE_SHOP_GID} as `shop { id }` for a token it issued and has not retired,
+ * 401 for any other. Scripted replies win, one per call, so a test injects 503s, 429s and partial bodies.
  * Any other URL is answered 599 and never reaches the network.
  */
 export class ShopifyFake extends Context.Service<ShopifyFake, Effect.Success<typeof make>>()(
