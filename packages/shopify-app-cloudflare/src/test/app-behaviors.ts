@@ -305,6 +305,26 @@ const billing: readonly RequiredBehavior[] = [
     }),
   ),
   behavior(
+    "N29",
+    "the daily revalidation of a shop Shopify has uninstalled runs the uninstall instead: no row, both hooks, no Partner call",
+    Effect.gen(function* () {
+      const harness = yield* ShopifyHarness;
+      yield* harness.seed(expiredRowAt(yield* DateTime.now));
+      yield* (yield* ShopifyFake).uninstall(SHOP);
+      assert.deepEqual(yield* harness.plans.revalidateStalePlans, { shops: 1, failed: 0 });
+      assert.ok(Option.isNone(yield* stored));
+      assert.deepEqual(yield* hookCalls, [`beforeUninstall:${SHOP}`, `afterUninstall:${SHOP}`]);
+      assert.deepEqual(yield* asked, []);
+      assert.equal(
+        (yield* logged(
+          "Info",
+          `SubscriptionPlan.revalidateStalePlans: shop=${SHOP} status=uninstalled`,
+        )).length,
+        1,
+      );
+    }),
+  ),
+  behavior(
     "N20",
     "a screen read answers the handle without minting; with no row it is a defect",
     Effect.gen(function* () {
@@ -495,6 +515,31 @@ const webhooks: readonly RequiredBehavior[] = [
     }),
   ),
   behavior(
+    "N27",
+    "app/uninstalled for a shop Shopify reports installed, with a row: a stale delivery, 200, the row kept, no hooks",
+    Effect.gen(function* () {
+      yield* seedAt();
+      const before = yield* storedRow;
+      assert.equal(yield* deliver("app/uninstalled"), 200);
+      assert.deepEqual(yield* storedRow, before);
+      assert.deepEqual(yield* hookCalls, []);
+      assert.equal(
+        (yield* logged("Info", `Webhooks.appUninstalled: shop=${SHOP} status=reinstalled`)).length,
+        1,
+      );
+    }),
+  ),
+  behavior(
+    "N28",
+    "app/uninstalled for a shop Shopify reports installed, with no row: afterUninstall runs, beforeUninstall does not",
+    Effect.gen(function* () {
+      yield* (yield* ShopifyFake).install(SHOP);
+      assert.equal(yield* deliver("app/uninstalled"), 200);
+      assert.ok(Option.isNone(yield* stored));
+      assert.deepEqual(yield* hookCalls, [`afterUninstall:${SHOP}`]);
+    }),
+  ),
+  behavior(
     "N23",
     "a topic with no handler and a valid HMAC: 404, logged at Error",
     Effect.gen(function* () {
@@ -544,8 +589,8 @@ const webhooks: readonly RequiredBehavior[] = [
 ];
 
 /**
- * Every tier 2 case: the plan check and the gate (N3, N5, N11–N21), the hooks' policies (N4)
- * and webhooks (34–36, N22–N26).
+ * Every tier 2 case: the plan check and the gate (N3, N5, N11–N21, N29), the hooks' policies
+ * (N4) and webhooks (34–36, N22–N28).
  */
 export const APP_BEHAVIORS: readonly RequiredBehavior[] = [
   ...billing,
