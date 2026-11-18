@@ -10,6 +10,7 @@
   },
   "bin": {
     "app-token-key": "./src/dev/app-token-key/bin.ts",
+    "shopify-web": "./src/dev/shopify-web/bin.ts",
     "stores": "./src/dev/stores/bin.ts"
   },
   "files": [

@@ -6,8 +6,10 @@ webhooks_path = "/webhooks/app/uninstalled"
 
 [commands]
 # The CLI's web command must be the long-lived foreground process that receives the variables it
-# injects (APP_URL, SHOPIFY_API_KEY, SHOPIFY_API_SECRET, BACKEND_PORT). `dev:alchemy` publishes the
-# port and tunnel to rigging server, then runs `alchemy dev`, which passes its environment through
-# to the stack and the Vite child. When `alchemy dev` exits, `kill -TERM 0` ends the server's
-# process group, CLI included, so rigging server sees the exit instead of a CLI that serves nothing.
+# injects (APP_URL, SHOPIFY_API_KEY, SHOPIFY_API_SECRET, BACKEND_PORT). `dev:alchemy` runs the
+# package's `shopify-web` bin, which publishes the port and tunnel to rigging server, then runs
+# `alchemy dev`, which passes its environment through to the stack and the Vite child. When
+# `alchemy dev` exits, `shopify-web` ends the server's process group, CLI included, so rigging
+# server sees the exit instead of a CLI that serves nothing. `vp run` sets VP_RUN, which
+# vite.config.ts requires to serve.
 dev = "vp run dev:alchemy"

@@ -4,7 +4,7 @@ import path from "node:path";
 import { app } from "@mw10013/rigging/core/app";
 /**
  * This checkout's dev and e2e servers. rigging server runs each: one Shopify CLI `app dev` per
- * environment. The CLI picks the port and opens the tunnel; the web command (`dev:alchemy`) publishes both to rigging server,
+ * environment. The CLI picks the port and opens the tunnel; the web command (the `shopify-web` bin) publishes both to rigging server,
  * so every script that needs the server asks rigging server where it is ({@link runningServer}).
  *
  * @module
