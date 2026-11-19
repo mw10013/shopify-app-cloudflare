@@ -33,20 +33,8 @@ afterEach(() => {
 });
 
 describe("e2eProject", () => {
-  it("keeps no trace, screenshot or video by default, since each can carry the login", () => {
+  it("keeps failed tests' traces by default, with a warning that they hold the login", () => {
     vi.stubEnv(E2E_TRACE, undefined);
-    const { use } = e2eProject(app, "/app", {
-      name: "app",
-      testDir: "/app/e2e",
-      testMatch: SPEC_MATCH,
-    });
-    assert.strictEqual(use?.trace, "off");
-    assert.strictEqual(use?.screenshot, "off");
-    assert.strictEqual(use?.video, "off");
-  });
-
-  it("keeps failed tests' traces when opted in, with a warning that they hold the login", () => {
-    vi.stubEnv(E2E_TRACE, "1");
     vi.stubEnv("TEST_WORKER_INDEX", undefined);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { use } = e2eProject(app, "/app", {
@@ -55,7 +43,19 @@ describe("e2eProject", () => {
       testMatch: SPEC_MATCH,
     });
     assert.strictEqual(use?.trace, "retain-on-failure");
+    assert.strictEqual(use?.screenshot, "off");
+    assert.strictEqual(use?.video, "off");
     assert.match(String(warn.mock.calls[0]?.[0]), /live Shopify admin login/u);
+  });
+
+  it("keeps no trace when opted out", () => {
+    vi.stubEnv(E2E_TRACE, "0");
+    const { use } = e2eProject(app, "/app", {
+      name: "app",
+      testDir: "/app/e2e",
+      testMatch: SPEC_MATCH,
+    });
+    assert.strictEqual(use?.trace, "off");
   });
 
   it("runs after the admin login export and the lifecycle, on the pack's shared options", () => {

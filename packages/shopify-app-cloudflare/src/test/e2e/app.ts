@@ -186,14 +186,14 @@ export const SPECS_PROJECT = "shopify-app-cloudflare";
 /** The lifecycle spec, as source or built. */
 export const LIFECYCLE_SPEC_MATCH = /lifecycle\.spec\.[cm]?[jt]s$/u;
 
-/** Set to `1` to keep a trace of each failed test. */
+/** Set to `0` to keep no trace of a failed test. */
 export const E2E_TRACE = "E2E_TRACE";
 
 export const e2eTrace = (): "retain-on-failure" | "off" => {
-  if (process.env[E2E_TRACE] !== "1") return "off";
+  if (process.env[E2E_TRACE] === "0") return "off";
   if (process.env.TEST_WORKER_INDEX === undefined)
     console.warn(
-      `${E2E_TRACE}=1: each failed test's trace and the HTML report hold a live Shopify admin login; do not share them, and delete the run's directory when done`,
+      `Each failed test's trace and the HTML report hold a live Shopify admin login; do not share them (${E2E_TRACE}=0 keeps no trace)`,
     );
   return "retain-on-failure";
 };
@@ -217,8 +217,9 @@ export interface E2eProjectSpecs {
  * A project of specs on the pack's fixtures, inside the store's admin under the exported login,
  * after {@link SHOPIFY_ADMIN_PROJECT}. The pack registers its own specs with it; an app adds its
  * own the same way, next to {@link e2eProjects}. `root` is the app's directory, which holds the
- * exported login under `playwright/.auth/`. Screenshots and videos are off, and traces unless
- * {@link E2E_TRACE} opts in, because each can carry the login.
+ * exported login under `playwright/.auth/`. Screenshots and videos are off, because each can carry
+ * the login. A failed test keeps its trace unless {@link E2E_TRACE} opts out: a failure that does
+ * not recur is explained only by the evidence its first run kept.
  */
 export const e2eProject = (
   app: E2eApp,
