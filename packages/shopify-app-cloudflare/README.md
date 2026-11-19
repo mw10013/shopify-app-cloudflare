@@ -113,6 +113,10 @@ Shopify decides who may open the app, and any staff member it admits acts as the
 - `app/uninstalled` and the daily `revalidateStalePlans` mint first. The webhook erases the shop only when Shopify refuses the mint; for a shop installed again it keeps the row, and with no row runs `afterUninstall` alone. The daily run uninstalls a stale shop Shopify refuses instead of refreshing its plan.
 - Tests: a test that delivers `app/uninstalled` uninstalls the shop at the fake first, as Shopify does: `ShopifyFake.uninstall(shop)` in process, `UninstallShopify` through `ShopifyTestDoor`.
 
+## Upgrading to 0.20
+
+`stage` is gone from `/dev/worktree`. Call rigging's `stageOf(environment, process.env.USER)` from `@mw10013/rigging/cloudflare/stage` instead, and delete a `scripts/stage.ts` that only printed it.
+
 ## Upgrading to 0.14.2
 
 The admin section now hands a server function's `UnauthorizedError` to the app's `/admin` guard, which returns the admin to the page they were on after sign-in. Each app's `rescueAdmin` loses its `UnauthorizedError` branch and its path argument, so every `.catch(rescueAdmin(...))` becomes `.catch(rescueAdmin)`. `UnauthorizedError` must reach the browser untouched: a server function that redirects or throws an `Error` on it bypasses the section.

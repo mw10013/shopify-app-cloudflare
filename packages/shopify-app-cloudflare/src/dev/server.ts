@@ -1,6 +1,7 @@
 import { Resolver } from "node:dns/promises";
 import path from "node:path";
 
+import { stageOf } from "@mw10013/rigging/cloudflare/stage";
 import { app } from "@mw10013/rigging/core/app";
 /**
  * This checkout's dev and e2e servers. rigging server runs each: one Shopify CLI `app dev` per
@@ -26,7 +27,6 @@ import * as Stream from "effect/Stream";
 
 import { type EnvironmentStore, storeOf } from "./stores.ts";
 import type { WebEnvironment } from "./web.ts";
-import { stage } from "./worktree.ts";
 
 /**
  * Resolvers that hold no negative answer for a tunnel hostname that is not in DNS yet. A new quick
@@ -175,7 +175,9 @@ export const loadServer = Effect.fn("Server.loadServer")(function* (environment:
   return {
     environment,
     ...leased,
-    stage: yield* stage(environment).pipe(Effect.mapError((error) => fail(error.message))),
+    stage: yield* stageOf(environment, process.env.USER).pipe(
+      Effect.mapError((error) => fail(error.message)),
+    ),
   } satisfies Server;
 });
 

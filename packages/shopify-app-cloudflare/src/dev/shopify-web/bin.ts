@@ -10,6 +10,7 @@
  */
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import { stageOf } from "@mw10013/rigging/cloudflare/stage";
 import { app } from "@mw10013/rigging/core/app";
 import * as Config from "effect/Config";
 import * as Console from "effect/Console";
@@ -19,7 +20,6 @@ import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
 import { webEnvironment } from "#dev/web.ts";
-import { stage } from "#dev/worktree.ts";
 
 const WebCommand = Config.all({
   environment: webEnvironment,
@@ -32,11 +32,12 @@ const signalProcessGroup = Effect.sync(() => process.kill(0, "SIGTERM"));
 
 Effect.gen(function* () {
   const web = yield* WebCommand;
+  const stage = yield* stageOf(web.environment, process.env.USER);
   const fs = yield* FileSystem.FileSystem;
   yield* fs.writeFileString(web.endpoint, JSON.stringify({ port: web.port, url: web.url.origin }));
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
   yield* spawner.exitCode(
-    ChildProcess.make("alchemy", ["dev", "--stage", yield* stage(web.environment)], {
+    ChildProcess.make("alchemy", ["dev", "--stage", stage], {
       cwd: app().root,
       env: { WEBSITE_PORT: String(web.port) },
       extendEnv: true,
