@@ -35,7 +35,6 @@ afterEach(() => {
 describe("e2eProject", () => {
   it("keeps failed tests' traces by default, without a warning", () => {
     vi.stubEnv(E2E_TRACE, undefined);
-    vi.stubEnv("TEST_WORKER_INDEX", undefined);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const { use } = e2eProject(app, "/app", {
       name: "app",

@@ -189,14 +189,8 @@ export const LIFECYCLE_SPEC_MATCH = /lifecycle\.spec\.[cm]?[jt]s$/u;
 /** Set to `0` to keep no trace of a failed test. */
 export const E2E_TRACE = "E2E_TRACE";
 
-export const e2eTrace = (): "retain-on-failure" | "off" => {
-  if (process.env[E2E_TRACE] === "0") return "off";
-  if (process.env.TEST_WORKER_INDEX === undefined)
-    console.warn(
-      `Each failed test's trace and the HTML report hold a live Shopify admin login; do not share them (${E2E_TRACE}=0 keeps no trace)`,
-    );
-  return "retain-on-failure";
-};
+export const e2eTrace = (): "retain-on-failure" | "off" =>
+  process.env[E2E_TRACE] === "0" ? "off" : "retain-on-failure";
 
 /** Where in the app the project's specs drive the store's admin. */
 export interface E2eProjectSpecs {
