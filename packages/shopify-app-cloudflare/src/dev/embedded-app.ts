@@ -43,7 +43,7 @@ export const awaitHydration = (scope: Page | FrameLocator, timeout?: number): Pr
  * means no console (a production-like admin), and nothing to do.
  *
  * The toggle is found by Shopify's generated class stem: its accessible name is `hide`, which
- * another admin button shares. Self-contained, because `scripts/browser.ts` sends its source
+ * another admin button shares. Self-contained, because the `shopify-browser` bin sends its source
  * into a browser session.
  */
 export const closeDevConsole = async (page: Page): Promise<void> => {
@@ -70,7 +70,7 @@ export const closeDevConsole = async (page: Page): Promise<void> => {
  * A store with no plan is sent to Shopify's plan selection page
  * (`/store/<store>/charges/<app>/pricing_plans`), so a timed-out wait there fails naming the fix.
  * Self-contained but for {@link appFrame}, {@link awaitHydration} and {@link closeDevConsole}, because
- * `scripts/browser.ts` sends its source into a browser session with theirs.
+ * the `shopify-browser` bin sends its source into a browser session with theirs.
  */
 export const prepareApp = async (page: Page): Promise<FrameLocator> => {
   const frame = appFrame(page);

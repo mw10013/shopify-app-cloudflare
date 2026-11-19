@@ -14,6 +14,17 @@ The subpath exports are `/backend`, `/contract`, `/stack`, `/website`, `/website
 
 The `stores` command runs inside an app with `vp exec stores`: `acquire <env>`, `show <env>`, `release [<env>]`, `list [--json]` and `pool ensure [<count>]`. State lives in `$XDG_STATE_HOME` (default `~/.local/state`): the lease ledger in `shopify-app-cloudflare/stores/ledger/` and the pool in `shopify-app-cloudflare/stores/pool.json`. Every file carries `"format": 1`, and a reader that finds another format fails before it writes, asking for a newer package.
 
+## Browser
+
+The `shopify-browser` command drives the embedded app in the shared agent Chrome through the Playwright CLI session `dev`. An app runs it as its `browser` script, `"browser": "shopify-browser"`, so `vp run browser <command>` is the same in every app. `--stage` is `dev` (the default), `staging` or `production`.
+
+- `agent` starts the agent Chrome if it is not running, checks its Shopify login and starts this checkout's chrome-devtools server.
+- `login` opens the agent Chrome headed so that a person can sign in to Shopify, then runs `agent`.
+- `open [--stage]` opens a new tab on the app's admin page and waits until the app is ready. `goto [--stage] [<path>]` loads another page of the app in that tab.
+- `store [--stage]` prints the stage's store.
+- `ready` waits again until the app in the current tab is ready.
+- `close` closes the tab that `open` recorded in `.playwright-cli/browser-tab.json`, then detaches. With no record it closes no tab, because the session's selected tab can be another agent's tab in the shared agent Chrome.
+
 ## Orphan shop actor objects
 
 An uninstall deletes the shop's row before it destroys the shop's `ShopActor`, so a destroy that failed leaves an object nothing accounts for. `ShopActorObjects` from `/backend` lists the stage's objects through Cloudflare's REST API, rules which are orphans and destroys one by id (`OrphanInstalledError` when the shop is installed again). `ShopActorObjects.layerConfig` needs `ShopActors` and `AppInstallations` in the Backend's init, `yield* shopActorObjectMethods` serves the three behind the admin gate (see [Site sign-in](#site-sign-in)), with no unguarded form, and `ShopActorObjects.layerTest(pages)` lists a fixed set in an app's unit tests.
