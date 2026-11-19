@@ -213,38 +213,19 @@ export interface LiveRoutes {
 /** The browser router's {@link LiveRoutes}, set once by the app when it makes its router. */
 export const liveRoutesAtom = Atom.make<LiveRoutes | undefined>(undefined).pipe(Atom.keepAlive);
 
-/** Whether the tab is hidden, and a way to hear it change. The browser's is the document's. */
-export interface Visibility {
-  readonly isHidden: () => boolean;
-  /** Calls `listener` on each change; answers the unsubscribe. */
-  readonly onChange: (listener: () => void) => () => void;
-}
-
-const documentVisibility: Visibility = {
-  isHidden: () => document.visibilityState === "hidden",
-  onChange: (listener) => {
-    document.addEventListener("visibilitychange", listener);
-    return () => {
-      document.removeEventListener("visibilitychange", listener);
-    };
-  },
-};
-
 /**
- * Each key is throttled over `throttle`, leading and trailing; while the tab is hidden its keys
- * are held, and released through the throttle when it is visible again, so a background tab reads
- * nothing. `Connected` is neither throttled nor held: it is rare, and whatever is shown may be
- * stale by however long the socket was down. An `OwnNotice` is not throttled or held either, and
- * it clears the read its keys owe: it comes after every notice before it, so its read covers
- * theirs. Windows that end together refresh together, so a route under two keys reruns once.
+ * Each key is throttled over `throttle`, leading and trailing: the first notice for a key refreshes
+ * at once, and any more inside its window refresh once when it ends. `Connected` is not
+ * throttled. An `OwnNotice` is not throttled either, and it clears the read its keys owe: it comes
+ * after every notice before it, so its read covers theirs. Windows that end together refresh
+ * together, so a route under two keys reruns once.
  */
 export const makeNoticeDispatch = (
   refresh: (keys: ReadonlySet<string>) => void,
-  options: { readonly throttle: Duration.Duration; readonly visibility: Visibility },
+  options: { readonly throttle: Duration.Duration },
 ) => {
-  const { throttle, visibility } = options;
+  const { throttle } = options;
   const windows = new Map<string, { readonly endsAt: DateTime.Utc; trailing: boolean }>();
-  const held = new Set<string>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const send = (keys: readonly string[]) => {
     if (keys.length > 0) refresh(new Set(keys));
@@ -270,11 +251,8 @@ export const makeNoticeDispatch = (
       if (DateTime.isGreaterThan(window.endsAt, now)) continue;
       windows.delete(key);
       if (!window.trailing) continue;
-      if (visibility.isHidden()) held.add(key);
-      else {
-        due.push(key);
-        open(key, now);
-      }
+      due.push(key);
+      open(key, now);
     }
     send(due);
     schedule();
@@ -296,18 +274,11 @@ export const makeNoticeDispatch = (
   };
   const own = (keys: readonly string[]) => {
     for (const key of keys) {
-      held.delete(key);
       const window = windows.get(key);
       if (window !== undefined) window.trailing = false;
     }
     send(keys);
   };
-  const unsubscribe = visibility.onChange(() => {
-    if (visibility.isHidden() || held.size === 0) return;
-    const keys = [...held];
-    held.clear();
-    throttled(keys);
-  });
   return {
     notice: (notice: BusNotice) => {
       Match.valueTags(notice, {
@@ -315,8 +286,7 @@ export const makeNoticeDispatch = (
           send(invalidated);
         },
         ShopActorNotice: ({ invalidated }) => {
-          if (visibility.isHidden()) for (const key of invalidated) held.add(key);
-          else throttled(invalidated);
+          throttled(invalidated);
         },
         ShopActorOwnNotice: ({ invalidated }) => {
           own(invalidated);
@@ -324,7 +294,6 @@ export const makeNoticeDispatch = (
       });
     },
     dispose: () => {
-      unsubscribe();
       if (timer !== undefined) clearTimeout(timer);
     },
   };
@@ -346,10 +315,7 @@ export const makeNoticesAtom = <R, ER>(
       (keys) => {
         get.registry.get(liveRoutesAtom)?.invalidate(keys);
       },
-      {
-        throttle: Duration.fromInputUnsafe(options.throttle ?? NOTICE_THROTTLE),
-        visibility: documentVisibility,
-      },
+      { throttle: Duration.fromInputUnsafe(options.throttle ?? NOTICE_THROTTLE) },
     );
     get.addFinalizer(dispatch.dispose);
     return Stream.fromPubSub(get(noticeBus)).pipe(

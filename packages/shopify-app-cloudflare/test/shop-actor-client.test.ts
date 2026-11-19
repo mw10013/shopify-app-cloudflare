@@ -12,7 +12,6 @@ import {
   retryPolicy,
   shopActorProtocol,
   socketStateAtom,
-  type Visibility,
 } from "@mw10013/shopify-app-cloudflare/client";
 import {
   CONNECTION_CLOSE_DISPLACED,
@@ -193,25 +192,13 @@ describe("notice dispatch", () => {
 
   const setup = () => {
     const refreshes: string[][] = [];
-    const tab = { hidden: false, listeners: new Set<() => void>() };
-    const visibility: Visibility = {
-      isHidden: () => tab.hidden,
-      onChange: (listener) => {
-        tab.listeners.add(listener);
-        return () => tab.listeners.delete(listener);
-      },
-    };
     const dispatch = makeNoticeDispatch(
       (keys) => {
         refreshes.push([...keys]);
       },
-      { throttle: NOTICE_THROTTLE, visibility },
+      { throttle: NOTICE_THROTTLE },
     );
-    const show = (hidden: boolean) => {
-      tab.hidden = hidden;
-      for (const listener of tab.listeners) listener();
-    };
-    return { refreshes, dispatch, show };
+    return { refreshes, dispatch };
   };
   const notice = (...invalidated: string[]) => ({
     _tag: "ShopActorNotice" as const,
@@ -253,19 +240,9 @@ describe("notice dispatch", () => {
     assert.strictEqual(t.refreshes.length, 2);
   });
 
-  it("a hidden tab holds its keys until it is shown", () => {
-    const t = setup();
-    t.show(true);
-    t.dispatch.notice(notice("a", "b"));
-    assert.deepStrictEqual(t.refreshes, []);
-    t.show(false);
-    assert.deepStrictEqual(t.refreshes, [["a", "b"]]);
-  });
-
-  it("every connect refreshes, inside a window and while hidden", () => {
+  it("every connect refreshes, inside a window", () => {
     const t = setup();
     t.dispatch.notice(notice("a"));
-    t.show(true);
     t.dispatch.notice({ _tag: "Connected", invalidated: ["a", "b"] });
     assert.deepStrictEqual(t.refreshes, [["a"], ["a", "b"]]);
     t.dispatch.dispose();

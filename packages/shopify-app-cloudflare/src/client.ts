@@ -28,5 +28,4 @@ export {
   NOTICE_THROTTLE,
   noticeBus,
   shopActorProtocol,
-  type Visibility,
 } from "#internal/shop-actor-client.ts";
