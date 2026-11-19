@@ -67,9 +67,9 @@ export interface ShopifyE2e {
  * does not check.
  *
  * The config is `e2eConfig`'s with the pack's preflight, `workers: 1` and no parallel files,
- * since every spec drives the one leased store, and traces off unless `E2E_TRACE=1`, since a trace
- * under the exported login holds it. The run's directory is readable by this user alone: a
- * failure's error context can name the store's data.
+ * since every spec drives the one leased store, and each failed test's trace kept unless
+ * `E2E_TRACE=0`. The run's directory is readable by this user alone: a trace holds the exported
+ * login, and a failure's error context can name the store's data.
  */
 export const shopifyE2eConfig = async ({
   root,
