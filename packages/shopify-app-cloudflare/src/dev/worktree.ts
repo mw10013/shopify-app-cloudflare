@@ -1,6 +1,5 @@
 import path from "node:path";
 
-import { type PerDeveloper, stageOf } from "@mw10013/rigging/cloudflare/stage";
 import { runCommand } from "@mw10013/rigging/core/command";
 /**
  * A checkout of this repository is either the main checkout, whose `.git` is
@@ -55,5 +54,3 @@ export const checkoutKind = Effect.all([
 export const currentBranch = runCommand("git", ["branch", "--show-current"]).pipe(
   Effect.map((output) => output.trim()),
 );
-
-export const stage = (environment: PerDeveloper) => stageOf(environment, process.env.USER);
