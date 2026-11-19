@@ -1,23 +1,18 @@
-import { execFileSync } from "node:child_process";
-
 import cloudflare from "@alchemy.run/cloudflare-runtime/vite";
+import { stageOf } from "@mw10013/rigging/cloudflare/stage";
 import { integProject } from "@mw10013/rigging/cloudflare/test";
 import { app } from "@mw10013/rigging/core/app";
 import { TEST_RESULTS_GLOB, testRun, unitProject } from "@mw10013/rigging/core/test";
 import { webEnvironmentSync } from "@mw10013/shopify-app-cloudflare/dev/web";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
+import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as SchemaTransformation from "effect/SchemaTransformation";
 import { defineConfig } from "vite-plus";
 
 const { root } = app(import.meta.dirname);
-
-const stageOf = (environment: "test") =>
-  Schema.decodeUnknownSync(Schema.Trim)(
-    execFileSync("vpx", ["scripts/stage.ts", environment], { cwd: root, encoding: "utf8" }),
-  );
 
 /**
  * Vite's dependency cache, one per server: the dev and e2e servers run in one checkout at once,
@@ -95,7 +90,7 @@ export default defineConfig(({ command, mode, isPreview }) => {
       passWithNoTests: true,
       projects: [
         unitProject(),
-        integProject(() => stageOf("test"), {
+        integProject(() => Effect.runSync(stageOf("test", process.env.USER)), {
           globalSetup: ["@mw10013/rigging/cloudflare/integ-setup", "./test/integ/build-website.ts"],
         }),
       ],

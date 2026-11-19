@@ -240,7 +240,7 @@ export const retryPortTaken = <A, E, R>(start: Effect.Effect<A, E | PortTakenErr
     }),
   );
 
-const riggingBin = () => path.join(app().root, "node_modules/.bin/rigging");
+export const riggingBin = () => path.join(app().root, "node_modules/.bin/rigging");
 
 const riggingServer = Effect.fn("Server.riggingServer")(function* (args: readonly string[]) {
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;

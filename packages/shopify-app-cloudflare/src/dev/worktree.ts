@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { type PerDeveloper, PerDeveloperStage } from "@mw10013/rigging/cloudflare/stage";
+import { type PerDeveloper, stageOf } from "@mw10013/rigging/cloudflare/stage";
 import { runCommand } from "@mw10013/rigging/core/command";
 /**
  * A checkout of this repository is either the main checkout, whose `.git` is
@@ -15,10 +15,6 @@ import { runCommand } from "@mw10013/rigging/core/command";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import * as SchemaTransformation from "effect/SchemaTransformation";
-
-export class WorktreeError extends Schema.TaggedError<WorktreeError>()("WorktreeError", {
-  message: Schema.String,
-}) {}
 
 const Lines = Schema.String.pipe(
   Schema.decodeTo(
@@ -59,25 +55,5 @@ export const checkoutKind = Effect.all([
 export const currentBranch = runCommand("git", ["branch", "--show-current"]).pipe(
   Effect.map((output) => output.trim()),
 );
-
-/**
- * The same in every checkout: each checkout keeps its per-developer stages in its own `.alchemy/`.
- */
-export const stageOf = Effect.fn("Worktree.stageOf")(function* (
-  environment: PerDeveloper,
-  user: string | undefined,
-) {
-  return yield* Schema.encodeUnknownEffect(PerDeveloperStage)({
-    environment,
-    user,
-  }).pipe(
-    Effect.mapError(
-      () =>
-        new WorktreeError({
-          message: `$USER must be lowercase letters and digits to name a stage, got ${JSON.stringify(user)}`,
-        }),
-    ),
-  );
-});
 
 export const stage = (environment: PerDeveloper) => stageOf(environment, process.env.USER);

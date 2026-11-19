@@ -19,7 +19,7 @@ import * as Option from "effect/Option";
 import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
-import { type Server, ServerError, step, stopServer } from "./server.ts";
+import { riggingBin, type Server, ServerError, step } from "./server.ts";
 import type { WebEnvironment } from "./web.ts";
 
 export const stageStoreFile = (environment: WebEnvironment) => `.state/${environment}.store`;
@@ -55,12 +55,15 @@ export const recordStore = (server: Server) =>
     yield* fs.writeFileString(file, `${server.store}\n`);
   });
 
-/** `alchemy destroy` of the server's stage: local state and data only, nothing in the cloud. */
+/**
+ * `rigging local destroy` of the server's stage, which stops the server first: local state and
+ * data only, nothing in the cloud.
+ */
 export const destroyStage = (server: Server) =>
   Effect.gen(function* () {
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
     const exitCode = yield* spawner.exitCode(
-      ChildProcess.make("alchemy", ["destroy", "--stage", server.stage, "--yes"], {
+      ChildProcess.make(riggingBin(), ["local", "destroy", server.environment], {
         cwd: app().root,
         stdin: "ignore",
         stdout: "inherit",
@@ -69,7 +72,7 @@ export const destroyStage = (server: Server) =>
     );
     if (exitCode !== ChildProcessSpawner.ExitCode(0))
       return yield* new ServerError({
-        message: `alchemy destroy exited ${String(exitCode)}`,
+        message: `rigging local destroy exited ${String(exitCode)}`,
       });
   });
 
@@ -82,7 +85,6 @@ export const resetStaleStage = (server: Server) =>
     yield* Console.log(
       `reset stage ${server.stage}: ${reason.value}, and the ${server.environment} lease is ${server.store}`,
     );
-    yield* step("stop", stopServer(server.environment));
     yield* step(`destroy stage ${server.stage}`, destroyStage(server));
     yield* fs.remove(path.join(app().root, stageStoreFile(server.environment)), {
       force: true,
