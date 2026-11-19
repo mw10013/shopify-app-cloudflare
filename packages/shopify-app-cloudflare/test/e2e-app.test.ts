@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 describe("e2eProject", () => {
-  it("keeps failed tests' traces by default, with a warning that they hold the login", () => {
+  it("keeps failed tests' traces by default, without a warning", () => {
     vi.stubEnv(E2E_TRACE, undefined);
     vi.stubEnv("TEST_WORKER_INDEX", undefined);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -45,7 +45,7 @@ describe("e2eProject", () => {
     assert.strictEqual(use?.trace, "retain-on-failure");
     assert.strictEqual(use?.screenshot, "off");
     assert.strictEqual(use?.video, "off");
-    assert.match(String(warn.mock.calls[0]?.[0]), /live Shopify admin login/u);
+    assert.strictEqual(warn.mock.calls.length, 0);
   });
 
   it("keeps no trace when opted out", () => {
