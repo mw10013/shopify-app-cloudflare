@@ -2,9 +2,12 @@ import { assert, describe, it } from "@effect/vitest";
 import {
   applyCloseOutcome,
   closeOutcome,
+  liveRoutesAtom,
   makeNoticeDispatch,
+  makeNoticesAtom,
   nameSocket,
   NOTICE_THROTTLE,
+  noticeBus,
   reaskAtom,
   retryPolicy,
   shopActorProtocol,
@@ -25,6 +28,8 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Function from "effect/Function";
+import * as Layer from "effect/Layer";
+import * as PubSub from "effect/PubSub";
 import * as Atom from "effect/reactivity/Atom";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import * as Schedule from "effect/Schedule";
@@ -264,5 +269,45 @@ describe("notice dispatch", () => {
     t.dispatch.notice({ _tag: "Connected", invalidated: ["a", "b"] });
     assert.deepStrictEqual(t.refreshes, [["a"], ["a", "b"]]);
     t.dispatch.dispose();
+  });
+});
+
+describe("notices while the document reports hidden", () => {
+  const window = Duration.toMillis(NOTICE_THROTTLE);
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal("document", {
+      visibilityState: "hidden",
+      addEventListener: Function.constVoid,
+      removeEventListener: Function.constVoid,
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("each notice refreshes its keys, and a trailing notice refreshes when its window ends", async () => {
+    const refreshes: string[][] = [];
+    const registry = AtomRegistry.make();
+    registry.set(liveRoutesAtom, {
+      invalidate: (keys) => {
+        refreshes.push([...keys]);
+      },
+    });
+    const unmount = registry.mount(makeNoticesAtom(Atom.runtime(Layer.empty)));
+    const publish = async (...invalidated: string[]) => {
+      Effect.runSync(
+        PubSub.publish(registry.get(noticeBus), { _tag: "ShopActorNotice", invalidated }),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+    };
+    await publish("a", "b");
+    assert.deepStrictEqual(refreshes, [["a", "b"]]);
+    await publish("a");
+    await vi.advanceTimersByTimeAsync(window + 1);
+    assert.deepStrictEqual(refreshes, [["a", "b"], ["a"]]);
+    unmount();
+    registry.dispose();
   });
 });
