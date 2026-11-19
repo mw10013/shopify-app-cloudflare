@@ -284,7 +284,6 @@ export const e2eServerCommand = <R = never>({
   const restartCommand = Command.make("restart", {}, () =>
     Effect.gen(function* () {
       const server = yield* loadE2e;
-      yield* step("stop", stopServer("e2e"));
       yield* step(`destroy stage ${server.stage}`, destroyStage(server));
       yield* start("fresh");
     }).pipe(Effect.mapError(toUserError)),
