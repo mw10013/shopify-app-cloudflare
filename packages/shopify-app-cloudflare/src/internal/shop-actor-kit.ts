@@ -6,6 +6,7 @@ import type { RuntimeContext } from "alchemy";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
@@ -452,30 +453,57 @@ const make = <
         const accepted = yield* socket.fetch(identity);
         if (Option.isSome(accepted.socket)) {
           const role = caller.value.role;
-          yield* Effect.logDebug(
-            `ShopActor.fetch: shop=${shop} role=${role}: socket accepted`,
-          ).pipe(Effect.annotateLogs({ shop, role }));
+          yield* Effect.logInfo(`ShopActor.fetch: shop=${shop} role=${role}: socket accepted`).pipe(
+            Effect.annotateLogs({ shop, role }),
+          );
           if (hooks.onAccept !== undefined) yield* hooks.onAccept(identity, accepted.socket.value);
         }
         return accepted.response;
       }).pipe(Effect.withSpan("ShopActor.fetch"));
+
+      const attachedIdentity = (ws: Cloudflare.Workers.WebSocket) =>
+        Option.flatMap(decodeAttachment(ws.deserializeAttachment<unknown>()), ({ shopActor }) =>
+          Option.fromUndefinedOr(shopActor),
+        );
 
       const webSocketClose = Effect.fn("ShopActor.webSocketClose")(function* (
         ws: Cloudflare.Workers.WebSocket,
         code: number,
         reason: string,
       ) {
-        const role = Option.match(
-          Option.flatMap(decodeAttachment(ws.deserializeAttachment<unknown>()), ({ shopActor }) =>
-            Option.fromUndefinedOr(shopActor),
-          ),
-          { onNone: () => "none", onSome: ({ caller }) => caller.role },
+        const identity = attachedIdentity(ws);
+        const role = Option.match(identity, {
+          onNone: () => "none",
+          onSome: ({ caller }) => caller.role,
+        });
+        const now = yield* DateTime.now;
+        const openFor = Option.map(
+          identity,
+          ({ connectedAt }) =>
+            `${String(Math.round(Duration.toSeconds(DateTime.distance(connectedAt, now))))}s`,
         );
-        const log = code === 1000 || code === 1001 ? Effect.logDebug : Effect.logInfo;
-        yield* log(
-          `ShopActor.webSocketClose: shop=${shop} role=${role} code=${String(code)}${reason === "" ? "" : `: ${reason}`}`,
-        ).pipe(Effect.annotateLogs({ shop, role, code, reason }));
+        const opened = Option.match(openFor, {
+          onNone: () => ({ text: "", annotations: {} }),
+          onSome: (openFor) => ({ text: ` openFor=${openFor}`, annotations: { openFor } }),
+        });
+        yield* Effect.logInfo(
+          `ShopActor.webSocketClose: shop=${shop} role=${role} code=${String(code)}${opened.text}${reason === "" ? "" : `: ${reason}`}`,
+        ).pipe(Effect.annotateLogs({ shop, role, code, reason, ...opened.annotations }));
         yield* socket.webSocketClose(ws);
+      });
+
+      const webSocketError = Effect.fn("ShopActor.webSocketError")(function* (
+        ws: Cloudflare.Workers.WebSocket,
+        error: unknown,
+      ) {
+        const role = Option.match(attachedIdentity(ws), {
+          onNone: () => "none",
+          onSome: ({ caller }) => caller.role,
+        });
+        yield* Effect.logInfo(
+          `ShopActor.webSocketError: shop=${shop} role=${role}: ${String(error)}`,
+        ).pipe(Effect.annotateLogs({ shop, role, error: String(error) }));
+        yield* socket.webSocketError(ws, error);
       });
 
       const revoke = Effect.fn("ShopActor.revoke")(function* () {
@@ -497,7 +525,7 @@ const make = <
         fetch,
         webSocketMessage: socket.webSocketMessage,
         webSocketClose,
-        webSocketError: socket.webSocketError,
+        webSocketError,
         ...(alarm === undefined ? {} : { alarm: () => alarm().pipe(Effect.provide(runtime)) }),
         ...((built.methods === undefined ? {} : crossDefects(built.methods)) as Methods),
         ...crossDefects(lifecycle),
