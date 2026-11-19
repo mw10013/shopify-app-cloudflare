@@ -27,7 +27,6 @@ import {
   type BusNotice,
   makeNoticeDispatch,
   NOTICE_THROTTLE,
-  type Visibility,
 } from "#internal/shop-actor-client.ts";
 import {
   CONNECTION_CLOSE_DISPLACED,
@@ -200,28 +199,15 @@ describe("notice reruns", () => {
     });
     await router.load();
     const reruns = () => loads.count - 1;
-    const tab = { hidden: false, listeners: new Set<() => void>() };
-    const visibility: Visibility = {
-      isHidden: () => tab.hidden,
-      onChange: (listener) => {
-        tab.listeners.add(listener);
-        return () => tab.listeners.delete(listener);
-      },
-    };
     const dispatch = makeNoticeDispatch(makeLiveRoutes(router).invalidate, {
       throttle: NOTICE_THROTTLE,
-      visibility,
     });
     onTestFinished(dispatch.dispose);
     const notice = async (notice: BusNotice) => {
       dispatch.notice(notice);
       await vi.advanceTimersByTimeAsync(0);
     };
-    const show = (hidden: boolean) => {
-      tab.hidden = hidden;
-      for (const listener of tab.listeners) listener();
-    };
-    return { reruns, notice, show };
+    return { reruns, notice };
   };
 
   it("a notice naming no key the route reads reruns nothing", async () => {
@@ -240,17 +226,6 @@ describe("notice reruns", () => {
     assert.strictEqual(t.reruns(), 2);
     await vi.runAllTimersAsync();
     assert.strictEqual(t.reruns(), 2);
-  });
-
-  it("a hidden tab defers the rerun until it is shown", async () => {
-    const t = await page();
-    t.show(true);
-    await t.notice({ _tag: "ShopActorNotice", invalidated: ["count"] });
-    await vi.runAllTimersAsync();
-    assert.strictEqual(t.reruns(), 0);
-    t.show(false);
-    await vi.advanceTimersByTimeAsync(0);
-    assert.strictEqual(t.reruns(), 1);
   });
 });
 

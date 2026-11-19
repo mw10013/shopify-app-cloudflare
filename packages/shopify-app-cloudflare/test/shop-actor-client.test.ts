@@ -2,14 +2,16 @@ import { assert, describe, it } from "@effect/vitest";
 import {
   applyCloseOutcome,
   closeOutcome,
+  liveRoutesAtom,
   makeNoticeDispatch,
+  makeNoticesAtom,
   nameSocket,
   NOTICE_THROTTLE,
+  noticeBus,
   reaskAtom,
   retryPolicy,
   shopActorProtocol,
   socketStateAtom,
-  type Visibility,
 } from "@mw10013/shopify-app-cloudflare/client";
 import {
   CONNECTION_CLOSE_DISPLACED,
@@ -25,6 +27,8 @@ import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Function from "effect/Function";
+import * as Layer from "effect/Layer";
+import * as PubSub from "effect/PubSub";
 import * as Atom from "effect/reactivity/Atom";
 import * as AtomRegistry from "effect/reactivity/AtomRegistry";
 import * as Schedule from "effect/Schedule";
@@ -188,25 +192,13 @@ describe("notice dispatch", () => {
 
   const setup = () => {
     const refreshes: string[][] = [];
-    const tab = { hidden: false, listeners: new Set<() => void>() };
-    const visibility: Visibility = {
-      isHidden: () => tab.hidden,
-      onChange: (listener) => {
-        tab.listeners.add(listener);
-        return () => tab.listeners.delete(listener);
-      },
-    };
     const dispatch = makeNoticeDispatch(
       (keys) => {
         refreshes.push([...keys]);
       },
-      { throttle: NOTICE_THROTTLE, visibility },
+      { throttle: NOTICE_THROTTLE },
     );
-    const show = (hidden: boolean) => {
-      tab.hidden = hidden;
-      for (const listener of tab.listeners) listener();
-    };
-    return { refreshes, dispatch, show };
+    return { refreshes, dispatch };
   };
   const notice = (...invalidated: string[]) => ({
     _tag: "ShopActorNotice" as const,
@@ -248,21 +240,51 @@ describe("notice dispatch", () => {
     assert.strictEqual(t.refreshes.length, 2);
   });
 
-  it("a hidden tab holds its keys until it is shown", () => {
-    const t = setup();
-    t.show(true);
-    t.dispatch.notice(notice("a", "b"));
-    assert.deepStrictEqual(t.refreshes, []);
-    t.show(false);
-    assert.deepStrictEqual(t.refreshes, [["a", "b"]]);
-  });
-
-  it("every connect refreshes, inside a window and while hidden", () => {
+  it("every connect refreshes, inside a window", () => {
     const t = setup();
     t.dispatch.notice(notice("a"));
-    t.show(true);
     t.dispatch.notice({ _tag: "Connected", invalidated: ["a", "b"] });
     assert.deepStrictEqual(t.refreshes, [["a"], ["a", "b"]]);
     t.dispatch.dispose();
+  });
+});
+
+describe("notices while the document reports hidden", () => {
+  const window = Duration.toMillis(NOTICE_THROTTLE);
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal("document", {
+      visibilityState: "hidden",
+      addEventListener: Function.constVoid,
+      removeEventListener: Function.constVoid,
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("each notice refreshes its keys, and a trailing notice refreshes when its window ends", async () => {
+    const refreshes: string[][] = [];
+    const registry = AtomRegistry.make();
+    registry.set(liveRoutesAtom, {
+      invalidate: (keys) => {
+        refreshes.push([...keys]);
+      },
+    });
+    const unmount = registry.mount(makeNoticesAtom(Atom.runtime(Layer.empty)));
+    const publish = async (...invalidated: string[]) => {
+      Effect.runSync(
+        PubSub.publish(registry.get(noticeBus), { _tag: "ShopActorNotice", invalidated }),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+    };
+    await publish("a", "b");
+    assert.deepStrictEqual(refreshes, [["a", "b"]]);
+    await publish("a");
+    await vi.advanceTimersByTimeAsync(window + 1);
+    assert.deepStrictEqual(refreshes, [["a", "b"], ["a"]]);
+    unmount();
+    registry.dispose();
   });
 });
