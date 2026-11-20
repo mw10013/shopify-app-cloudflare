@@ -5,7 +5,7 @@ saveExact: true
 catalog:
   "@alchemy.run/better-auth": 2.0.0-beta.87
   "@alchemy.run/cloudflare": 2.0.0-beta.87
-  "@mw10013/rigging": 0.6.0
+  "@mw10013/rigging": 0.6.1
   "@types/node": 26.6.4
   "@vitest/browser-playwright": 5.1.0
   alchemy: 2.0.0-beta.87
@@ -29,4 +29,4 @@ peerDependencyRules:
   allowedVersions:
     vite: "*"
 minimumReleaseAgeExclude:
-  - "@mw10013/rigging@0.6.0"
+  - "@mw10013/rigging@0.6.1"
