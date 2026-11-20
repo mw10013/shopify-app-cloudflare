@@ -10,6 +10,7 @@ import * as Schema from "effect/Schema";
 
 import { AppInstallationStore } from "./app-installation-store.ts";
 import { AppTokens } from "./app-tokens.ts";
+import { capturedContext } from "./captured-context.ts";
 import type { ShopifyAccessFailure } from "./contract.ts";
 import type { ShopDomain } from "./domain.ts";
 import { ShopifyHooks } from "./hooks.ts";
@@ -123,7 +124,7 @@ const make = <R>(extra: ExtraTopics<R>) =>
     const hooks = yield* ShopifyHooks;
     const tokens = yield* AppTokens;
     const uninstall = uninstallShop(installations, hooks);
-    const context = yield* Effect.context<R>();
+    const context = yield* capturedContext<R>();
 
     /**
      * The GDPR/CPRA compliance topics, required for App Store review: verified no-ops. A bad HMAC
