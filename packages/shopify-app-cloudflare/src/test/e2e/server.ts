@@ -350,7 +350,7 @@ export const e2eServerCommand = <R = never>({
       [
         "Run this checkout's long-lived e2e server (shopify app dev on the e2e store, under rigging server) for every e2e run.",
         "start adopts a server already running for this checkout, or starts one detached, like the dev server; it writes shopify.app.e2e.toml from shopify.app.toml first.",
-        "Output goes to .rigging/servers/e2e/log/current; vp run e2e:logs -f follows it.",
+        "Each run logs to its own file, the log field of rigging server status e2e; vp run e2e:logs -f follows it.",
       ].join("\n"),
     ),
     Command.withSubcommands([startCommand, statusCommand, restartCommand, reinstallCommand]),

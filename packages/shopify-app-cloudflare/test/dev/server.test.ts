@@ -62,7 +62,7 @@ const status = (fields: Record<string, unknown>) =>
     startedAt: "2026-11-03T14:56:35.734Z",
     port: 50_713,
     url: "https://example.trycloudflare.com",
-    log: ".rigging/servers/e2e/log/current",
+    log: ".rigging/servers/e2e/runs/2026-11-03T14:56:35.734Z-9df4baf3.log",
     ...fields,
   });
 
@@ -77,7 +77,7 @@ describe("rigging server status", () => {
         port: 50_713,
         url: Option.some("https://example.trycloudflare.com"),
         startedAt: Option.some(new Date("2026-11-03T14:56:35.734Z")),
-        log: ".rigging/servers/e2e/log/current",
+        log: ".rigging/servers/e2e/runs/2026-11-03T14:56:35.734Z-9df4baf3.log",
       }),
     );
   });
