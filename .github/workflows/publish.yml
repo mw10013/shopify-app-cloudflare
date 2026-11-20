@@ -1,19 +1,50 @@
 name: Publish
 
 # npm trusts this workflow (trusted publishing), so the repository stores no npm token.
+# The run succeeds only once npm serves the new version, so watching it answers "installable now".
 on:
   push:
     tags: ["v*"]
 
 permissions:
+  actions: read
   contents: read
   id-token: write
 
 jobs:
   publish:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: The tag matches package.json
+        run: |
+          version=$(node -p 'require("./packages/shopify-app-cloudflare/package.json").version')
+          test "$GITHUB_REF_NAME" = "v$version" || {
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          }
+      # The tag is usually pushed right after the merge, so CI on main may not have registered or finished yet.
+      - name: CI passed on main for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for attempt in $(seq 1 20); do
+            id=$(gh run list --workflow ci.yml --branch main --commit "$GITHUB_SHA" --event push \
+              --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            test -n "$id" && break
+            echo "no CI run on main for $GITHUB_SHA yet ($attempt/20)"
+            sleep 15
+          done
+          test -n "$id" || {
+            echo "::error::no CI run on main for $GITHUB_SHA after 5 minutes; tag a commit on main"
+            exit 1
+          }
+          gh run watch "$id" --exit-status --interval 30 > /dev/null || {
+            echo "::error::CI run $id for $GITHUB_SHA did not succeed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$id"
+            exit 1
+          }
+          echo "CI run $id passed for $GITHUB_SHA"
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -22,24 +53,9 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
       - run: echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
-      - name: The tag matches package.json
-        run: |
-          version=$(node -p 'require("./packages/shopify-app-cloudflare/package.json").version')
-          test "$GITHUB_REF_NAME" = "v$version" || {
-            echo "tag $GITHUB_REF_NAME does not match package.json version $version"
-            exit 1
-          }
-      - run: vp check
-      - run: vp exec playwright install chromium --only-shell
-        working-directory: packages/shopify-app-cloudflare
-      - run: vp test run
-        working-directory: packages/shopify-app-cloudflare
-      - run: vp test run --project unit
-        working-directory: apps/testbed
-      - run: vp test run --project integ
-        working-directory: apps/testbed
       - run: vp run build
         working-directory: packages/shopify-app-cloudflare
+      # CI tests the source; this tests the packed tarball a consumer installs.
       - run: vp run consumer-check
         working-directory: packages/shopify-app-cloudflare
       - run: npm install -g npm@latest
@@ -51,3 +67,18 @@ jobs:
           ! grep -q "auto-corrected" publish-dry-run.txt
       - run: npm publish ./dist --provenance
         working-directory: packages/shopify-app-cloudflare
+      - name: npm serves the new version
+        working-directory: packages/shopify-app-cloudflare
+        run: |
+          name=$(node -p 'require("./package.json").name')
+          version=$(node -p 'require("./package.json").version')
+          for attempt in $(seq 1 40); do
+            if [ "$(npm view "$name@$version" version --prefer-online 2>/dev/null)" = "$version" ]; then
+              echo "npm serves $name@$version"
+              exit 0
+            fi
+            echo "npm does not serve $name@$version yet ($attempt/40)"
+            sleep 15
+          done
+          echo "::error::npm did not serve $name@$version within 10 minutes of publishing"
+          exit 1
