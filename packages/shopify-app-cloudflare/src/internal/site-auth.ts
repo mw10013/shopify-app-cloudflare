@@ -19,6 +19,7 @@ import * as Schema from "effect/Schema";
 import type * as Scope from "effect/Scope";
 
 import { SignInCodeDailyCap, SITE_AUTH_ENV } from "./bindings.ts";
+import { capturedContext } from "./captured-context.ts";
 import { isAlchemyRuntime } from "./shopify-client.ts";
 import {
   AUTH_BASE_PATH,
@@ -135,7 +136,7 @@ const make = <R>(options: AuthOptions<R>) =>
       return yield* Effect.die(new Error(`${SITE_AUTH_ENV.dailyCap} is not bound to the Backend`));
     const capped = Option.contains(dailyCap, "on");
     const database = yield* BetterAuthDatabase;
-    const context = yield* Effect.context<R>();
+    const context = yield* capturedContext<R>();
     const runPromise = Effect.runPromiseWith(context);
     const run: RunHook<R> = (effect) =>
       runPromise(effect.pipe(Effect.scoped, Effect.provide(RuntimeContext.phantom)));

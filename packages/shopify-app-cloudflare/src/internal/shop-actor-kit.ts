@@ -22,6 +22,7 @@ import type * as Migrator from "effect/sql/Migrator";
 import * as SqlClient from "effect/sql/SqlClient";
 
 import * as ActorSocket from "./actor-socket.ts";
+import { capturedContext } from "./captured-context.ts";
 import { crossDefects, logDefect } from "./defects.ts";
 import { ShopDomain } from "./domain.ts";
 import {
@@ -280,7 +281,7 @@ const make = <
   Effect.gen(function* () {
     const state = yield* Cloudflare.DurableObjectState;
     const appInstallations = yield* AppInstallations;
-    const services = yield* Effect.context<Exclude<R, ActivationServices>>();
+    const services = yield* capturedContext<Exclude<R, ActivationServices>>();
     const callerSchema = (options.caller ?? MerchantCaller) as ActorSocket.CallerSchema<C>;
     const decodeConnectionHeader = Schema.decodeUnknownOption(Schema.fromJsonString(callerSchema));
     const decodeAttachment = Schema.decodeUnknownOption(ActorSocket.attachment(callerSchema));
@@ -288,7 +289,7 @@ const make = <
     return Effect.gen(function* () {
       const name = decodeShopDomain(state.id.name);
       const label = Option.getOrElse(name, () => state.id.toString());
-      const runtime = yield* Effect.context<RuntimeContext>();
+      const runtime = yield* capturedContext<RuntimeContext>();
       if (
         isEmptyStore(state.raw.storage) &&
         Option.isNone(

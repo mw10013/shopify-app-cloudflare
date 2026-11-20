@@ -1,6 +1,7 @@
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
+import { capturedContext } from "./captured-context.ts";
 import { type Failures, type Method, serve, type Undeclared } from "./serve.ts";
 import { ForbiddenError } from "./shop-actor-contract.ts";
 import { AdminRefusal, RequestInfo, type SiteUser } from "./site-auth-contract.ts";
@@ -56,7 +57,7 @@ export const serveAdmin = <
   },
 ): Effect.Effect<AdminServed<M, F>, never, Auth> =>
   Effect.map(
-    Effect.context<Auth>(),
+    capturedContext<Auth>(),
     (context) =>
       Object.fromEntries(
         Object.entries<Method>(methods).map(([name, method]) => [
