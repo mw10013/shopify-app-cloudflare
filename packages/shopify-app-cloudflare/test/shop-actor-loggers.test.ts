@@ -17,7 +17,6 @@ import { capturingLogs, type Logged } from "./logs.ts";
 
 const SHOP = "a.myshopify.com";
 
-/** A Durable Object's native state over an in-memory `node:sqlite`, as much as the kit touches. */
 const nativeState = () => {
   const sqlite = new DatabaseSync(":memory:");
   const exec = (query: string, ...bindings: SQLInputValue[]) => {
