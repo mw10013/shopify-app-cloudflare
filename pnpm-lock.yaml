@@ -171,8 +171,8 @@ catalogs:
       specifier: 2.0.0-beta.87
       version: 2.0.0-beta.87
     '@mw10013/rigging':
-      specifier: 0.8.0
-      version: 0.8.0
+      specifier: 0.9.0
+      version: 0.9.0
     '@types/node':
       specifier: 26.6.4
       version: 26.6.4
@@ -211,7 +211,7 @@ importers:
     devDependencies:
       '@mw10013/rigging':
         specifier: 'catalog:'
-        version: 0.8.0(c593c9f67dc648bb5b7d162c8fba0d7e)
+        version: 0.9.0(c593c9f67dc648bb5b7d162c8fba0d7e)
       '@tanstack/eslint-plugin-router':
         specifier: 1.162.0
         version: 1.162.0(eslint@10.14.0(jiti@2.7.0))(typescript@7.0.2)
@@ -253,7 +253,7 @@ importers:
         version: 4.1.4(effect@4.1.4)
       '@mw10013/rigging':
         specifier: 'catalog:'
-        version: 0.8.0(c593c9f67dc648bb5b7d162c8fba0d7e)
+        version: 0.9.0(c593c9f67dc648bb5b7d162c8fba0d7e)
       '@mw10013/shopify-app-cloudflare':
         specifier: workspace:*
         version: link:../../packages/shopify-app-cloudflare
@@ -363,7 +363,7 @@ importers:
         version: 4.1.4(effect@4.1.4)(vitest@5.1.0)
       '@mw10013/rigging':
         specifier: 'catalog:'
-        version: 0.8.0(c593c9f67dc648bb5b7d162c8fba0d7e)
+        version: 0.9.0(c593c9f67dc648bb5b7d162c8fba0d7e)
       '@shopify/polaris-types':
         specifier: 2.0.0
         version: 2.0.0
@@ -1084,8 +1084,8 @@ packages:
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
 
-  '@mw10013/rigging@0.8.0':
-    resolution: {integrity: sha512-bHIyDjVN2xNA5zyzGyOUSJoaLyXzmsCON4Kde0nBupqNrFmtOypmzMPxGb5ACKnawETNMhFJun4OdZ8w382dtw==}
+  '@mw10013/rigging@0.9.0':
+    resolution: {integrity: sha512-Sr14c1f46cU0ny2B+MYgAn1SWiJC1u1x0w6FEFFg4qnX1IbiSnDCBRgD+GWMF93qUZ71652rSfRk7BX3JAGo9Q==}
     hasBin: true
     peerDependencies:
       '@alchemy.run/cloudflare': '>=2.0.0-beta.85 <3'
@@ -3953,7 +3953,7 @@ snapshots:
 
   '@keyv/serialize@1.1.1': {}
 
-  '@mw10013/rigging@0.8.0(c593c9f67dc648bb5b7d162c8fba0d7e)':
+  '@mw10013/rigging@0.9.0(c593c9f67dc648bb5b7d162c8fba0d7e)':
     dependencies:
       effect: 4.1.4
       vite-plus: 1.6.0(@types/node@26.6.4)(@vitest/browser-playwright@5.1.0)(@vitest/ui@5.1.0)(jiti@2.7.0)(playwright@1.64.1)(typescript@7.0.2)(yaml@2.9.1)
